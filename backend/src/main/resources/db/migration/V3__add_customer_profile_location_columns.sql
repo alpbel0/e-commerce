@@ -1,0 +1,3 @@
+ALTER TABLE customer_profiles
+ADD COLUMN country VARCHAR(100),
+ADD COLUMN state VARCHAR(100);
