@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: ecommerce-backend
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+
