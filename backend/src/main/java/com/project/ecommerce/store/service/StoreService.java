@@ -1,15 +1,25 @@
 package com.project.ecommerce.store.service;
 
+import com.project.ecommerce.auditlog.service.AuditLogService;
+import com.project.ecommerce.auth.security.AuthenticatedUser;
+import com.project.ecommerce.auth.service.CurrentUserService;
 import com.project.ecommerce.common.api.ApiPageResponse;
+import com.project.ecommerce.store.domain.Store;
 import com.project.ecommerce.store.dto.StoreDetailResponse;
 import com.project.ecommerce.store.dto.StoreSummaryResponse;
+import com.project.ecommerce.store.dto.UpdateStoreRequest;
+import com.project.ecommerce.store.dto.UpdateStoreStatusRequest;
 import com.project.ecommerce.store.repository.StoreRepository;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -18,11 +28,24 @@ public class StoreService {
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
+    private static final String STORE_OPEN = "OPEN";
+    private static final String STORE_CLOSED = "CLOSED";
+    private static final String STORE_SUSPENDED = "SUSPENDED";
+    private static final Set<String> CORPORATE_ALLOWED_STATUSES = Set.of(STORE_OPEN, STORE_CLOSED);
+    private static final Set<String> ADMIN_ALLOWED_STATUSES = Set.of(STORE_OPEN, STORE_CLOSED, STORE_SUSPENDED);
 
     private final StoreRepository storeRepository;
+    private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
-    public StoreService(StoreRepository storeRepository) {
+    public StoreService(
+        StoreRepository storeRepository,
+        CurrentUserService currentUserService,
+        AuditLogService auditLogService
+    ) {
         this.storeRepository = storeRepository;
+        this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
     public ApiPageResponse<StoreSummaryResponse> listStores(Integer page, Integer size, String sort, String status) {
@@ -44,21 +67,64 @@ public class StoreService {
     public StoreDetailResponse getStore(UUID storeId) {
         var store = storeRepository.findById(storeId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found"));
-        return new StoreDetailResponse(
-            store.getId(),
-            store.getName(),
-            store.getDescription(),
-            store.getContactEmail(),
-            store.getContactPhone(),
-            store.getAddress(),
-            store.getTotalSales(),
-            store.getProductCount(),
-            store.getRating(),
-            store.getStatus(),
-            store.getOwner().getId(),
-            store.getCreatedAt(),
-            store.getUpdatedAt()
+        return toDetailResponse(store);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('CORPORATE')")
+    public StoreDetailResponse updateCorporateStore(UUID storeId, UpdateStoreRequest request) {
+        AuthenticatedUser currentUser = currentUserService.requireAuthenticatedUser();
+        Store store = storeRepository.findByIdAndOwnerId(storeId, currentUser.getUserId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot manage another seller's store"));
+
+        String previousStatus = store.getStatus();
+        applyStorePatch(store, request);
+
+        if (request.status() != null) {
+            String nextStatus = normalizeStatus(request.status());
+            if (!CORPORATE_ALLOWED_STATUSES.contains(nextStatus)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corporate users can only set store status to OPEN or CLOSED");
+            }
+            if (STORE_SUSPENDED.equals(previousStatus) && STORE_OPEN.equals(nextStatus)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Suspended stores cannot be reopened by the seller");
+            }
+            store.setStatus(nextStatus);
+        }
+
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "STORE_UPDATED",
+            Map.of(
+                "storeId", store.getId(),
+                "oldStatus", previousStatus,
+                "newStatus", store.getStatus()
+            )
         );
+        return toDetailResponse(store);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public StoreDetailResponse updateStoreStatusAsAdmin(UUID storeId, UpdateStoreStatusRequest request) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found"));
+        String nextStatus = normalizeStatus(request.status());
+        if (!ADMIN_ALLOWED_STATUSES.contains(nextStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported store status");
+        }
+
+        String previousStatus = store.getStatus();
+        store.setStatus(nextStatus);
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "STORE_STATUS_UPDATED",
+            Map.of(
+                "storeId", store.getId(),
+                "oldStatus", previousStatus,
+                "newStatus", nextStatus
+            )
+        );
+        return toDetailResponse(store);
     }
 
     private Pageable buildPageable(Integer page, Integer size, String sortExpression) {
@@ -84,5 +150,46 @@ public class StoreService {
             ? Sort.Direction.DESC
             : Sort.Direction.ASC;
         return Sort.by(direction, property);
+    }
+
+    private void applyStorePatch(Store store, UpdateStoreRequest request) {
+        if (request.name() != null) {
+            store.setName(request.name().trim());
+        }
+        if (request.description() != null) {
+            store.setDescription(blankToNull(request.description()));
+        }
+        if (request.contactEmail() != null) {
+            store.setContactEmail(request.contactEmail().trim());
+        }
+        if (request.contactPhone() != null) {
+            store.setContactPhone(request.contactPhone().trim());
+        }
+    }
+
+    private StoreDetailResponse toDetailResponse(Store store) {
+        return new StoreDetailResponse(
+            store.getId(),
+            store.getName(),
+            store.getDescription(),
+            store.getContactEmail(),
+            store.getContactPhone(),
+            store.getAddress(),
+            store.getTotalSales(),
+            store.getProductCount(),
+            store.getRating(),
+            store.getStatus(),
+            store.getOwner().getId(),
+            store.getCreatedAt(),
+            store.getUpdatedAt()
+        );
+    }
+
+    private String normalizeStatus(String status) {
+        return status.trim().toUpperCase();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

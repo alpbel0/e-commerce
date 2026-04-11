@@ -5,11 +5,14 @@ import com.project.ecommerce.review.dto.CreateReviewRequest;
 import com.project.ecommerce.review.dto.CreateReviewResponseRequest;
 import com.project.ecommerce.review.dto.ReviewDto;
 import com.project.ecommerce.review.dto.ReviewResponseDto;
+import com.project.ecommerce.review.dto.UpdateReviewRequest;
 import com.project.ecommerce.review.service.ReviewService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,6 +50,17 @@ public class ReviewController {
     @GetMapping("/{reviewId}")
     public ReviewDto getReview(@PathVariable UUID reviewId) {
         return reviewService.getReview(reviewId);
+    }
+
+    @PatchMapping("/{reviewId}")
+    public ReviewDto updateReview(@PathVariable UUID reviewId, @Valid @RequestBody UpdateReviewRequest request) {
+        return reviewService.updateReview(reviewId, request);
+    }
+
+    @DeleteMapping("/{reviewId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteReview(@PathVariable UUID reviewId) {
+        reviewService.deleteReview(reviewId);
     }
 
     @PostMapping("/{reviewId}/responses")

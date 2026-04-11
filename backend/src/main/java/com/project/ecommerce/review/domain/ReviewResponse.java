@@ -29,6 +29,9 @@ public class ReviewResponse {
     @Column(name = "response_text", nullable = false)
     private String responseText;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean active;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -65,6 +68,14 @@ public class ReviewResponse {
 
     public void setResponseText(String responseText) {
         this.responseText = responseText;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public LocalDateTime getCreatedAt() {

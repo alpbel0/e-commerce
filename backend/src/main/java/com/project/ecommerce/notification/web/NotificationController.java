@@ -1,6 +1,7 @@
 package com.project.ecommerce.notification.web;
 
 import com.project.ecommerce.common.api.ApiPageResponse;
+import com.project.ecommerce.notification.dto.MarkAsReadResponse;
 import com.project.ecommerce.notification.dto.NotificationResponse;
 import com.project.ecommerce.notification.service.NotificationService;
 import java.util.UUID;
@@ -32,5 +33,10 @@ public class NotificationController {
     @PatchMapping("/{notificationId}/read")
     public NotificationResponse markAsRead(@PathVariable UUID notificationId) {
         return notificationService.markAsRead(notificationId);
+    }
+
+    @PatchMapping("/me/read-all")
+    public MarkAsReadResponse markAllAsRead() {
+        return notificationService.markAllAsRead();
     }
 }

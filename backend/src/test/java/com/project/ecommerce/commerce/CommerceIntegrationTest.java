@@ -88,6 +88,7 @@ class CommerceIntegrationTest {
         jdbcTemplate.execute("""
             TRUNCATE TABLE
                 notifications,
+                audit_logs,
                 shipments,
                 order_items,
                 orders,
@@ -95,6 +96,7 @@ class CommerceIntegrationTest {
                 cart_items,
                 carts,
                 coupons,
+                review_responses,
                 reviews,
                 products,
                 categories,
@@ -425,6 +427,142 @@ class CommerceIntegrationTest {
     }
 
     @Test
+    void corporateShouldListAndUpdateOnlyOwnedStores() throws Exception {
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+        String foreignCorporateToken = loginAndExtractAccessToken("foreign.corporate@test.local", "CorpPass1!");
+
+        mockMvc.perform(get("/api/corporate/stores")
+                .header("Authorization", bearer(corporateToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(patch("/api/corporate/stores/{storeId}", storeA.getId())
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name":"Corporate Primary Store Updated",
+                      "description":"Updated store description",
+                      "contactEmail":"new-store@test.local",
+                      "contactPhone":"+90 555 000 00 00",
+                      "status":"CLOSED"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Corporate Primary Store Updated"))
+            .andExpect(jsonPath("$.description").value("Updated store description"))
+            .andExpect(jsonPath("$.contactEmail").value("new-store@test.local"))
+            .andExpect(jsonPath("$.contactPhone").value("+90 555 000 00 00"))
+            .andExpect(jsonPath("$.status").value("CLOSED"));
+
+        mockMvc.perform(patch("/api/corporate/stores/{storeId}", foreignStore.getId())
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"name":"Hijacked Store"}
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("You cannot manage another seller's store"));
+
+        mockMvc.perform(patch("/api/corporate/stores/{storeId}", storeA.getId())
+                .header("Authorization", bearer(foreignCorporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"name":"Hijacked Store"}
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("You cannot manage another seller's store"));
+    }
+
+    @Test
+    void adminShouldSuspendStoreAndSellerCannotReopenIt() throws Exception {
+        String adminToken = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+
+        mockMvc.perform(patch("/api/admin/stores/{storeId}/status", storeA.getId())
+                .header("Authorization", bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"SUSPENDED"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("SUSPENDED"));
+
+        mockMvc.perform(patch("/api/corporate/stores/{storeId}", storeA.getId())
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"OPEN"}
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("Suspended stores cannot be reopened by the seller"));
+
+        Integer auditCount = jdbcTemplate.queryForObject(
+            "select count(*) from audit_logs where action = 'STORE_STATUS_UPDATED' and details like ?",
+            Integer.class,
+            "%" + storeA.getId() + "%"
+        );
+        assertThat(auditCount).isEqualTo(1);
+    }
+
+    @Test
+    void closedStoreShouldDisappearFromCatalogAndBlockCartAndCheckout() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+        String adminToken = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":1}
+                    """.formatted(productA.getId())))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(patch("/api/admin/stores/{storeId}/status", storeA.getId())
+                .header("Authorization", bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"CLOSED"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CLOSED"));
+
+        mockMvc.perform(get("/api/products")
+                .header("Authorization", bearer(individualToken))
+                .param("storeId", storeA.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(0))
+            .andExpect(jsonPath("$.totalElements").value(0));
+
+        mockMvc.perform(get("/api/products/{productId}", productA.getId())
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":1}
+                    """.formatted(productA.getId())))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("This store is closed, so you cannot buy from it"));
+
+        mockMvc.perform(post("/api/orders")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentMethod":"CREDIT_CARD",
+                      "shippingAddressLine1":"Store Lock Mah. No:8",
+                      "shippingCity":"Istanbul",
+                      "shippingCountry":"Turkey"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Cart contains item from a closed store"));
+    }
+
+    @Test
     void multiStoreCheckoutShouldCreateOrdersShipmentsAndDecreaseStock() throws Exception {
         String token = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
 
@@ -721,6 +859,79 @@ class CommerceIntegrationTest {
                 .header("Authorization", bearer(foreignCorporateToken)))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Access denied"));
+    }
+
+    @Test
+    void userShouldMarkAllOwnNotificationsAsRead() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":1}
+                    """.formatted(productA.getId())))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/orders")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentMethod":"CREDIT_CARD",
+                      "shippingAddressLine1":"Test Mah. No:6",
+                      "shippingCity":"Istanbul",
+                      "shippingCountry":"Turkey"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":1}
+                    """.formatted(productB.getId())))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/orders")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentMethod":"CREDIT_CARD",
+                      "shippingAddressLine1":"Test Mah. No:7",
+                      "shippingCity":"Istanbul",
+                      "shippingCountry":"Turkey"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/notifications/me")
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items[0].read").value(false))
+            .andExpect(jsonPath("$.items[1].read").value(false));
+
+        mockMvc.perform(patch("/api/notifications/me/read-all")
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updatedCount").value(2));
+
+        mockMvc.perform(get("/api/notifications/me")
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items[0].read").value(true))
+            .andExpect(jsonPath("$.items[0].readAt").exists())
+            .andExpect(jsonPath("$.items[1].read").value(true))
+            .andExpect(jsonPath("$.items[1].readAt").exists());
+
+        mockMvc.perform(patch("/api/notifications/me/read-all")
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updatedCount").value(0));
     }
 
     @Test

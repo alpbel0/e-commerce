@@ -48,6 +48,9 @@ public class Review {
     @Column(name = "verified_purchase", nullable = false)
     private boolean verifiedPurchase;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean active;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -124,6 +127,14 @@ public class Review {
 
     public void setVerifiedPurchase(boolean verifiedPurchase) {
         this.verifiedPurchase = verifiedPurchase;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public LocalDateTime getCreatedAt() {

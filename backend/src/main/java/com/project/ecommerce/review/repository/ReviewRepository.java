@@ -12,13 +12,15 @@ import org.springframework.data.jpa.repository.Query;
 public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     @EntityGraph(attributePaths = {"user", "product", "product.store", "order"})
-    Page<Review> findByProductId(UUID productId, Pageable pageable);
+    Page<Review> findByProductIdAndActiveTrue(UUID productId, Pageable pageable);
 
-    @Override
     @EntityGraph(attributePaths = {"user", "product", "product.store", "order"})
-    Optional<Review> findById(UUID id);
+    Optional<Review> findByIdAndActiveTrue(UUID id);
 
-    boolean existsByUserIdAndOrderIdAndProductId(UUID userId, UUID orderId, UUID productId);
+    @EntityGraph(attributePaths = {"user", "product", "product.store", "order"})
+    Optional<Review> findByIdAndUserIdAndActiveTrue(UUID id, UUID userId);
+
+    boolean existsByUserIdAndProductIdAndActiveTrue(UUID userId, UUID productId);
 
     @Query("""
         select
@@ -26,6 +28,7 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
             avg(r.starRating) as averageRating
         from Review r
         where r.product.id = :productId
+          and r.active = true
         """)
     ReviewStats calculateStatsByProductId(UUID productId);
 

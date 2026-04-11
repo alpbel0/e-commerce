@@ -4,6 +4,7 @@ import com.project.ecommerce.auth.domain.AppUser;
 import com.project.ecommerce.auth.service.CurrentUserService;
 import com.project.ecommerce.common.api.ApiPageResponse;
 import com.project.ecommerce.notification.domain.Notification;
+import com.project.ecommerce.notification.dto.MarkAsReadResponse;
 import com.project.ecommerce.notification.dto.NotificationResponse;
 import com.project.ecommerce.notification.repository.NotificationRepository;
 import com.project.ecommerce.order.domain.Order;
@@ -69,7 +70,34 @@ public class NotificationService {
     }
 
     @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public MarkAsReadResponse markAllAsRead() {
+        AppUser currentUser = currentUserService.requireCurrentAppUser();
+        var unreadNotifications = notificationRepository.findByRecipientUserIdAndReadFalse(currentUser.getId());
+        if (unreadNotifications.isEmpty()) {
+            return new MarkAsReadResponse(0);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        unreadNotifications.forEach(notification -> {
+            notification.setRead(true);
+            notification.setReadAt(now);
+        });
+        return new MarkAsReadResponse(unreadNotifications.size());
+    }
+
+    @Transactional
     public void createOrderNotification(AppUser recipientUser, Order order, String type, String title, String message) {
+        createNotification(recipientUser, order, type, title, message);
+    }
+
+    @Transactional
+    public void createNotification(AppUser recipientUser, String type, String title, String message) {
+        createNotification(recipientUser, null, type, title, message);
+    }
+
+    @Transactional
+    public void createNotification(AppUser recipientUser, Order order, String type, String title, String message) {
         Notification notification = new Notification();
         notification.setId(UUID.randomUUID());
         notification.setRecipientUser(recipientUser);

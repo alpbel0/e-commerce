@@ -492,6 +492,9 @@ public class OrderService {
         if (!product.isActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart contains inactive product");
         }
+        if (!"OPEN".equals(product.getStore().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart contains item from a closed store");
+        }
         if (quantity > product.getStockQuantity()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart contains quantity above available stock");
         }

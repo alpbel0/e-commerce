@@ -1,7 +1,9 @@
 package com.project.ecommerce.review;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -86,12 +88,16 @@ class ReviewIntegrationTest {
     private AppUser foreignCorporateUser;
     private Product product;
     private Product foreignProduct;
-    private Order order;
+    private Order deliveredOrder;
+    private Order secondDeliveredOrder;
+    private Order pendingOrder;
 
     @BeforeEach
     void setUp() {
         jdbcTemplate.execute("""
             TRUNCATE TABLE
+                audit_logs,
+                notifications,
                 review_responses,
                 reviews,
                 shipments,
@@ -118,7 +124,9 @@ class ReviewIntegrationTest {
         Store foreignStore = seedStore(foreignCorporateUser, "Foreign Review Store");
         product = seedProduct(store, category, "RV-1", "Reviewable Product");
         foreignProduct = seedProduct(foreignStore, category, "RV-2", "Foreign Product");
-        order = seedOrderWithItem(individualUser, store, product);
+        deliveredOrder = seedOrderWithItem(individualUser, store, product, "DELIVERED");
+        secondDeliveredOrder = seedOrderWithItem(individualUser, store, product, "DELIVERED");
+        pendingOrder = seedOrderWithItem(individualUser, store, product, "PENDING");
     }
 
     @Test
@@ -128,15 +136,7 @@ class ReviewIntegrationTest {
         mockMvc.perform(post("/api/reviews")
                 .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "orderId": "%s",
-                      "productId": "%s",
-                      "starRating": 5,
-                      "reviewTitle": "Great Product",
-                      "reviewText": "Works exactly as expected."
-                    }
-                    """.formatted(order.getId(), product.getId())))
+                .content(reviewBody(deliveredOrder.getId(), product.getId(), 5, "Great Product", "Works exactly as expected.")))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.verifiedPurchase").value(true))
             .andExpect(jsonPath("$.starRating").value(5))
@@ -148,30 +148,21 @@ class ReviewIntegrationTest {
     }
 
     @Test
-    void duplicateReviewForSameOrderAndProductShouldBeRejected() throws Exception {
+    void duplicateReviewForSameProductShouldBeRejectedEvenAcrossDifferentOrders() throws Exception {
         String token = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
-        String body = """
-            {
-              "orderId": "%s",
-              "productId": "%s",
-              "starRating": 4,
-              "reviewTitle": "First Review",
-              "reviewText": "Solid."
-            }
-            """.formatted(order.getId(), product.getId());
 
         mockMvc.perform(post("/api/reviews")
                 .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content(reviewBody(deliveredOrder.getId(), product.getId(), 4, "First Review", "Solid.")))
             .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/reviews")
                 .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body.replace("First Review", "Second Review")))
+                .content(reviewBody(secondDeliveredOrder.getId(), product.getId(), 5, "Second Review", "Better now.")))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.message").value("You have already reviewed this product for the selected order"));
+            .andExpect(jsonPath("$.message").value("You already have an active review for this product"));
     }
 
     @Test
@@ -181,38 +172,27 @@ class ReviewIntegrationTest {
         mockMvc.perform(post("/api/reviews")
                 .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "orderId": "%s",
-                      "productId": "%s",
-                      "starRating": 3,
-                      "reviewTitle": "No Purchase",
-                      "reviewText": "Should fail."
-                    }
-                    """.formatted(order.getId(), foreignProduct.getId())))
+                .content(reviewBody(deliveredOrder.getId(), foreignProduct.getId(), 3, "No Purchase", "Should fail.")))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Review requires a verified purchase for the selected order and product"));
     }
 
     @Test
-    void corporateShouldRespondOnlyToOwnStoreReview() throws Exception {
-        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
-        MvcResult reviewResult = mockMvc.perform(post("/api/reviews")
-                .header("Authorization", bearer(individualToken))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "orderId": "%s",
-                      "productId": "%s",
-                      "starRating": 4,
-                      "reviewTitle": "Helpful",
-                      "reviewText": "Pretty good."
-                    }
-                    """.formatted(order.getId(), product.getId())))
-            .andExpect(status().isCreated())
-            .andReturn();
+    void reviewShouldRequireDeliveredOrder() throws Exception {
+        String token = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
 
-        String reviewId = readJson(reviewResult).get("id").asText();
+        mockMvc.perform(post("/api/reviews")
+                .header("Authorization", bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(reviewBody(pendingOrder.getId(), product.getId(), 3, "Pending", "Not delivered yet.")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Review requires a delivered order"));
+    }
+
+    @Test
+    void corporateShouldRespondOnlyOnceAndOnlyForOwnStore() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+        String reviewId = createReviewAndReturnId(individualToken, deliveredOrder.getId(), product.getId(), 4, "Helpful", "Pretty good.");
         String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
 
         mockMvc.perform(post("/api/reviews/{reviewId}/responses", reviewId)
@@ -224,11 +204,14 @@ class ReviewIntegrationTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.responseText").value("Thank you for the feedback."));
 
-        mockMvc.perform(get("/api/reviews/{reviewId}", reviewId)
-                .header("Authorization", bearer(corporateToken)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.responses.length()").value(1))
-            .andExpect(jsonPath("$.responses[0].responderEmail").value("corporate@test.local"));
+        mockMvc.perform(post("/api/reviews/{reviewId}/responses", reviewId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"responseText":"Second response should fail."}
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("This review already has an active seller response"));
 
         String foreignCorporateToken = loginAndExtractAccessToken("foreign.corporate@test.local", "CorpPass1!");
         mockMvc.perform(post("/api/reviews/{reviewId}/responses", reviewId)
@@ -239,6 +222,98 @@ class ReviewIntegrationTest {
                     """))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("You can only respond to reviews for your own store"));
+    }
+
+    @Test
+    void editingReviewShouldInvalidateSellerResponseAndRecalculateProductMetrics() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+        String reviewId = createReviewAndReturnId(individualToken, deliveredOrder.getId(), product.getId(), 1, "Bad", "Not happy.");
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+
+        mockMvc.perform(post("/api/reviews/{reviewId}/responses", reviewId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"responseText":"We are sorry."}
+                    """))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(patch("/api/reviews/{reviewId}", reviewId)
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "starRating": 5,
+                      "reviewTitle": "Updated",
+                      "reviewText": "Issue solved.",
+                      "reviewImages": []
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.starRating").value(5))
+            .andExpect(jsonPath("$.responses.length()").value(0));
+
+        Product refreshed = productRepository.findById(product.getId()).orElseThrow();
+        assertThat(refreshed.getReviewCount()).isEqualTo(1);
+        assertThat(refreshed.getAvgRating()).isEqualByComparingTo(new BigDecimal("5.00"));
+        assertThat(jdbcTemplate.queryForObject("select count(*) from review_responses where review_id = ? and is_active = true", Integer.class, UUID.fromString(reviewId)))
+            .isEqualTo(0);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from notifications where recipient_user_id = ?", Integer.class, corporateUser.getId()))
+            .isEqualTo(1);
+
+        mockMvc.perform(post("/api/reviews/{reviewId}/responses", reviewId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"responseText":"Thanks for updating the review."}
+                    """))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    void softDeletingReviewShouldHideItAllowReplacementAndRecalculateMetrics() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+        String reviewId = createReviewAndReturnId(individualToken, deliveredOrder.getId(), product.getId(), 2, "Weak", "Could be better.");
+
+        mockMvc.perform(delete("/api/reviews/{reviewId}", reviewId)
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/reviews/{reviewId}", reviewId)
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isNotFound());
+
+        Product refreshed = productRepository.findById(product.getId()).orElseThrow();
+        assertThat(refreshed.getReviewCount()).isZero();
+        assertThat(refreshed.getAvgRating()).isNull();
+
+        mockMvc.perform(post("/api/reviews")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(reviewBody(secondDeliveredOrder.getId(), product.getId(), 5, "Replacement", "Much better now.")))
+            .andExpect(status().isCreated());
+    }
+
+    private String createReviewAndReturnId(String token, UUID orderId, UUID productId, int starRating, String title, String text) throws Exception {
+        MvcResult reviewResult = mockMvc.perform(post("/api/reviews")
+                .header("Authorization", bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(reviewBody(orderId, productId, starRating, title, text)))
+            .andExpect(status().isCreated())
+            .andReturn();
+        return readJson(reviewResult).get("id").asText();
+    }
+
+    private String reviewBody(UUID orderId, UUID productId, int starRating, String title, String text) {
+        return """
+            {
+              "orderId": "%s",
+              "productId": "%s",
+              "starRating": %d,
+              "reviewTitle": "%s",
+              "reviewText": "%s"
+            }
+            """.formatted(orderId, productId, starRating, title, text);
     }
 
     private Category seedCategory(String name, String slug) {
@@ -300,14 +375,14 @@ class ReviewIntegrationTest {
         return productRepository.save(seededProduct);
     }
 
-    private Order seedOrderWithItem(AppUser user, Store store, Product product) {
+    private Order seedOrderWithItem(AppUser user, Store store, Product product, String status) {
         Order seededOrder = new Order();
         seededOrder.setId(UUID.randomUUID());
         seededOrder.setUser(user);
         seededOrder.setStore(store);
         seededOrder.setIncrementId("ORD-REVIEW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         seededOrder.setOrderDate(LocalDateTime.now());
-        seededOrder.setStatus("DELIVERED");
+        seededOrder.setStatus(status);
         seededOrder.setPaymentStatus("PAID");
         seededOrder.setPaymentMethod("CREDIT_CARD");
         seededOrder.setSubtotal(new BigDecimal("99.90"));

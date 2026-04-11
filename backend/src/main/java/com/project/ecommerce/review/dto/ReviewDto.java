@@ -16,6 +16,7 @@ public record ReviewDto(
     List<String> reviewImages,
     boolean verifiedPurchase,
     LocalDateTime createdAt,
+    LocalDateTime updatedAt,
     List<ReviewResponseDto> responses
 ) {
 }

@@ -35,4 +35,9 @@ public final class ProductSpecifications {
         return (root, query, criteriaBuilder) ->
             active == null ? null : criteriaBuilder.equal(root.get("active"), active);
     }
+
+    public static Specification<Product> hasOpenStore() {
+        return (root, query, criteriaBuilder) ->
+            criteriaBuilder.equal(root.get("store").get("status"), "OPEN");
+    }
 }

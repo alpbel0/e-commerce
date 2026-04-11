@@ -74,6 +74,7 @@ public class CartService {
         Product product = productRepository.findByIdAndActiveTrue(request.productId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
 
+        validateStoreIsOpen(product);
         validateStock(product, request.quantity());
 
         CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), product.getId())
@@ -109,6 +110,7 @@ public class CartService {
         }
 
         validateActiveProduct(cartItem.getProduct());
+        validateStoreIsOpen(cartItem.getProduct());
         validateStock(cartItem.getProduct(), request.quantity());
         cartItem.setQuantity(request.quantity());
         cartItemRepository.save(cartItem);
@@ -310,6 +312,12 @@ public class CartService {
     private void validateStock(Product product, int quantity) {
         if (quantity > product.getStockQuantity()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Requested quantity exceeds available stock");
+        }
+    }
+
+    private void validateStoreIsOpen(Product product) {
+        if (!"OPEN".equals(product.getStore().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This store is closed, so you cannot buy from it");
         }
     }
 

@@ -5,6 +5,7 @@ import com.project.ecommerce.auth.security.AuthenticatedUser;
 import com.project.ecommerce.auth.service.CurrentUserService;
 import com.project.ecommerce.auditlog.service.AuditLogService;
 import com.project.ecommerce.common.api.ApiPageResponse;
+import com.project.ecommerce.notification.service.NotificationService;
 import com.project.ecommerce.order.repository.OrderItemRepository;
 import com.project.ecommerce.order.repository.OrderRepository;
 import com.project.ecommerce.product.domain.Product;
@@ -15,11 +16,13 @@ import com.project.ecommerce.review.dto.CreateReviewRequest;
 import com.project.ecommerce.review.dto.CreateReviewResponseRequest;
 import com.project.ecommerce.review.dto.ReviewDto;
 import com.project.ecommerce.review.dto.ReviewResponseDto;
+import com.project.ecommerce.review.dto.UpdateReviewRequest;
 import com.project.ecommerce.review.repository.ReviewRepository;
 import com.project.ecommerce.review.repository.ReviewResponseRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,8 +37,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class ReviewService {
 
     private static final int DEFAULT_PAGE = 0;
-    private static final int DEFAULT_SIZE = 20;
+    private static final int DEFAULT_SIZE = 10;
     private static final int MAX_SIZE = 100;
+    private static final String DELIVERED_STATUS = "DELIVERED";
+    private static final String REVIEW_NOTIFICATION_TYPE = "REVIEW_UPDATED";
 
     private final ReviewRepository reviewRepository;
     private final ReviewResponseRepository reviewResponseRepository;
@@ -44,6 +49,7 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     public ReviewService(
         ReviewRepository reviewRepository,
@@ -52,7 +58,8 @@ public class ReviewService {
         OrderItemRepository orderItemRepository,
         ProductRepository productRepository,
         CurrentUserService currentUserService,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        NotificationService notificationService
     ) {
         this.reviewRepository = reviewRepository;
         this.reviewResponseRepository = reviewResponseRepository;
@@ -61,6 +68,7 @@ public class ReviewService {
         this.productRepository = productRepository;
         this.currentUserService = currentUserService;
         this.auditLogService = auditLogService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -77,6 +85,9 @@ public class ReviewService {
         if (!order.getUser().getId().equals(currentUser.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only review your own orders");
         }
+        if (!DELIVERED_STATUS.equalsIgnoreCase(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Review requires a delivered order");
+        }
 
         Product product = productRepository.findById(request.productId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
@@ -90,8 +101,8 @@ public class ReviewService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Review requires a verified purchase for the selected order and product");
         }
 
-        if (reviewRepository.existsByUserIdAndOrderIdAndProductId(currentUser.getId(), order.getId(), product.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already reviewed this product for the selected order");
+        if (reviewRepository.existsByUserIdAndProductIdAndActiveTrue(currentUser.getId(), product.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You already have an active review for this product");
         }
 
         Review review = new Review();
@@ -104,9 +115,15 @@ public class ReviewService {
         review.setReviewText(request.reviewText().trim());
         review.setReviewImages(request.reviewImages());
         review.setVerifiedPurchase(true);
+        review.setActive(true);
         reviewRepository.save(review);
 
         refreshProductReviewMetrics(product);
+        auditLogService.log(
+            currentUser,
+            "REVIEW_CREATED",
+            Map.of("entityName", "REVIEW", "entityId", review.getId(), "productId", product.getId())
+        );
         return toDto(review, List.of());
     }
 
@@ -116,17 +133,80 @@ public class ReviewService {
         }
 
         Pageable pageable = buildPageable(page, size, sort);
-        var reviewPage = reviewRepository.findByProductId(productId, pageable);
+        var reviewPage = reviewRepository.findByProductIdAndActiveTrue(productId, pageable);
         List<ReviewDto> items = reviewPage.getContent().stream()
-            .map(review -> toDto(review, reviewResponseRepository.findByReviewIdOrderByCreatedAtAsc(review.getId())))
+            .map(review -> toDto(review, reviewResponseRepository.findByReviewIdAndActiveTrueOrderByCreatedAtAsc(review.getId())))
             .toList();
         return new ApiPageResponse<>(items, reviewPage.getNumber(), reviewPage.getSize(), reviewPage.getTotalElements(), reviewPage.getTotalPages());
     }
 
     public ReviewDto getReview(UUID reviewId) {
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findByIdAndActiveTrue(reviewId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
-        return toDto(review, reviewResponseRepository.findByReviewIdOrderByCreatedAtAsc(reviewId));
+        return toDto(review, reviewResponseRepository.findByReviewIdAndActiveTrueOrderByCreatedAtAsc(reviewId));
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('INDIVIDUAL')")
+    public ReviewDto updateReview(UUID reviewId, UpdateReviewRequest request) {
+        var currentUser = currentUserService.requireCurrentAppUser();
+        Review review = reviewRepository.findByIdAndUserIdAndActiveTrue(reviewId, currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
+
+        review.setStarRating(request.starRating());
+        review.setReviewTitle(request.reviewTitle().trim());
+        review.setReviewText(request.reviewText().trim());
+        review.setReviewImages(request.reviewImages());
+
+        boolean responseInvalidated = deactivateActiveResponses(review);
+        refreshProductReviewMetrics(review.getProduct());
+
+        auditLogService.log(
+            currentUser,
+            "REVIEW_UPDATED",
+            Map.of(
+                "entityName", "REVIEW",
+                "entityId", review.getId(),
+                "productId", review.getProduct().getId(),
+                "responseInvalidated", responseInvalidated
+            )
+        );
+        if (responseInvalidated) {
+            notifyStoreOwnerAboutReviewChange(
+                review,
+                "Review updated",
+                "A customer updated a review. The previous seller response was archived and you can publish a new one."
+            );
+        }
+        return toDto(review, reviewResponseRepository.findByReviewIdAndActiveTrueOrderByCreatedAtAsc(reviewId));
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('INDIVIDUAL')")
+    public void deleteReview(UUID reviewId) {
+        var currentUser = currentUserService.requireCurrentAppUser();
+        Review review = reviewRepository.findByIdAndUserIdAndActiveTrue(reviewId, currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
+
+        boolean responseInvalidated = deactivateActiveResponses(review);
+        review.setActive(false);
+        refreshProductReviewMetrics(review.getProduct());
+
+        auditLogService.log(
+            currentUser,
+            "REVIEW_DELETED",
+            Map.of(
+                "entityName", "REVIEW",
+                "entityId", review.getId(),
+                "productId", review.getProduct().getId(),
+                "responseInvalidated", responseInvalidated
+            )
+        );
+        notifyStoreOwnerAboutReviewChange(
+            review,
+            "Review removed",
+            "A customer removed a review. Any previous seller response was archived."
+        );
     }
 
     @Transactional
@@ -137,10 +217,13 @@ public class ReviewService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only corporate users can respond to reviews");
         }
 
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findByIdAndActiveTrue(reviewId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
         if (!review.getProduct().getStore().getOwner().getId().equals(authenticatedUser.getUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only respond to reviews for your own store");
+        }
+        if (reviewResponseRepository.existsByReviewIdAndActiveTrue(reviewId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This review already has an active seller response");
         }
 
         var responder = currentUserService.requireCurrentAppUser();
@@ -149,11 +232,12 @@ public class ReviewService {
         response.setReview(review);
         response.setResponderUser(responder);
         response.setResponseText(request.responseText().trim());
+        response.setActive(true);
         reviewResponseRepository.save(response);
         auditLogService.log(
             responder,
             "REVIEW_RESPONSE_CREATED",
-            java.util.Map.of("reviewId", review.getId(), "productId", review.getProduct().getId())
+            Map.of("entityName", "REVIEW_RESPONSE", "entityId", response.getId(), "reviewId", review.getId(), "productId", review.getProduct().getId())
         );
         return toResponseDto(response);
     }
@@ -184,6 +268,24 @@ public class ReviewService {
         product.setAvgRating(reviewCount == 0 ? null : roundedAverage);
     }
 
+    private boolean deactivateActiveResponses(Review review) {
+        List<ReviewResponse> activeResponses = reviewResponseRepository.findByReviewIdAndActiveTrue(review.getId());
+        if (activeResponses.isEmpty()) {
+            return false;
+        }
+
+        activeResponses.forEach(response -> response.setActive(false));
+        auditLogService.log(
+            "REVIEW_RESPONSE_ARCHIVED",
+            Map.of("entityName", "REVIEW_RESPONSE", "reviewId", review.getId(), "productId", review.getProduct().getId())
+        );
+        return true;
+    }
+
+    private void notifyStoreOwnerAboutReviewChange(Review review, String title, String message) {
+        notificationService.createNotification(review.getProduct().getStore().getOwner(), REVIEW_NOTIFICATION_TYPE, title, message);
+    }
+
     private ReviewDto toDto(Review review, List<ReviewResponse> responses) {
         return new ReviewDto(
             review.getId(),
@@ -197,6 +299,7 @@ public class ReviewService {
             review.getReviewImages(),
             review.isVerifiedPurchase(),
             review.getCreatedAt(),
+            review.getUpdatedAt(),
             responses.stream().map(this::toResponseDto).toList()
         );
     }

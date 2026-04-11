@@ -67,7 +67,8 @@ public class ProductService {
             .where(ProductSpecifications.hasCategoryId(categoryId))
             .and(ProductSpecifications.hasStoreId(storeId))
             .and(ProductSpecifications.titleContains(query))
-            .and(ProductSpecifications.hasActiveState(active == null ? Boolean.TRUE : active));
+            .and(ProductSpecifications.hasActiveState(active == null ? Boolean.TRUE : active))
+            .and(ProductSpecifications.hasOpenStore());
 
         Pageable pageable = buildPageable(page, size, sort, "createdAt");
         var resultPage = productRepository.findAll(specification, pageable);
@@ -78,6 +79,9 @@ public class ProductService {
     public ProductDetailResponse getProduct(UUID productId) {
         Product product = productRepository.findByIdAndActiveTrue(productId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        if (!"OPEN".equals(product.getStore().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found");
+        }
         return toDetailResponse(product);
     }
 
