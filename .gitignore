@@ -30,3 +30,18 @@ etl/logs/
 etl/processed/
 etl/staging/
 etl/samples/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+.gsd-id
+.bg-shell/
+*.swp
+*.swo
+*~
+*.code-workspace
+.next/
+build/
+vendor/
+*.log
+.cache/
+tmp/
