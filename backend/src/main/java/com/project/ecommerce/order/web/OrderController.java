@@ -4,9 +4,12 @@ import com.project.ecommerce.common.api.ApiPageResponse;
 import com.project.ecommerce.order.dto.CheckoutRequest;
 import com.project.ecommerce.order.dto.CheckoutResponse;
 import com.project.ecommerce.order.dto.OrderDetailResponse;
+import com.project.ecommerce.order.dto.OrderItemResponse;
 import com.project.ecommerce.order.dto.OrderSummaryResponse;
+import com.project.ecommerce.order.dto.RequestReturnRequest;
 import com.project.ecommerce.order.dto.UpdateOrderStatusRequest;
 import com.project.ecommerce.order.dto.UpdatePaymentStatusRequest;
+import com.project.ecommerce.order.dto.UpdateReturnStatusRequest;
 import com.project.ecommerce.order.service.OrderService;
 import com.project.ecommerce.shipment.dto.ShipmentSummaryResponse;
 import jakarta.validation.Valid;
@@ -67,6 +70,23 @@ public class OrderController {
         @Valid @RequestBody UpdatePaymentStatusRequest request
     ) {
         return orderService.updatePaymentStatus(orderId, request);
+    }
+
+    @PostMapping("/items/{orderItemId}/return")
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrderItemResponse requestReturn(
+        @PathVariable UUID orderItemId,
+        @Valid @RequestBody RequestReturnRequest request
+    ) {
+        return orderService.requestReturn(orderItemId, request);
+    }
+
+    @PatchMapping("/items/{orderItemId}/return-status")
+    public OrderItemResponse updateReturnStatus(
+        @PathVariable UUID orderItemId,
+        @Valid @RequestBody UpdateReturnStatusRequest request
+    ) {
+        return orderService.updateReturnStatus(orderItemId, request);
     }
 
     @GetMapping("/{orderId}/shipment")

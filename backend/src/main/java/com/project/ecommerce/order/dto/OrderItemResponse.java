@@ -11,6 +11,11 @@ public record OrderItemResponse(
     int quantity,
     BigDecimal unitPriceAtPurchase,
     BigDecimal discountApplied,
-    BigDecimal subtotal
+    BigDecimal subtotal,
+    String returnStatus,
+    String returnReason,
+    String returnUpdateNote,
+    Integer returnedQuantity,
+    BigDecimal refundableAmount
 ) {
 }

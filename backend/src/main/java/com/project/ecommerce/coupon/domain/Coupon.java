@@ -23,7 +23,7 @@ public class Coupon {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String code;
 
     @Column(name = "discount_percentage")

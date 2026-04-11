@@ -45,6 +45,9 @@ public class OrderItem {
     @Column(name = "return_reason")
     private String returnReason;
 
+    @Column(name = "return_update_note")
+    private String returnUpdateNote;
+
     @Column(name = "returned_quantity")
     private Integer returnedQuantity;
 
@@ -132,6 +135,14 @@ public class OrderItem {
 
     public void setReturnedQuantity(Integer returnedQuantity) {
         this.returnedQuantity = returnedQuantity;
+    }
+
+    public String getReturnUpdateNote() {
+        return returnUpdateNote;
+    }
+
+    public void setReturnUpdateNote(String returnUpdateNote) {
+        this.returnUpdateNote = returnUpdateNote;
     }
 
     public LocalDateTime getCreatedAt() {

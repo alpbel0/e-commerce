@@ -19,8 +19,10 @@ import com.project.ecommerce.order.dto.CheckoutResponse;
 import com.project.ecommerce.order.dto.OrderDetailResponse;
 import com.project.ecommerce.order.dto.OrderItemResponse;
 import com.project.ecommerce.order.dto.OrderSummaryResponse;
+import com.project.ecommerce.order.dto.RequestReturnRequest;
 import com.project.ecommerce.order.dto.UpdateOrderStatusRequest;
 import com.project.ecommerce.order.dto.UpdatePaymentStatusRequest;
+import com.project.ecommerce.order.dto.UpdateReturnStatusRequest;
 import com.project.ecommerce.order.repository.OrderItemRepository;
 import com.project.ecommerce.order.repository.OrderRepository;
 import com.project.ecommerce.auditlog.service.AuditLogService;
@@ -60,6 +62,7 @@ public class OrderService {
     private static final BigDecimal ZERO_MONEY = new BigDecimal("0.00");
     private static final Set<String> ALLOWED_ORDER_STATUSES = Set.of("PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED");
     private static final Set<String> ALLOWED_PAYMENT_STATUSES = Set.of("PENDING", "PAID", "FAILED", "REFUNDED");
+    private static final Set<String> ALLOWED_RETURN_DECISIONS = Set.of("RETURNED", "REJECTED");
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -170,8 +173,12 @@ public class OrderService {
             order.setNotes(blankToNull(request.notes()));
             orderRepository.save(order);
 
+            Map<UUID, BigDecimal> discountByProductId = distributeOrderDiscount(storeItems, discountAmount);
+
             for (CartItem cartItem : storeItems) {
                 Product product = cartItem.getProduct();
+                BigDecimal itemDiscount = discountByProductId.getOrDefault(product.getId(), ZERO_MONEY);
+                BigDecimal lineNetSubtotal = money(lineSubtotal(cartItem).subtract(itemDiscount).max(BigDecimal.ZERO));
 
                 OrderItem orderItem = new OrderItem();
                 orderItem.setId(UUID.randomUUID());
@@ -179,9 +186,11 @@ public class OrderService {
                 orderItem.setProduct(product);
                 orderItem.setQuantity(cartItem.getQuantity());
                 orderItem.setUnitPriceAtPurchase(money(product.getUnitPrice()));
-                orderItem.setDiscountApplied(ZERO_MONEY);
-                orderItem.setSubtotal(lineSubtotal(cartItem));
+                orderItem.setDiscountApplied(itemDiscount);
+                orderItem.setSubtotal(lineNetSubtotal);
                 orderItem.setReturnStatus("NONE");
+                orderItem.setReturnReason(null);
+                orderItem.setReturnUpdateNote(null);
                 orderItem.setReturnedQuantity(0);
                 orderItemRepository.save(orderItem);
 
@@ -256,16 +265,7 @@ public class OrderService {
         authorizeOrderAccess(order);
 
         List<OrderItemResponse> items = orderItemRepository.findByOrderId(order.getId()).stream()
-            .map(orderItem -> new OrderItemResponse(
-                orderItem.getId(),
-                orderItem.getProduct().getId(),
-                orderItem.getProduct().getSku(),
-                orderItem.getProduct().getTitle(),
-                orderItem.getQuantity(),
-                money(orderItem.getUnitPriceAtPurchase()),
-                money(orderItem.getDiscountApplied() == null ? ZERO_MONEY : orderItem.getDiscountApplied()),
-                money(orderItem.getSubtotal())
-            ))
+            .map(this::toOrderItemResponse)
             .toList();
         ShipmentSummaryResponse shipment = shipmentRepository.findByOrderId(orderId)
             .map(shipmentMapper::toSummaryResponse)
@@ -310,6 +310,90 @@ public class OrderService {
         Shipment shipment = shipmentRepository.findByOrderId(orderId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
         return shipmentMapper.toSummaryResponse(shipment);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('INDIVIDUAL')")
+    public OrderItemResponse requestReturn(UUID orderItemId, RequestReturnRequest request) {
+        AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
+        if (authenticatedUser.getActiveRole() != RoleType.INDIVIDUAL) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only individual users can request returns");
+        }
+
+        OrderItem orderItem = orderItemRepository.findById(orderItemId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order item not found"));
+        if (!orderItem.getOrder().getUser().getId().equals(authenticatedUser.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only request returns for your own order items");
+        }
+        if (!"DELIVERED".equals(orderItem.getOrder().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return requests require delivered orders");
+        }
+        if (!"NONE".equals(orderItem.getReturnStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Return request already exists for this order item");
+        }
+        if (request.returnedQuantity() > orderItem.getQuantity()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Returned quantity cannot exceed purchased quantity");
+        }
+
+        orderItem.setReturnStatus("REQUESTED");
+        orderItem.setReturnedQuantity(request.returnedQuantity());
+        orderItem.setReturnReason(request.reason().trim());
+        orderItem.setReturnUpdateNote(null);
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "RETURN_REQUESTED",
+            java.util.Map.of(
+                "orderItemId", orderItem.getId(),
+                "orderId", orderItem.getOrder().getId(),
+                "returnedQuantity", request.returnedQuantity()
+            )
+        );
+        return toOrderItemResponse(orderItem);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAnyRole('CORPORATE', 'ADMIN')")
+    public OrderItemResponse updateReturnStatus(UUID orderItemId, UpdateReturnStatusRequest request) {
+        OrderItem orderItem = orderItemRepository.findById(orderItemId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order item not found"));
+        authorizeOrderManagement(orderItem.getOrder());
+        if (!"REQUESTED".equals(orderItem.getReturnStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Return status can only be updated from REQUESTED state");
+        }
+
+        String nextStatus = normalizeReturnStatus(request.status());
+        if (!ALLOWED_RETURN_DECISIONS.contains(nextStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported return status");
+        }
+
+        orderItem.setReturnStatus(nextStatus);
+        orderItem.setReturnUpdateNote(blankToNull(request.note()));
+        if ("RETURNED".equals(nextStatus)) {
+            Product product = orderItem.getProduct();
+            product.setStockQuantity(product.getStockQuantity() + orderItem.getReturnedQuantity());
+            BigDecimal refundAmount = calculateRefundAmount(orderItem);
+            auditLogService.log(
+                currentUserService.requireCurrentAppUser(),
+                "RETURN_COMPLETED",
+                java.util.Map.of(
+                    "orderItemId", orderItem.getId(),
+                    "orderId", orderItem.getOrder().getId(),
+                    "returnedQuantity", orderItem.getReturnedQuantity(),
+                    "refundAmount", refundAmount
+                )
+            );
+        } else {
+            auditLogService.log(
+                currentUserService.requireCurrentAppUser(),
+                "RETURN_REJECTED",
+                java.util.Map.of(
+                    "orderItemId", orderItem.getId(),
+                    "orderId", orderItem.getOrder().getId(),
+                    "returnedQuantity", orderItem.getReturnedQuantity()
+                )
+            );
+        }
+        return toOrderItemResponse(orderItem);
     }
 
     @Transactional
@@ -429,6 +513,53 @@ public class OrderService {
         return money(discount);
     }
 
+    private Map<UUID, BigDecimal> distributeOrderDiscount(List<CartItem> storeItems, BigDecimal totalDiscountAmount) {
+        Map<UUID, BigDecimal> discountByProductId = new LinkedHashMap<>();
+        if (totalDiscountAmount == null || totalDiscountAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            for (CartItem item : storeItems) {
+                discountByProductId.put(item.getProduct().getId(), ZERO_MONEY);
+            }
+            return discountByProductId;
+        }
+
+        BigDecimal subtotal = storeItems.stream()
+            .map(this::lineSubtotal)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal allocated = BigDecimal.ZERO;
+
+        for (int index = 0; index < storeItems.size(); index++) {
+            CartItem item = storeItems.get(index);
+            BigDecimal itemDiscount;
+            if (index == storeItems.size() - 1) {
+                itemDiscount = money(totalDiscountAmount.subtract(allocated));
+            } else {
+                itemDiscount = money(lineSubtotal(item)
+                    .multiply(totalDiscountAmount)
+                    .divide(subtotal, 2, RoundingMode.HALF_UP));
+                allocated = allocated.add(itemDiscount);
+            }
+            discountByProductId.put(item.getProduct().getId(), itemDiscount.max(BigDecimal.ZERO));
+        }
+        return discountByProductId;
+    }
+
+    private String normalizeReturnStatus(String status) {
+        return status.trim().toUpperCase();
+    }
+
+    private BigDecimal calculateRefundAmount(OrderItem orderItem) {
+        BigDecimal grossLineAmount = money(orderItem.getUnitPriceAtPurchase().multiply(BigDecimal.valueOf(orderItem.getQuantity())));
+        BigDecimal lineNetPaid = money(grossLineAmount.subtract(
+            orderItem.getDiscountApplied() == null ? ZERO_MONEY : orderItem.getDiscountApplied()
+        ).max(BigDecimal.ZERO));
+        BigDecimal refundablePerUnit = lineNetPaid.divide(
+            BigDecimal.valueOf(orderItem.getQuantity()),
+            2,
+            RoundingMode.HALF_UP
+        );
+        return money(refundablePerUnit.multiply(BigDecimal.valueOf(orderItem.getReturnedQuantity() == null ? 0 : orderItem.getReturnedQuantity())));
+    }
+
     private Pageable buildPageable(Integer page, Integer size, String sortExpression) {
         int resolvedPage = page == null ? DEFAULT_PAGE : Math.max(page, 0);
         int resolvedSize = size == null ? DEFAULT_SIZE : Math.min(Math.max(size, 1), MAX_SIZE);
@@ -477,6 +608,24 @@ public class OrderService {
             money(order.getGrandTotal()),
             order.getCouponCode(),
             order.getOrderDate()
+        );
+    }
+
+    private OrderItemResponse toOrderItemResponse(OrderItem orderItem) {
+        return new OrderItemResponse(
+            orderItem.getId(),
+            orderItem.getProduct().getId(),
+            orderItem.getProduct().getSku(),
+            orderItem.getProduct().getTitle(),
+            orderItem.getQuantity(),
+            money(orderItem.getUnitPriceAtPurchase()),
+            money(orderItem.getDiscountApplied() == null ? ZERO_MONEY : orderItem.getDiscountApplied()),
+            money(orderItem.getSubtotal()),
+            orderItem.getReturnStatus(),
+            orderItem.getReturnReason(),
+            orderItem.getReturnUpdateNote(),
+            orderItem.getReturnedQuantity(),
+            calculateRefundAmount(orderItem)
         );
     }
 }

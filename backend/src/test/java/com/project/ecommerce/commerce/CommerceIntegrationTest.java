@@ -278,6 +278,84 @@ class CommerceIntegrationTest {
     }
 
     @Test
+    void adminShouldCreateCouponAndCorporateShouldListAndUpdateOwnCoupons() throws Exception {
+        String adminToken = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
+
+        MvcResult createResult = mockMvc.perform(post("/api/coupons")
+                .header("Authorization", bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "storeId":"%s",
+                      "code":"BAYRAM20",
+                      "discountPercentage":20.00,
+                      "active":true
+                    }
+                    """.formatted(storeA.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.storeId").value(storeA.getId().toString()))
+            .andExpect(jsonPath("$.code").value("BAYRAM20"))
+            .andReturn();
+
+        String couponId = readJson(createResult).get("id").asText();
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+
+        mockMvc.perform(get("/api/coupons")
+                .header("Authorization", bearer(corporateToken))
+                .param("storeId", storeA.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(2));
+
+        mockMvc.perform(patch("/api/coupons/{couponId}", couponId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "code":"BAYRAM25",
+                      "discountPercentage":25.00,
+                      "active":false
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("BAYRAM25"))
+            .andExpect(jsonPath("$.discountPercentage").value(25.00))
+            .andExpect(jsonPath("$.active").value(false));
+    }
+
+    @Test
+    void corporateShouldNotManageForeignStoreCouponAndStoreCodesShouldBeUniquePerStore() throws Exception {
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+
+        mockMvc.perform(post("/api/coupons")
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "storeId":"%s",
+                      "code":"WELCOME10",
+                      "discountPercentage":10.00,
+                      "active":true
+                    }
+                    """.formatted(foreignStore.getId())))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("You cannot manage coupons for another store"));
+
+        mockMvc.perform(post("/api/coupons")
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "storeId":"%s",
+                      "code":"WELCOME10",
+                      "discountPercentage":15.00,
+                      "active":true
+                    }
+                    """.formatted(storeA.getId())))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("Coupon code already exists for this store"));
+    }
+
+    @Test
     void individualShouldManageCartAndApplyStoreCoupon() throws Exception {
         String token = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
 
@@ -643,6 +721,89 @@ class CommerceIntegrationTest {
                 .header("Authorization", bearer(foreignCorporateToken)))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Access denied"));
+    }
+
+    @Test
+    void individualShouldRequestReturnAndCorporateShouldApproveWithStockRefund() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":2}
+                    """.formatted(productA.getId())))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/carts/me/stores/{storeId}/coupon", storeA.getId())
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"code":"WELCOME10"}
+                    """))
+            .andExpect(status().isOk());
+
+        MvcResult checkoutResult = mockMvc.perform(post("/api/orders")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentMethod":"CREDIT_CARD",
+                      "shippingAddressLine1":"Return Mah. No:1",
+                      "shippingCity":"Istanbul",
+                      "shippingCountry":"Turkey"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        String orderId = readJson(checkoutResult).get("createdOrders").get(0).get("orderId").asText();
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+
+        mockMvc.perform(patch("/api/orders/{orderId}/status", orderId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"DELIVERED"}
+                    """))
+            .andExpect(status().isOk());
+
+        String orderItemId = jdbcTemplate.queryForObject(
+            "select id from order_items where order_id = ? limit 1",
+            String.class,
+            UUID.fromString(orderId)
+        );
+
+        mockMvc.perform(post("/api/orders/items/{orderItemId}/return", orderItemId)
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "returnedQuantity":1,
+                      "reason":"Defective unit"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.returnStatus").value("REQUESTED"))
+            .andExpect(jsonPath("$.returnedQuantity").value(1))
+            .andExpect(jsonPath("$.returnReason").value("Defective unit"))
+            .andExpect(jsonPath("$.refundableAmount").value(90.00));
+
+        mockMvc.perform(patch("/api/orders/items/{orderItemId}/return-status", orderItemId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "status":"RETURNED",
+                      "note":"Approved after inspection"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.returnStatus").value("RETURNED"))
+            .andExpect(jsonPath("$.returnUpdateNote").value("Approved after inspection"))
+            .andExpect(jsonPath("$.refundableAmount").value(90.00));
+
+        assertThat(productRepository.findById(productA.getId())).get().extracting(Product::getStockQuantity).isEqualTo(9);
     }
 
     private Category seedCategory(String name, String slug) {
