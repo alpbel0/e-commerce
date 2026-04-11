@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/e-commerce-test
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    org.springframework: WARN
+    com.project.ecommerce: INFO
+
+app:
+  security:
+    jwt:
+      secret: VGhpc0lzQVRlc3RTZWNyZXRLZXlGb3JCYWNrZW5kQXV0aFRlc3RzT25seV9DaGFuZ2VNZQ==
+      access-token-expiration-seconds: 900
+      refresh-token-expiration-seconds: 604800
+      password-reset-expiration-seconds: 1800
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
