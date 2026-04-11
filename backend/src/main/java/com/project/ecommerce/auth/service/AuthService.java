@@ -5,6 +5,7 @@ import com.project.ecommerce.auth.domain.RoleType;
 import com.project.ecommerce.auth.domain.TokenType;
 import com.project.ecommerce.auth.domain.UserRole;
 import com.project.ecommerce.auth.dto.AuthResponse;
+import com.project.ecommerce.auth.dto.ChangePasswordRequest;
 import com.project.ecommerce.auth.dto.ForgotPasswordRequest;
 import com.project.ecommerce.auth.dto.ForgotPasswordResponse;
 import com.project.ecommerce.auth.dto.LoginRequest;
@@ -217,6 +218,27 @@ public class AuthService {
             java.util.Map.of("userId", user.getId(), "email", user.getEmail())
         );
         return new MessageResponse("Password updated successfully");
+    }
+
+    @Transactional
+    public MessageResponse changePassword(AuthenticatedUser authenticatedUser, ChangePasswordRequest request) {
+        AppUser user = appUserRepository.findById(authenticatedUser.getUserId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        appUserRepository.save(user);
+
+        auditLogService.log(
+            user,
+            "PASSWORD_CHANGED",
+            java.util.Map.of("userId", user.getId())
+        );
+
+        return new MessageResponse("Password changed successfully");
     }
 
     private AuthResponse buildAuthResponse(AuthenticatedUser authenticatedUser, AppUser user) {

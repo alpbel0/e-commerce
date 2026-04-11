@@ -35,6 +35,15 @@ public class AppUser {
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
+
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
+
     public UUID getId() {
         return id;
     }
@@ -97,5 +106,29 @@ public class AppUser {
 
     public void setLastLogin(LocalDateTime lastLogin) {
         this.lastLogin = lastLogin;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 }
