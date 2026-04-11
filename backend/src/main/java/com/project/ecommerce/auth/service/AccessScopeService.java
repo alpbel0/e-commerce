@@ -52,7 +52,14 @@ public class AccessScopeService {
     public List<StoreSummaryResponse> currentCorporateStores() {
         UUID userId = currentUserService.requireAuthenticatedUser().getUserId();
         return storeRepository.findByOwnerId(userId).stream()
-            .map(store -> new StoreSummaryResponse(store.getId(), store.getName(), store.getContactEmail(), store.getStatus()))
+            .map(store -> new StoreSummaryResponse(
+                store.getId(),
+                store.getName(),
+                store.getContactEmail(),
+                store.getStatus(),
+                store.getProductCount(),
+                store.getOwner() != null ? store.getOwner().getEmail() : null
+            ))
             .toList();
     }
 

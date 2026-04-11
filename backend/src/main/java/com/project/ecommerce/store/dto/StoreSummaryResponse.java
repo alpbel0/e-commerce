@@ -6,6 +6,8 @@ public record StoreSummaryResponse(
     UUID id,
     String name,
     String contactEmail,
-    String status
+    String status,
+    Integer productCount,
+    String ownerEmail
 ) {
 }

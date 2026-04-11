@@ -16,6 +16,7 @@ import com.project.ecommerce.auth.repository.AppUserRepository;
 import com.project.ecommerce.auth.repository.UserRoleRepository;
 import com.project.ecommerce.auth.security.AuthenticatedUser;
 import com.project.ecommerce.auth.security.JwtService;
+import com.project.ecommerce.auditlog.service.AuditLogService;
 import com.project.ecommerce.store.domain.Store;
 import com.project.ecommerce.store.repository.StoreRepository;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final AuditLogService auditLogService;
 
     public AuthService(
         AppUserRepository appUserRepository,
@@ -44,7 +46,8 @@ public class AuthService {
         StoreRepository storeRepository,
         PasswordEncoder passwordEncoder,
         AuthenticationManager authenticationManager,
-        JwtService jwtService
+        JwtService jwtService,
+        AuditLogService auditLogService
     ) {
         this.appUserRepository = appUserRepository;
         this.userRoleRepository = userRoleRepository;
@@ -52,6 +55,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -92,6 +96,16 @@ public class AuthService {
             store.setStatus("OPEN");
             storeRepository.save(store);
         }
+
+        auditLogService.log(
+            user,
+            "AUTH_REGISTER",
+            java.util.Map.of(
+                "userId", user.getId(),
+                "email", user.getEmail(),
+                "role", request.role().name()
+            )
+        );
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
             user.getId(),
@@ -168,6 +182,11 @@ public class AuthService {
             .map(UserRole::getRoleType)
             .orElse(RoleType.INDIVIDUAL);
         String resetToken = jwtService.generatePasswordResetToken(user.getId(), user.getEmail(), role);
+        auditLogService.log(
+            user,
+            "AUTH_PASSWORD_RESET_REQUESTED",
+            java.util.Map.of("userId", user.getId(), "email", user.getEmail())
+        );
         return new ForgotPasswordResponse("Password reset token generated", resetToken);
     }
 
@@ -192,6 +211,11 @@ public class AuthService {
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         appUserRepository.save(user);
+        auditLogService.log(
+            user,
+            "AUTH_PASSWORD_RESET_COMPLETED",
+            java.util.Map.of("userId", user.getId(), "email", user.getEmail())
+        );
         return new MessageResponse("Password updated successfully");
     }
 
