@@ -1,0 +1,57 @@
+<h2>Gelir Drill-down</h2>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Magaza secin" message="Gelir raporu icin magaza secin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Gelir raporu yuklenemedi." (retry)="load(ctx.selectedStoreId()!, range())" />
+} @else if (items().length === 0) {
+  <app-empty-state title="Veri yok" message="Secili aralikta siparis bulunamadi." />
+} @else {
+  <div class="toolbar">
+    <label>
+      Tarih araligi
+      <select [ngModel]="range()" (ngModelChange)="onRangeChange($event)">
+        <option value="30">Son 30 gun</option>
+        <option value="90">Son 90 gun</option>
+        <option value="all">Tum zamanlar</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h3>Donem cirosu</h3>
+      <strong>{{ formatMoney(totalRevenue()) }}</strong>
+      <app-chart-wrapper [data]="monthlyChart()" [options]="chartOptions" />
+    </section>
+
+    <section class="panel">
+      <h3>Status dagilimi</h3>
+      <app-chart-wrapper [data]="statusChart()" [options]="countChartOptions" />
+    </section>
+
+    <section class="panel">
+      <h3>Son siparisler</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Durum</th>
+            <th>Tutar</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items().slice(0, 8); track item.orderId) {
+            <tr>
+              <td>{{ item.incrementId }}</td>
+              <td>{{ item.status }}</td>
+              <td>{{ formatMoney(item.grandTotal) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </div>
+}

@@ -1,0 +1,78 @@
+<h2>Siparislerim</h2>
+
+<div class="toolbar">
+  <div class="filters">
+    <label>
+      Durum
+      <select [value]="status()" (change)="onStatusChange($event)">
+        <option value="">Tumu</option>
+        @for (option of statusOptions; track option) {
+          <option [value]="option">{{ option }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Odeme
+      <select [value]="paymentStatus()" (change)="onPaymentStatusChange($event)">
+        <option value="">Tumu</option>
+        @for (option of paymentStatusOptions; track option) {
+          <option [value]="option">{{ option }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Magaza / Siparis No
+      <input
+        type="search"
+        [ngModel]="storeQuery()"
+        (ngModelChange)="onStoreQueryChange($event)"
+        placeholder="Ara"
+      />
+    </label>
+  </div>
+
+  <button type="button" class="export" (click)="exportCsv()">CSV export</button>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Siparisler yuklenemedi." (retry)="load()" />
+} @else if (filteredItems().length === 0) {
+  <app-empty-state title="Siparis yok" message="Filtreye uygun siparis bulunmuyor." actionLabel="Alisverise basla" actionLink="/app/products" />
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Magaza</th>
+        <th>Durum</th>
+        <th>Odeme</th>
+        <th>Tutar</th>
+        <th>Tarih</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (order of filteredItems(); track order.orderId) {
+        <tr>
+          <td>{{ order.incrementId }}</td>
+          <td>{{ order.storeName }}</td>
+          <td><span [class]="badgeClass(order.status)">{{ order.status }}</span></td>
+          <td>{{ order.paymentStatus }}</td>
+          <td>{{ formatMoney(order.grandTotal) }}</td>
+          <td>{{ shortDate(order.orderDate) }}</td>
+          <td><a [routerLink]="['/app/orders', order.orderId]">Detay</a></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <app-pagination
+    [currentPage]="page()"
+    [totalPages]="totalPages()"
+    [disabled]="loading()"
+    (pageChange)="onPage($event)"
+  />
+}

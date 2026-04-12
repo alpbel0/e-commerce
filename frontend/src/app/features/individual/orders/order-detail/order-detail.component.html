@@ -1,0 +1,89 @@
+<a routerLink="/app/orders" class="back">← Siparislere don</a>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Siparis yuklenemedi." (retry)="load()" />
+} @else {
+  @if (order(); as o) {
+    <h2>Siparis {{ o.incrementId }}</h2>
+    <div class="meta">
+      <span [class]="badgeClass(o.status)">{{ o.status }}</span>
+      <span>Odeme: {{ o.paymentStatus }} · {{ o.paymentMethod }}</span>
+    </div>
+    <p>
+      {{ o.shippingAddressLine1 }}@if (o.shippingAddressLine2) {, {{ o.shippingAddressLine2 }} }<br />
+      {{ o.shippingCity }} {{ o.shippingPostalCode }} · {{ o.shippingCountry }}<br />
+      Tel: {{ o.customerPhone || '-' }}
+    </p>
+
+    @if (o.shipment; as sh) {
+      <div class="ship">
+        <h3>Kargo</h3>
+        <div>Durum: {{ sh.status }} · {{ sh.carrierName || 'Kargo' }}</div>
+        <div>Takip: {{ sh.trackingNumber || '-' }}</div>
+        <div>Tahmini: {{ shortDate(sh.estimatedDeliveryDate) }}</div>
+        <div style="margin-top:8px">
+          <a [routerLink]="['/app/orders', o.orderId, 'shipment']">Ayrintili takip</a>
+        </div>
+      </div>
+    }
+
+    <table>
+      <thead>
+        <tr>
+          <th>Urun</th>
+          <th>Adet</th>
+          <th>Birim</th>
+          <th>Ara</th>
+          <th>Iade</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (it of o.items; track it.orderItemId) {
+          <tr>
+            <td>{{ it.title }}</td>
+            <td>{{ it.quantity }}</td>
+            <td>{{ formatMoney(it.unitPriceAtPurchase) }}</td>
+            <td>{{ formatMoney(it.subtotal) }}</td>
+            <td>
+              <span [class]="returnBadgeClass(it.returnStatus)">{{ returnLabel(it.returnStatus) }}</span>
+              @if (it.returnReason) {
+                <div style="font-size:0.75rem;color:#64748b">{{ it.returnReason }}</div>
+              }
+            </td>
+            <td>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <a [routerLink]="['/app/products', it.productId]">Urunu gor</a>
+                @if (o.status === 'DELIVERED') {
+                  <a [routerLink]="['/app/products', it.productId]">Yorum yap</a>
+                }
+              </div>
+              @if (canRequestReturn(it, o.status)) {
+                <div class="return-row">
+                  <input
+                    type="number"
+                    min="1"
+                    [max]="it.quantity"
+                    [value]="returnQty()[it.orderItemId] ?? 1"
+                    (change)="setQty(it.orderItemId, +$any($event.target).value)"
+                  />
+                  <input
+                    class="reason"
+                    placeholder="Neden"
+                    [value]="returnReason()[it.orderItemId] ?? ''"
+                    (input)="setReason(it.orderItemId, $any($event.target).value)"
+                  />
+                  <button type="button" (click)="submitReturn(it)">Iade talebi</button>
+                </div>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <p><strong>Toplam:</strong> {{ formatMoney(o.grandTotal) }} {{ o.currency }}</p>
+  }
+}

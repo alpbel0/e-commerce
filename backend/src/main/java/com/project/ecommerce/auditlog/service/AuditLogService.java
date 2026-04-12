@@ -7,6 +7,7 @@ import com.project.ecommerce.auditlog.dto.AuditLogResponse;
 import com.project.ecommerce.auditlog.repository.AuditLogRepository;
 import com.project.ecommerce.auth.domain.AppUser;
 import com.project.ecommerce.common.api.ApiPageResponse;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -48,6 +49,7 @@ public class AuditLogService {
         log((AppUser) null, action, details);
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
     public ApiPageResponse<AuditLogResponse> listAuditLogs(Integer page, Integer size, String action) {
         Pageable pageable = PageRequest.of(
@@ -62,6 +64,7 @@ public class AuditLogService {
         return new ApiPageResponse<>(items, resultPage.getNumber(), resultPage.getSize(), resultPage.getTotalElements(), resultPage.getTotalPages());
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
     public AuditLogResponse getAuditLog(UUID auditLogId) {
         AuditLog auditLog = auditLogRepository.findById(auditLogId)
@@ -70,14 +73,35 @@ public class AuditLogService {
     }
 
     private AuditLogResponse toResponse(AuditLog auditLog) {
+        Map<String, Object> details = readDetails(auditLog.getDetails());
+        UUID actorUserId = extractActorUserId(auditLog);
         return new AuditLogResponse(
             auditLog.getId(),
-            auditLog.getActorUser() == null ? null : auditLog.getActorUser().getId(),
-            auditLog.getActorUser() == null ? null : auditLog.getActorUser().getEmail(),
+            actorUserId,
+            actorUserId,
+            extractActorUserEmail(auditLog),
             auditLog.getAction(),
+            resolveEntityType(details),
+            resolveEntityId(details),
             auditLog.getDetails(),
             auditLog.getCreatedAt()
         );
+    }
+
+    private UUID extractActorUserId(AuditLog auditLog) {
+        try {
+            return auditLog.getActorUser() == null ? null : auditLog.getActorUser().getId();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private String extractActorUserEmail(AuditLog auditLog) {
+        try {
+            return auditLog.getActorUser() == null ? null : auditLog.getActorUser().getEmail();
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private String writeDetails(Map<String, Object> details) {
@@ -86,5 +110,42 @@ public class AuditLogService {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Failed to serialize audit log details", exception);
         }
+    }
+
+    private Map<String, Object> readDetails(String details) {
+        if (details == null || details.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(
+                details,
+                objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class)
+            );
+        } catch (JsonProcessingException exception) {
+            return Map.of();
+        }
+    }
+
+    private String resolveEntityType(Map<String, Object> details) {
+        if (details.containsKey("orderItemId")) return "ORDER_ITEM";
+        if (details.containsKey("orderId")) return "ORDER";
+        if (details.containsKey("productId")) return "PRODUCT";
+        if (details.containsKey("reviewId")) return "REVIEW";
+        if (details.containsKey("couponId")) return "COUPON";
+        if (details.containsKey("storeId")) return "STORE";
+        if (details.containsKey("categoryId")) return "CATEGORY";
+        if (details.containsKey("userId")) return "USER";
+        if (details.containsKey("shipmentId")) return "SHIPMENT";
+        return null;
+    }
+
+    private String resolveEntityId(Map<String, Object> details) {
+        for (String key : new String[] {"orderItemId", "orderId", "productId", "reviewId", "couponId", "storeId", "categoryId", "userId", "shipmentId"}) {
+            Object value = details.get(key);
+            if (value != null) {
+                return String.valueOf(value);
+            }
+        }
+        return null;
     }
 }

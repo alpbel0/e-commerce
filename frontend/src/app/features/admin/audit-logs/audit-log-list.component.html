@@ -1,0 +1,40 @@
+<h2>Audit log</h2>
+
+<div class="filters">
+  <input type="search" [(ngModel)]="actionFilter" placeholder="Aksiyon (orn. ORDER_STATUS)" (keyup.enter)="applyAction()" />
+  <button type="button" (click)="applyAction()">Filtrele</button>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Kayitlar yuklenemedi." (retry)="load()" />
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th>Zaman</th>
+        <th>Aksiyon</th>
+        <th>Entity</th>
+        <th>Entity ID</th>
+        <th>User ID</th>
+        <th>Kullanici</th>
+        <th>Detay</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (a of items(); track a.id) {
+        <tr>
+          <td>{{ shortAt(a.createdAt) }}</td>
+          <td>{{ a.action }}</td>
+          <td>{{ a.entityType ?? '-' }}</td>
+          <td>{{ a.entityId ?? '-' }}</td>
+          <td>{{ a.userId ?? '-' }}</td>
+          <td>{{ a.actorUserEmail ?? '-' }}</td>
+          <td class="details">{{ a.details }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
+}

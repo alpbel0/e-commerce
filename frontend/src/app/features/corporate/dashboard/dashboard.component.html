@@ -1,0 +1,61 @@
+<h2>Dashboard</h2>
+<p class="hint" style="margin:0 0 1rem;color:#64748b;font-size:0.9rem">
+  Üst menüden mağaza seçerek verileri filtreleyebilirsiniz.
+</p>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Mağaza seçin" message="Mağaza bulunamadı veya henüz seçilmedi." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Özet yüklenemedi." (retry)="retry()" />
+} @else {
+  @if (summary(); as s) {
+    <div class="kpis">
+      <div class="kpi">
+        <label>Toplam ciro</label>
+        <strong>{{ formatMoney(s.totalRevenue) }}</strong>
+      </div>
+      <div class="kpi">
+        <label>Sipariş</label>
+        <strong>{{ s.totalOrders }}</strong>
+      </div>
+      <div class="kpi">
+        <label>Ürün</label>
+        <strong>{{ s.totalProducts }}</strong>
+      </div>
+      <div class="kpi">
+        <label>Ort. sepet</label>
+        <strong>{{ formatMoney(s.averageOrderValue) }}</strong>
+      </div>
+      <div class="kpi">
+        <label>Yorum</label>
+        <strong>{{ s.totalReviews }}</strong>
+      </div>
+    </div>
+
+    <h3>Çok satanlar</h3>
+    @if (topProducts().length === 0) {
+      <app-empty-state title="Veri yok" message="Bu mağaza için satış verisi yok." />
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Ürün</th>
+            <th>Adet</th>
+            <th>Ciro</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of topProducts(); track p.productId) {
+            <tr>
+              <td>{{ p.productTitle }}</td>
+              <td>{{ p.totalQuantitySold }}</td>
+              <td>{{ formatMoney(p.totalRevenue) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}

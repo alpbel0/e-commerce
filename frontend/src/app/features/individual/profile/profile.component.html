@@ -1,0 +1,59 @@
+<h2>Profilim</h2>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Profil yüklenemedi." (retry)="load()" />
+} @else {
+  <section>
+    <h3>Kişisel bilgiler</h3>
+    <p class="meta">Profil ve rol bilgisi sunucudan gelir; rol değişikliği için yönetici gerekir.</p>
+    <form [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+      <div class="field">
+        <label for="fn">Ad</label>
+        <input id="fn" formControlName="firstName" autocomplete="given-name" />
+      </div>
+      <div class="field">
+        <label for="ln">Soyad</label>
+        <input id="ln" formControlName="lastName" autocomplete="family-name" />
+      </div>
+      <div class="field">
+        <label for="ph">Telefon</label>
+        <input id="ph" formControlName="phone" type="tel" />
+      </div>
+      <div class="field">
+        <label for="ad">Adres</label>
+        <textarea id="ad" formControlName="address"></textarea>
+      </div>
+      <div class="field">
+        <label for="img">Profil görsel URL</label>
+        <input id="img" formControlName="profileImageUrl" type="url" />
+      </div>
+      <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor…' : 'Profili kaydet' }}</button>
+    </form>
+  </section>
+
+  <section>
+    <h3>Şifre değiştir</h3>
+    <form [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+      <div class="field">
+        <label for="op">Mevcut şifre</label>
+        <input id="op" type="password" formControlName="oldPassword" autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label for="np">Yeni şifre</label>
+        <input id="np" type="password" formControlName="newPassword" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label for="cp">Yeni şifre (tekrar)</label>
+        <input id="cp" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+      </div>
+      @if (passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.errors?.['pattern']) {
+        <p class="err">8–64 karakter; büyük, küçük, rakam ve özel karakter.</p>
+      }
+      <button type="submit" class="secondary" [disabled]="savingPw()">
+        {{ savingPw() ? 'Gönderiliyor…' : 'Şifreyi güncelle' }}
+      </button>
+    </form>
+  </section>
+}

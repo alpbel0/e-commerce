@@ -1,0 +1,43 @@
+<h2>Ürünler</h2>
+
+<app-product-filters
+  [categories]="categoriesList()"
+  [stores]="storesList()"
+  (filtersChange)="onFilters($event)"
+/>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Ürünler yüklenemedi." (retry)="load()" />
+} @else if (items().length === 0) {
+  <app-empty-state title="Ürün bulunamadı" message="Filtreleri değiştirmeyi deneyin." />
+} @else {
+  <div class="grid">
+    @for (p of items(); track p.id) {
+      <article class="card">
+        <h3>
+          <a class="title" [routerLink]="['/app/products', p.id]">{{ p.title }}</a>
+        </h3>
+        <div class="meta">{{ p.storeName }} · {{ p.categoryName }}</div>
+        <div class="price-row">
+          @if (showDiscount(p)) {
+            <span class="old">{{ formatMoney(p.unitPrice) }}</span>
+          }
+          <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2)) }}</span>
+        </div>
+        <div class="stars">{{ starString(stars(p)) }} ({{ p.reviewCount }})</div>
+        <div class="actions">
+          <a class="detail" [routerLink]="['/app/products', p.id]">Detay</a>
+          <button type="button" [disabled]="!canAdd(p)" (click)="addToCart(p)">Sepete ekle</button>
+        </div>
+      </article>
+    }
+  </div>
+  <app-pagination
+    [currentPage]="page()"
+    [totalPages]="totalPages()"
+    [disabled]="loading()"
+    (pageChange)="onPage($event)"
+  />
+}

@@ -1,0 +1,64 @@
+<h2>Kullanıcılar</h2>
+
+<div class="filters">
+  <label>
+    Arama
+    <input type="search" [(ngModel)]="q" (keyup.enter)="applyFilters()" />
+  </label>
+  <label>
+    Rol
+    <select [(ngModel)]="roleFilter">
+      <option value="">Tümü</option>
+      @for (r of roles; track r) {
+        <option [value]="r">{{ r }}</option>
+      }
+    </select>
+  </label>
+  <label>
+    Aktif
+    <select [(ngModel)]="activeFilter">
+      <option value="all">Tümü</option>
+      <option value="true">Aktif</option>
+      <option value="false">Pasif</option>
+    </select>
+  </label>
+  <button type="button" (click)="applyFilters()">Filtrele</button>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th>E-posta</th>
+        <th>Ad</th>
+        <th>Rol</th>
+        <th>Aktif</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (u of items(); track u.id) {
+        <tr>
+          <td>{{ u.email }}</td>
+          <td>{{ u.firstName }} {{ u.lastName }}</td>
+          <td>
+            <select [value]="u.activeRole" (change)="changeRole(u, $event)">
+              @for (r of roles; track r) {
+                <option [value]="r">{{ r }}</option>
+              }
+            </select>
+          </td>
+          <td>{{ u.active ? 'Evet' : 'Hayır' }}</td>
+          <td>
+            <button type="button" (click)="toggleActive(u)">{{ u.active ? 'Pasifleştir' : 'Aktifleştir' }}</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
+}

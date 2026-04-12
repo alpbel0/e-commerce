@@ -1,0 +1,57 @@
+<h2>Musteri Analizi</h2>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Magaza secin" message="Musteri davranisini gormek icin magaza secin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Musteri analizi yuklenemedi." (retry)="load(ctx.selectedStoreId()!)" />
+} @else if (rows().length === 0) {
+  <app-empty-state title="Veri yok" message="Bu magazada henuz siparis gecmisi yok." />
+} @else {
+  <div class="stats">
+    <div class="stat">
+      <div>Toplam musteri</div>
+      <strong>{{ totalCustomers() }}</strong>
+    </div>
+    <div class="stat">
+      <div>Repeat customer</div>
+      <strong>{{ repeatCustomers() }}</strong>
+    </div>
+    <div class="stat">
+      <div>High value</div>
+      <strong>{{ highValueCustomers() }}</strong>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="panel">
+      <h3>Segment dagilimi</h3>
+      <app-chart-wrapper [data]="chartData()" [options]="chartOptions" />
+    </section>
+
+    <section class="panel">
+      <h3>En degerli musteriler</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Siparis</th>
+            <th>Toplam harcama</th>
+            <th>Segment</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows().slice(0, 10); track row.email) {
+            <tr>
+              <td>{{ row.email }}</td>
+              <td>{{ row.orderCount }}</td>
+              <td>{{ formatMoney(String(row.totalSpent)) }}</td>
+              <td>{{ row.segment }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </div>
+}

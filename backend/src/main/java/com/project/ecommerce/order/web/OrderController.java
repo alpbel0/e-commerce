@@ -46,9 +46,10 @@ public class OrderController {
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size,
         @RequestParam(required = false) String sort,
-        @RequestParam(required = false) String status
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) UUID storeId
     ) {
-        return orderService.listOrders(page, size, sort, status);
+        return orderService.listOrders(page, size, sort, status, storeId);
     }
 
     @GetMapping("/{orderId}")

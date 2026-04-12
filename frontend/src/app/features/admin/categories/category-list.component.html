@@ -1,0 +1,66 @@
+<h2>Kategoriler</h2>
+
+<div class="create">
+  <h3 style="margin:0 0 8px;font-size:0.95rem">Yeni kategori</h3>
+  <form [formGroup]="createForm" (ngSubmit)="create()">
+    <div class="row">
+      <div>
+        <label>Ad</label>
+        <input formControlName="name" />
+      </div>
+      <div>
+        <label>Sıra</label>
+        <input type="number" formControlName="displayOrder" />
+      </div>
+    </div>
+    <label>Açıklama</label>
+    <textarea rows="2" formControlName="description"></textarea>
+    <div class="check">
+      <input type="checkbox" id="act" formControlName="active" />
+      <label for="act" style="margin:0">Aktif</label>
+    </div>
+    <button type="submit" [disabled]="saving()">Ekle</button>
+  </form>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th>Ad</th>
+        <th>Slug</th>
+        <th>Aktif</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (c of items(); track c.id) {
+        <tr>
+          <td>
+            <input class="inline" [value]="c.name" (blur)="patchField(c, 'name', $event)" />
+          </td>
+          <td>{{ c.slug }}</td>
+          <td>
+            <input type="checkbox" [checked]="c.active" (change)="patchField(c, 'active', $event)" />
+          </td>
+          <td>
+            <button type="button" class="warn" (click)="askDelete(c)">Sil</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+<app-confirm-dialog
+  [open]="deleteOpen()"
+  title="Kategoriyi sil"
+  [message]="'“' + (deleteTarget()?.name ?? '') + '” silinsin mi?'"
+  confirmLabel="Sil"
+  (confirm)="confirmDelete()"
+  (cancel)="cancelDelete()"
+/>

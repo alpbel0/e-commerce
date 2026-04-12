@@ -1,0 +1,34 @@
+<h2>Review Management</h2>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Magaza secin" message="Review yonetimi icin magaza secin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Review listesi yuklenemedi." (retry)="load(ctx.selectedStoreId()!)" />
+} @else if (items().length === 0) {
+  <app-empty-state title="Review yok" message="Bu magazaya ait review bulunmuyor." />
+} @else {
+  <div class="toolbar">
+    <input type="search" [ngModel]="query()" (ngModelChange)="setQuery($event)" placeholder="Urun, baslik veya email ara" />
+  </div>
+
+  @for (row of visibleItems(); track row.review.id) {
+    <article class="review">
+      <h3>{{ row.productTitle }}</h3>
+      <div class="meta">{{ row.review.userEmail }} · {{ row.review.starRating }}★ · {{ row.review.reviewTitle }}</div>
+      <p>{{ row.review.reviewText }}</p>
+
+      @if (canRespond(row.review)) {
+        <label>Yanit</label>
+        <textarea
+          [value]="drafts()[row.review.id] ?? ''"
+          (input)="setDraft(row.review.id, $any($event.target).value)"
+        ></textarea>
+        <button type="button" (click)="sendResponse(row.review.id)">Yanit gonder</button>
+      } @else {
+        <div class="meta">Mevcut yanit: {{ row.review.responses[0]?.responseText }}</div>
+      }
+    </article>
+  }
+}

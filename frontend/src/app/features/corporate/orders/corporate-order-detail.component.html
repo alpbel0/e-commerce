@@ -1,0 +1,138 @@
+<div class="back">
+  <a routerLink="/corporate/orders">← Sipariş listesi</a>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error() || !order()) {
+  <app-error-state message="Sipariş yüklenemedi veya erişim yok." (retry)="load()" />
+} @else {
+  @if (order(); as o) {
+  <h2>Sipariş #{{ o.incrementId }}</h2>
+  <p class="meta">{{ o.customerEmail }} · {{ o.storeName }} · {{ shortDate(o.orderDate) }}</p>
+
+  <section>
+    <h3>Sipariş durumu</h3>
+    <form [formGroup]="statusForm" (ngSubmit)="saveStatus()">
+      <div class="grid2">
+        <div>
+          <label>Durum</label>
+          <select formControlName="status">
+            @for (s of orderStatuses; track s) {
+              <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <button type="submit" [disabled]="saving()">Kaydet</button>
+    </form>
+  </section>
+
+  <section>
+    <h3>Ödeme durumu</h3>
+    <form [formGroup]="paymentForm" (ngSubmit)="savePayment()">
+      <div class="grid2">
+        <div>
+          <label>Ödeme</label>
+          <select formControlName="paymentStatus">
+            @for (s of paymentStatuses; track s) {
+              <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="secondary" [disabled]="saving()">Kaydet</button>
+    </form>
+  </section>
+
+  @if (o.shipment) {
+    <section>
+      <h3>Kargo</h3>
+      <form [formGroup]="shipmentForm" (ngSubmit)="saveShipment()">
+        <div class="grid2">
+          <div>
+            <label>Kargo durumu</label>
+            <select formControlName="status">
+              @for (s of shipmentStatuses; track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label>Takip no</label>
+            <input formControlName="trackingNumber" />
+          </div>
+          <div>
+            <label>Taşıyıcı</label>
+            <input formControlName="carrierName" />
+          </div>
+        </div>
+        <button type="submit" [disabled]="saving()">Kargoyu güncelle</button>
+      </form>
+    </section>
+  } @else {
+    <section>
+      <h3>Kargo</h3>
+      <p class="meta">Bu sipariş için henüz kargo kaydı yok.</p>
+    </section>
+  }
+
+  <section>
+    <h3>Kalemler</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Ürün</th>
+          <th>Adet</th>
+          <th>İade</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (it of o.items; track it.orderItemId) {
+          <tr>
+            <td>{{ it.title }}</td>
+            <td>{{ it.quantity }}</td>
+            <td>{{ it.returnStatus ?? '—' }}</td>
+            <td>
+              @if (it.returnStatus === 'REQUESTED') {
+                <button type="button" class="secondary" [disabled]="saving()" (click)="decideReturn(it, 'RETURNED')">
+                  İade onayla
+                </button>
+                <button type="button" class="danger" [disabled]="saving()" (click)="decideReturn(it, 'REJECTED')">
+                  Reddet
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>Bu siparişe bağlı yorumlar</h3>
+    @if (orderReviews().length === 0) {
+      <p class="meta">Gösterilecek yorum yok.</p>
+    } @else {
+      @for (r of orderReviews(); track r.id) {
+        <div class="rev">
+          <h4>{{ r.reviewTitle }} ({{ r.starRating }}★)</h4>
+          <p class="meta">{{ r.userEmail }} · {{ r.reviewText }}</p>
+          @if (!canRespond(r)) {
+            <p class="meta">Satıcı yanıtı: {{ r.responses[0]?.responseText }}</p>
+          } @else {
+            <label>Yanıt</label>
+            <textarea
+              rows="3"
+              [value]="responseDrafts()[r.id] ?? ''"
+              (input)="onDraftInput(r.id, $event)"
+            ></textarea>
+            <button type="button" [disabled]="saving()" (click)="sendResponse(r.id)">Yanıt gönder</button>
+          }
+        </div>
+      }
+    }
+  </section>
+  }
+}

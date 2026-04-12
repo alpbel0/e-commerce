@@ -1,0 +1,59 @@
+<h2>Ödeme</h2>
+
+@if (empty()) {
+  <div class="warn">Sepetiniz boş. <a routerLink="/app/products">Ürünlere dön</a></div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="field">
+      <label for="pm">Ödeme yöntemi</label>
+      <select id="pm" formControlName="paymentMethod">
+        @for (m of paymentMethods; track m.value) {
+          <option [value]="m.value">{{ m.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="a1">Adres satırı 1 *</label>
+      <input id="a1" formControlName="shippingAddressLine1" autocomplete="address-line1" />
+    </div>
+    <div class="field">
+      <label for="a2">Adres satırı 2</label>
+      <input id="a2" formControlName="shippingAddressLine2" autocomplete="address-line2" />
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="city">Şehir *</label>
+        <input id="city" formControlName="shippingCity" />
+      </div>
+      <div class="field">
+        <label for="state">Eyalet / ilçe</label>
+        <input id="state" formControlName="shippingState" />
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="zip">Posta kodu</label>
+        <input id="zip" formControlName="shippingPostalCode" />
+      </div>
+      <div class="field">
+        <label for="ctry">Ülke *</label>
+        <input id="ctry" formControlName="shippingCountry" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="ph">Telefon</label>
+      <input id="ph" formControlName="customerPhone" type="tel" />
+    </div>
+    <div class="field">
+      <label for="no">Not</label>
+      <textarea id="no" formControlName="notes" rows="2"></textarea>
+    </div>
+    <button type="submit" [disabled]="submitting()">
+      @if (submitting()) {
+        <app-loading-spinner [inline]="true" />
+      } @else {
+        Siparişi tamamla
+      }
+    </button>
+  </form>
+}

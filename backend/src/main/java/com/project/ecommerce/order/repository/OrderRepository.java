@@ -17,10 +17,22 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findByUserIdAndStatusOrderByOrderDateDesc(UUID userId, String status, Pageable pageable);
 
     @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    Page<Order> findByUserIdAndStoreIdOrderByOrderDateDesc(UUID userId, UUID storeId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    Page<Order> findByUserIdAndStoreIdAndStatusOrderByOrderDateDesc(UUID userId, UUID storeId, String status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
     Page<Order> findByStoreOwnerIdOrderByOrderDateDesc(UUID ownerId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"user", "store", "store.owner"})
     Page<Order> findByStoreOwnerIdAndStatusOrderByOrderDateDesc(UUID ownerId, String status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    Page<Order> findByStoreOwnerIdAndStoreIdOrderByOrderDateDesc(UUID ownerId, UUID storeId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    Page<Order> findByStoreOwnerIdAndStoreIdAndStatusOrderByOrderDateDesc(UUID ownerId, UUID storeId, String status, Pageable pageable);
 
     @Override
     @EntityGraph(attributePaths = {"user", "store", "store.owner"})
@@ -28,6 +40,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     @EntityGraph(attributePaths = {"user", "store", "store.owner"})
     Page<Order> findByStatusOrderByOrderDateDesc(String status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    Page<Order> findByStoreIdOrderByOrderDateDesc(UUID storeId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    Page<Order> findByStoreIdAndStatusOrderByOrderDateDesc(UUID storeId, String status, Pageable pageable);
 
     @Override
     @EntityGraph(attributePaths = {"user", "store", "store.owner"})

@@ -1,0 +1,54 @@
+<h2>Siparisler</h2>
+<p class="hint">Liste secili magazaya gore sayfali olarak yuklenir.</p>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Magaza secin" message="Ust menuden magaza secin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Liste yuklenemedi." (retry)="retry()" />
+} @else {
+  <div class="filters">
+    <label>
+      Durum
+      <select [value]="status()" (change)="onStatusChange($event)">
+        <option value="">Tumu</option>
+        @for (s of statusOptions; track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  @if (items().length === 0) {
+    <app-empty-state title="Siparis yok" message="Bu magaza icin kayit bulunamadi." />
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Magaza</th>
+          <th>Durum</th>
+          <th>Odeme</th>
+          <th>Tutar</th>
+          <th>Tarih</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (o of items(); track o.orderId) {
+          <tr>
+            <td>{{ o.incrementId }}</td>
+            <td>{{ o.storeName }}</td>
+            <td><span [class]="badgeClass(o.status)">{{ o.status }}</span></td>
+            <td>{{ o.paymentStatus }}</td>
+            <td>{{ formatMoney(o.grandTotal) }}</td>
+            <td>{{ shortDate(o.orderDate) }}</td>
+            <td><a [routerLink]="['/corporate/orders', o.orderId]">Detay</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+  }
+}

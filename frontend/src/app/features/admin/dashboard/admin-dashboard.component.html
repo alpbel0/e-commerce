@@ -1,0 +1,126 @@
+<h2>Admin ozet</h2>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Ozet yuklenemedi." (retry)="load()" />
+} @else {
+  @if (summary(); as sum) {
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-head">
+          <label>Ciro</label>
+          <span [class]="trendClass(trendTone(sum.totalRevenue))">{{ trendLabel(trendTone(sum.totalRevenue)) }}</span>
+        </div>
+        <strong>{{ formatMoney(sum.totalRevenue) }}</strong>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head">
+          <label>Siparis</label>
+          <span [class]="trendClass(trendTone(sum.totalOrders))">{{ trendLabel(trendTone(sum.totalOrders)) }}</span>
+        </div>
+        <strong>{{ sum.totalOrders }}</strong>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head">
+          <label>Musteri</label>
+          <span [class]="trendClass(trendTone(sum.totalCustomers))">{{ trendLabel(trendTone(sum.totalCustomers)) }}</span>
+        </div>
+        <strong>{{ sum.totalCustomers }}</strong>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head">
+          <label>Magaza</label>
+          <span [class]="trendClass(trendTone(sum.totalStores))">{{ trendLabel(trendTone(sum.totalStores)) }}</span>
+        </div>
+        <strong>{{ sum.totalStores }}</strong>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head">
+          <label>Urun</label>
+          <span [class]="trendClass(trendTone(sum.totalProducts))">{{ trendLabel(trendTone(sum.totalProducts)) }}</span>
+        </div>
+        <strong>{{ sum.totalProducts }}</strong>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Cok satan urunler</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Urun</th>
+              <th>Adet</th>
+              <th>Ciro</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of topProducts(); track p.productId) {
+              <tr>
+                <td>{{ p.productTitle }}</td>
+                <td>{{ p.totalQuantitySold }}</td>
+                <td>{{ formatMoney(p.totalRevenue) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+
+      <div class="chart-stack">
+        <section class="card">
+          <h3>Widget ayarlari</h3>
+          <label>
+            <input
+              #storesToggle
+              type="checkbox"
+              [checked]="showTopStoresWidget()"
+              (change)="toggleWidget('stores', storesToggle.checked)"
+            />
+            Top stores
+          </label>
+          <br />
+          <label>
+            <input
+              #productsToggle
+              type="checkbox"
+              [checked]="showTopProductsWidget()"
+              (change)="toggleWidget('products', productsToggle.checked)"
+            />
+            Top products
+          </label>
+          <br />
+          <button type="button" (click)="swapWidgetOrder()">Sirayi degistir</button>
+        </section>
+
+        @if (topStoresFirst()) {
+          @if (showTopStoresWidget()) {
+            <section class="card chart-card">
+              <h3>Top stores</h3>
+              <app-chart-wrapper [data]="topStoresChartData()" [options]="topStoresChartOptions" />
+            </section>
+          }
+          @if (showTopProductsWidget()) {
+            <section class="card chart-card">
+              <h3>Top products</h3>
+              <app-chart-wrapper [data]="topProductsChartData()" [options]="topProductsChartOptions" />
+            </section>
+          }
+        } @else {
+          @if (showTopProductsWidget()) {
+            <section class="card chart-card">
+              <h3>Top products</h3>
+              <app-chart-wrapper [data]="topProductsChartData()" [options]="topProductsChartOptions" />
+            </section>
+          }
+          @if (showTopStoresWidget()) {
+            <section class="card chart-card">
+              <h3>Top stores</h3>
+              <app-chart-wrapper [data]="topStoresChartData()" [options]="topStoresChartOptions" />
+            </section>
+          }
+        }
+      </div>
+    </div>
+  }
+}

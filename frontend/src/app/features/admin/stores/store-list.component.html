@@ -1,0 +1,49 @@
+<h2>Mağazalar</h2>
+
+<div class="filters">
+  <label>
+    Durum
+    <select [(ngModel)]="statusFilter" (change)="onFilterChange()">
+      <option value="">Tümü</option>
+      @for (st of statusOptions; track st) {
+        <option [value]="st">{{ st }}</option>
+      }
+    </select>
+  </label>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th>Ad</th>
+        <th>E-posta</th>
+        <th>Durum</th>
+        <th>Ürün</th>
+        <th>Yeni durum</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (s of items(); track s.id) {
+        <tr>
+          <td>{{ s.name }}</td>
+          <td>{{ s.contactEmail }}</td>
+          <td>{{ s.status }}</td>
+          <td>{{ s.productCount ?? '—' }}</td>
+          <td>
+            <select class="sm" [value]="s.status" (change)="changeStatus(s, $event)">
+              @for (st of statusOptions; track st) {
+                <option [value]="st">{{ st }}</option>
+              }
+            </select>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
+}

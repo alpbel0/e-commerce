@@ -1,0 +1,35 @@
+<h2>Analizler</h2>
+<p class="hint">Mağaza seçimine göre ciro dağılımı.</p>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Mağaza seçin" message="Üst menüden mağaza seçin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Analiz verisi yüklenemedi." (retry)="retry()" />
+} @else if (rows().length === 0) {
+  <app-empty-state title="Veri yok" message="Bu filtre için gelir kaydı bulunamadı." />
+} @else {
+  <div class="chart-card">
+    <app-chart-wrapper [type]="'bar'" [data]="chartData()" [options]="chartOptions" />
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Mağaza</th>
+          <th>Sipariş</th>
+          <th class="amt">Ciro</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.storeId) {
+          <tr>
+            <td>{{ r.storeName }}</td>
+            <td>{{ r.totalOrders }}</td>
+            <td class="amt">{{ formatMoney(r.totalRevenue) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

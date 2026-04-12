@@ -1,0 +1,76 @@
+<div class="head">
+  <h2>Ürünlerim</h2>
+  @if (ctx.selectedStoreId()) {
+    <a class="new" routerLink="/corporate/products/new">Yeni ürün</a>
+  }
+</div>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Mağaza seçin" message="Üst menüden mağaza seçin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Ürün listesi yüklenemedi." (retry)="retry()" />
+} @else if (items().length === 0) {
+  <app-empty-state
+    title="Ürün yok"
+    message="Bu mağazada henüz ürün yok."
+    actionLabel="Ürün ekle"
+    actionLink="/corporate/products/new"
+  />
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Başlık</th>
+        <th>Fiyat</th>
+        <th>Stok</th>
+        <th>Durum</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (p of items(); track p.id) {
+        <tr>
+          <td class="muted">{{ p.sku }}</td>
+          <td>{{ p.title }}</td>
+          <td>{{ formatMoney(effectivePrice(p.unitPrice, p.discountPercentage)) }}</td>
+          <td>{{ p.stockQuantity }}</td>
+          <td>
+            @if (p.active) {
+              <span>Aktif</span>
+            } @else {
+              <span class="badge-off">Pasif</span>
+            }
+          </td>
+          <td>
+            <div class="actions">
+              <a [routerLink]="['/corporate/products', p.id, 'edit']">Düzenle</a>
+              <button type="button" (click)="openStock(p)">Stok</button>
+              <button type="button" class="danger" (click)="askDelete(p)">Sil</button>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+}
+
+<app-confirm-dialog
+  [open]="deleteOpen()"
+  title="Ürünü sil"
+  [message]="'“' + (deleteTarget()?.title ?? '') + '” kalıcı olarak silinsin mi?'"
+  confirmLabel="Sil"
+  (confirm)="confirmDelete()"
+  (cancel)="cancelDelete()"
+/>
+
+<app-product-stock-edit
+  [open]="stockOpen()"
+  [productTitle]="stockTarget()?.title ?? ''"
+  [initialStock]="stockTarget()?.stockQuantity ?? 0"
+  (cancel)="closeStock()"
+  (saved)="saveStock($event)"
+/>

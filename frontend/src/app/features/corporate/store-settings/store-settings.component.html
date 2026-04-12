@@ -1,0 +1,44 @@
+<h2>Mağaza ayarları</h2>
+<p class="meta">Seçili mağaza için iletişim ve vitrin bilgileri. Durum (açık/kapalı) yalnızca hesabınıza izin verildiğinde değişir.</p>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Mağaza seçin" message="Üst menüden bir mağaza seçin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Mağaza bilgisi yüklenemedi." (retry)="retry()" />
+} @else {
+  @if (statusLocked()) {
+    <p class="warn">Bu mağaza askıya alınmış; durumu buradan açamazsınız. Diğer alanları güncelleyebilirsiniz.</p>
+  }
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <div class="field">
+      <label for="sn">Mağaza adı</label>
+      <input id="sn" formControlName="name" />
+    </div>
+    <div class="field">
+      <label for="sd">Açıklama</label>
+      <textarea id="sd" formControlName="description"></textarea>
+    </div>
+    <div class="field">
+      <label for="em">İletişim e-postası</label>
+      <input id="em" type="email" formControlName="contactEmail" />
+    </div>
+    <div class="field">
+      <label for="ph">Telefon</label>
+      <input id="ph" formControlName="contactPhone" />
+    </div>
+    <div class="field">
+      <label for="st">Mağaza durumu</label>
+      @if (statusLocked()) {
+        <p class="ro" id="st">Askıda (yönetici onayı gerekir)</p>
+      } @else {
+        <select id="st" formControlName="status">
+          <option value="OPEN">Açık</option>
+          <option value="CLOSED">Kapalı</option>
+        </select>
+      }
+    </div>
+    <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor…' : 'Kaydet' }}</button>
+  </form>
+}

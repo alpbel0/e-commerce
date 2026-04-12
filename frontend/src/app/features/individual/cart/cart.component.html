@@ -1,0 +1,91 @@
+<h2>Sepet</h2>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Sepet yüklenemedi." (retry)="refresh()" />
+} @else {
+  @if (cart(); as c) {
+  @if (c.totalItemCount === 0) {
+    <app-empty-state
+      title="Sepet boş"
+      message="Ürün eklemek için kataloğa göz atın."
+      actionLabel="Ürünlere git"
+      actionLink="/app/products"
+    />
+  } @else {
+    @for (s of c.stores; track s.storeId) {
+      <section class="store-block">
+        <h3>{{ s.storeName }}</h3>
+        <div class="coupon-row">
+          <span>Kupon:</span>
+          @if (s.activeCoupon) {
+            <span>{{ s.activeCoupon.code }} (−%{{ s.activeCoupon.discountPercentage }})</span>
+            <button type="button" class="remove" (click)="removeCoupon(s.storeId)">Kuponu kaldır</button>
+          } @else {
+            <select
+              [value]="selectedCoupon()[s.storeId] ?? ''"
+              (change)="setCouponSelect(s.storeId, $any($event.target).value)"
+            >
+              <option value="">Seçin</option>
+              @for (coupon of couponsFor(s.storeId); track coupon.id) {
+                <option [value]="coupon.code">{{ coupon.code }}</option>
+              }
+            </select>
+            <button type="button" class="apply" (click)="applyCoupon(s.storeId)">Uygula</button>
+          }
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Ürün</th>
+              <th>Adet</th>
+              <th>Birim</th>
+              <th>Ara</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (it of s.items; track it.itemId) {
+              <tr>
+                <td>{{ it.title }}</td>
+                <td>
+                  <input
+                    class="qty"
+                    type="number"
+                    min="0"
+                    [value]="it.quantity"
+                    (change)="updateQty(s.storeId, it.itemId, +$any($event.target).value)"
+                  />
+                </td>
+                <td>{{ formatMoney(it.unitPrice) }}</td>
+                <td>{{ formatMoney(it.lineSubtotal) }}</td>
+                <td>
+                  <button type="button" class="remove" (click)="removeItem(it.itemId)">Sil</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <div class="totals">
+          <div>Ara toplam: {{ formatMoney(s.subtotal) }}</div>
+          @if (storeHasDiscount(s)) {
+            <div>İndirim: −{{ formatMoney(s.discountApplied) }}</div>
+          }
+          <div class="grand">Mağaza toplamı: {{ formatMoney(s.grandTotal) }}</div>
+        </div>
+      </section>
+    }
+    <p class="muted">Güncelleme: {{ c.updatedAt }}</p>
+    <div class="totals" style="margin-top: 1rem">
+      <div><strong>Genel toplam: {{ formatMoney(c.grandTotal) }}</strong></div>
+    </div>
+    <div class="actions">
+      @if (canCheckout()) {
+        <a class="checkout" routerLink="/app/checkout">Ödemeye geç</a>
+      }
+      <a routerLink="/app/products" style="align-self:center;color:#2563eb">Alışverişe devam</a>
+    </div>
+  }
+  }
+}

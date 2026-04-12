@@ -1,0 +1,41 @@
+<a [routerLink]="orderLink()" class="back">← Siparise don</a>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Kargo bilgisi yuklenemedi." (retry)="load()" />
+} @else if (!shipment()) {
+  <app-empty-state title="Kargo yok" message="Bu siparis icin kargo bilgisi bulunamadi." />
+} @else {
+  @if (shipment(); as shipmentData) {
+    <div class="card">
+      <h2>Kargo Takip</h2>
+      <div class="grid">
+        <div class="item">
+          <strong>Durum</strong>
+          <div>{{ shipmentData.status }}</div>
+        </div>
+        <div class="item">
+          <strong>Takip No</strong>
+          <div>{{ shipmentData.trackingNumber || '-' }}</div>
+        </div>
+        <div class="item">
+          <strong>Tasiyici</strong>
+          <div>{{ shipmentData.carrierName || '-' }}</div>
+        </div>
+        <div class="item">
+          <strong>Tahmini Teslim</strong>
+          <div>{{ shortDate(shipmentData.estimatedDeliveryDate) }}</div>
+        </div>
+        <div class="item">
+          <strong>Sevk Tarihi</strong>
+          <div>{{ shortDate(shipmentData.shippedAt) }}</div>
+        </div>
+        <div class="item">
+          <strong>Teslim Tarihi</strong>
+          <div>{{ shortDate(shipmentData.deliveredAt) }}</div>
+        </div>
+      </div>
+    </div>
+  }
+}

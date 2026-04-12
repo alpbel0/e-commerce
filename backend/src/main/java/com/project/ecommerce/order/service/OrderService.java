@@ -239,19 +239,14 @@ public class OrderService {
     }
 
     @PreAuthorize("hasAnyRole('INDIVIDUAL', 'CORPORATE', 'ADMIN')")
-    public ApiPageResponse<OrderSummaryResponse> listOrders(Integer page, Integer size, String sort, String status) {
+    public ApiPageResponse<OrderSummaryResponse> listOrders(Integer page, Integer size, String sort, String status, UUID storeId) {
         AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
         Pageable pageable = buildPageable(page, size, sort);
+        String normalizedStatus = status == null || status.isBlank() ? null : normalizeStatus(status);
         Page<Order> resultPage = switch (authenticatedUser.getActiveRole()) {
-            case INDIVIDUAL -> status == null || status.isBlank()
-                ? orderRepository.findByUserIdOrderByOrderDateDesc(authenticatedUser.getUserId(), pageable)
-                : orderRepository.findByUserIdAndStatusOrderByOrderDateDesc(authenticatedUser.getUserId(), normalizeStatus(status), pageable);
-            case CORPORATE -> status == null || status.isBlank()
-                ? orderRepository.findByStoreOwnerIdOrderByOrderDateDesc(authenticatedUser.getUserId(), pageable)
-                : orderRepository.findByStoreOwnerIdAndStatusOrderByOrderDateDesc(authenticatedUser.getUserId(), normalizeStatus(status), pageable);
-            case ADMIN -> status == null || status.isBlank()
-                ? orderRepository.findAll(pageable)
-                : orderRepository.findByStatusOrderByOrderDateDesc(normalizeStatus(status), pageable);
+            case INDIVIDUAL -> listIndividualOrders(authenticatedUser.getUserId(), pageable, normalizedStatus, storeId);
+            case CORPORATE -> listCorporateOrders(authenticatedUser.getUserId(), pageable, normalizedStatus, storeId);
+            case ADMIN -> listAdminOrders(pageable, normalizedStatus, storeId);
         };
 
         var items = resultPage.stream().map(this::toSummaryResponse).toList();
@@ -488,6 +483,39 @@ public class OrderService {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
     }
 
+    private Page<Order> listIndividualOrders(UUID userId, Pageable pageable, String status, UUID storeId) {
+        if (storeId != null) {
+            return status == null
+                ? orderRepository.findByUserIdAndStoreIdOrderByOrderDateDesc(userId, storeId, pageable)
+                : orderRepository.findByUserIdAndStoreIdAndStatusOrderByOrderDateDesc(userId, storeId, status, pageable);
+        }
+        return status == null
+            ? orderRepository.findByUserIdOrderByOrderDateDesc(userId, pageable)
+            : orderRepository.findByUserIdAndStatusOrderByOrderDateDesc(userId, status, pageable);
+    }
+
+    private Page<Order> listCorporateOrders(UUID ownerId, Pageable pageable, String status, UUID storeId) {
+        if (storeId != null) {
+            return status == null
+                ? orderRepository.findByStoreOwnerIdAndStoreIdOrderByOrderDateDesc(ownerId, storeId, pageable)
+                : orderRepository.findByStoreOwnerIdAndStoreIdAndStatusOrderByOrderDateDesc(ownerId, storeId, status, pageable);
+        }
+        return status == null
+            ? orderRepository.findByStoreOwnerIdOrderByOrderDateDesc(ownerId, pageable)
+            : orderRepository.findByStoreOwnerIdAndStatusOrderByOrderDateDesc(ownerId, status, pageable);
+    }
+
+    private Page<Order> listAdminOrders(Pageable pageable, String status, UUID storeId) {
+        if (storeId != null) {
+            return status == null
+                ? orderRepository.findByStoreIdOrderByOrderDateDesc(storeId, pageable)
+                : orderRepository.findByStoreIdAndStatusOrderByOrderDateDesc(storeId, status, pageable);
+        }
+        return status == null
+            ? orderRepository.findAll(pageable)
+            : orderRepository.findByStatusOrderByOrderDateDesc(status, pageable);
+    }
+
     private void validateCheckoutItem(Product product, int quantity) {
         if (!product.isActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart contains inactive product");
@@ -602,6 +630,7 @@ public class OrderService {
         return new OrderSummaryResponse(
             order.getId(),
             order.getIncrementId(),
+            order.getCustomerEmail(),
             order.getStore().getId(),
             order.getStore().getName(),
             order.getStatus(),

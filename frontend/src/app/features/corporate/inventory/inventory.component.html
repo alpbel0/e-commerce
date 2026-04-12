@@ -1,0 +1,80 @@
+<h2>Envanter</h2>
+
+@if (!ctx.selectedStoreId()) {
+  <app-empty-state title="Magaza secin" message="Envanter gormek icin magaza secin." />
+} @else if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Envanter yuklenemedi." (retry)="onPageChange(page())" />
+} @else {
+  <div class="stats">
+    <div class="stat">
+      <div>Sayfadaki urun</div>
+      <strong>{{ items().length }}</strong>
+    </div>
+    <div class="stat">
+      <div>Toplam stok</div>
+      <strong>{{ totalUnits() }}</strong>
+    </div>
+    <div class="stat">
+      <div>Dusuk stok</div>
+      <strong>{{ lowStockCount() }}</strong>
+    </div>
+    <div class="stat">
+      <div>Stok bitti</div>
+      <strong>{{ outOfStockCount() }}</strong>
+    </div>
+  </div>
+
+  @if (lowStockCount() > 0) {
+    <div class="alert">
+      Dusuk stok uyarisi: secili esige gore {{ lowStockCount() }} urun kritik seviyede.
+    </div>
+  }
+
+  <div class="filters">
+    <label>
+      Ara
+      <input type="search" [ngModel]="query()" (ngModelChange)="onQueryChange($event)" placeholder="SKU veya baslik" />
+    </label>
+
+    <label>
+      Esik
+      <input type="number" min="0" [ngModel]="threshold()" (ngModelChange)="onThresholdChange(String($event))" />
+    </label>
+
+    <label>
+      Gorunum
+      <select [ngModel]="lowStockOnly() ? 'true' : 'false'" (ngModelChange)="onLowStockOnlyChange($event)">
+        <option value="false">Tum urunler</option>
+        <option value="true">Sadece dusuk stok</option>
+      </select>
+    </label>
+  </div>
+
+  @if (items().length === 0) {
+    <app-empty-state title="Urun yok" message="Filtreye uygun envanter kaydi bulunamadi." />
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Baslik</th>
+          <th>Stok</th>
+          <th>Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+          <tr>
+            <td>{{ item.sku }}</td>
+            <td>{{ item.title }}</td>
+            <td [class]="stockClass(item.stockQuantity)">{{ item.stockQuantity }}</td>
+            <td>{{ item.stockQuantity === 0 ? 'Out of stock' : item.stockQuantity <= threshold() ? 'Low stock' : 'Healthy' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+  }
+}

@@ -1,0 +1,60 @@
+<h2>Cross-store comparison</h2>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Analizler yuklenemedi." (retry)="load()" />
+} @else {
+  <div class="grid">
+    <section class="panel">
+      <h3>Magaza karsilastirmasi</h3>
+      <app-chart-wrapper [data]="storeChartData()" [options]="chartOptions" />
+    </section>
+
+    <section class="panel">
+      <h3>Top stores report</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Magaza</th>
+            <th>Siparis</th>
+            <th>Ciro</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (store of stores(); track store.storeId) {
+            <tr>
+              <td>{{ store.storeName }}</td>
+              <td>{{ store.totalOrders }}</td>
+              <td>{{ formatMoney(store.totalRevenue) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h3>Cross-store top products</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Urun</th>
+            <th>Magaza</th>
+            <th>Adet</th>
+            <th>Ciro</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (product of products(); track product.productId) {
+            <tr>
+              <td>{{ product.productTitle }}</td>
+              <td>{{ product.storeName }}</td>
+              <td>{{ product.totalQuantitySold }}</td>
+              <td>{{ formatMoney(product.totalRevenue) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </div>
+}

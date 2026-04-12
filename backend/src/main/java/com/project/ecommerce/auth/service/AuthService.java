@@ -165,6 +165,9 @@ public class AuthService {
     }
 
     public AuthResponse.UserProfileResponse me(AuthenticatedUser authenticatedUser) {
+        if (authenticatedUser == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
         AppUser user = appUserRepository.findById(authenticatedUser.getUserId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return new AuthResponse.UserProfileResponse(
@@ -222,10 +225,13 @@ public class AuthService {
 
     @Transactional
     public MessageResponse changePassword(AuthenticatedUser authenticatedUser, ChangePasswordRequest request) {
+        if (authenticatedUser == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
         AppUser user = appUserRepository.findById(authenticatedUser.getUserId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        if (!passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
         }
 

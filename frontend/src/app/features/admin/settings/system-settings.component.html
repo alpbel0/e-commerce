@@ -1,0 +1,41 @@
+<h2>Sistem Ayarlari</h2>
+
+<div class="panel">
+  <div class="row">
+    <div>
+      <strong>Compact tables</strong>
+      <div>Admin listelerinde daha siki tablo gorunumu.</div>
+    </div>
+    <input
+      type="checkbox"
+      [ngModel]="settings().compactTables"
+      (ngModelChange)="update('compactTables', !!$event)"
+    />
+  </div>
+
+  <div class="row">
+    <div>
+      <strong>Revenue widgets</strong>
+      <div>Dashboard revenue widget'larini varsayilan ac.</div>
+    </div>
+    <input
+      type="checkbox"
+      [ngModel]="settings().showRevenueWidgets"
+      (ngModelChange)="update('showRevenueWidgets', !!$event)"
+    />
+  </div>
+
+  <div class="row">
+    <div>
+      <strong>Default page size</strong>
+      <div>Admin ekranlari icin varsayilan sayfa boyutu.</div>
+    </div>
+    <input
+      type="number"
+      min="5"
+      max="100"
+      [ngModel]="settings().defaultPageSize"
+      (ngModelChange)="update('defaultPageSize', +$event)"
+    />
+  </div>
+</div>

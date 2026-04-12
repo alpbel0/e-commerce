@@ -1,0 +1,33 @@
+<div class="row" [formGroup]="form">
+  <div class="field">
+    <label for="pf-cat">Kategori</label>
+    <select id="pf-cat" formControlName="categoryId">
+      <option value="">Tümü</option>
+      @for (c of categories; track c.id) {
+        <option [value]="c.id">{{ c.name }}</option>
+      }
+    </select>
+  </div>
+  <div class="field">
+    <label for="pf-store">Mağaza</label>
+    <select id="pf-store" formControlName="storeId">
+      <option value="">Tümü</option>
+      @for (s of stores; track s.id) {
+        <option [value]="s.id">{{ s.name }}</option>
+      }
+    </select>
+  </div>
+  <div class="field">
+    <label for="pf-sort">Sıralama</label>
+    <select id="pf-sort" formControlName="sort">
+      <option value="createdAt,desc">Yeniler</option>
+      <option value="title,asc">İsim (A-Z)</option>
+      <option value="unitPrice,asc">Fiyat (düşük)</option>
+      <option value="unitPrice,desc">Fiyat (yüksek)</option>
+    </select>
+  </div>
+  <div class="field q">
+    <label for="pf-q">Arama</label>
+    <input id="pf-q" type="search" formControlName="q" placeholder="Ürün ara…" autocomplete="off" />
+  </div>
+</div>

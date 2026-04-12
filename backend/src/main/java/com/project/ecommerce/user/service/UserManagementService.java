@@ -54,13 +54,14 @@ public class UserManagementService {
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("email").ascending());
 
-        Page<AppUser> userPage = appUserRepository.searchUsers(q, pageable);
+        String normalizedQuery = q == null ? null : q.trim();
+        Page<AppUser> userPage = normalizedQuery == null || normalizedQuery.isEmpty()
+            ? appUserRepository.findAll(pageable)
+            : appUserRepository.searchUsers(normalizedQuery, pageable);
 
         List<AdminUserListResponse> items = userPage.getContent().stream()
             .filter(user -> {
-                RoleType userRole = userRoleRepository.findByUserIdAndActiveRoleTrue(user.getId())
-                    .map(UserRole::getRoleType)
-                    .orElse(null);
+                RoleType userRole = resolveActiveRole(user);
 
                 boolean matchesRole = role == null || userRole == role;
                 boolean matchesActive = active == null || user.isActive() == active;
@@ -68,9 +69,7 @@ public class UserManagementService {
                 return matchesRole && matchesActive;
             })
             .map(user -> {
-                RoleType activeRole = userRoleRepository.findByUserIdAndActiveRoleTrue(user.getId())
-                    .map(UserRole::getRoleType)
-                    .orElse(RoleType.INDIVIDUAL);
+                RoleType activeRole = resolveActiveRole(user);
                 return new AdminUserListResponse(
                     user.getId(),
                     user.getEmail(),
@@ -118,9 +117,7 @@ public class UserManagementService {
             )
         );
 
-        RoleType activeRole = userRoleRepository.findByUserIdAndActiveRoleTrue(user.getId())
-            .map(UserRole::getRoleType)
-            .orElse(RoleType.INDIVIDUAL);
+        RoleType activeRole = resolveActiveRole(user);
 
         return new AdminUserListResponse(
             user.getId(),
@@ -145,9 +142,7 @@ public class UserManagementService {
         AppUser user = appUserRepository.findById(targetUserId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        RoleType currentRole = userRoleRepository.findByUserIdAndActiveRoleTrue(user.getId())
-            .map(UserRole::getRoleType)
-            .orElse(null);
+        RoleType currentRole = resolveActiveRole(user);
 
         if (currentRole == RoleType.CORPORATE && request.role() != RoleType.CORPORATE) {
             boolean hasStores = !storeRepository.findByOwnerId(user.getId()).isEmpty();
@@ -159,8 +154,8 @@ public class UserManagementService {
             }
         }
 
-        userRoleRepository.findByUserIdAndActiveRoleTrue(user.getId())
-            .ifPresent(existingRole -> existingRole.setActiveRole(false));
+        userRoleRepository.findAllByUserIdAndActiveRoleTrue(user.getId())
+            .forEach(existingRole -> existingRole.setActiveRole(false));
 
         userRoleRepository.findAll().stream()
             .filter(ur -> ur.getUser().getId().equals(user.getId()) && ur.getRoleType() == request.role())
@@ -195,5 +190,25 @@ public class UserManagementService {
             request.role(),
             user.isActive()
         );
+    }
+
+    private RoleType resolveActiveRole(AppUser user) {
+        List<UserRole> activeRoles = userRoleRepository.findAllByUserIdAndActiveRoleTrue(user.getId());
+        if (activeRoles.isEmpty()) {
+            return RoleType.INDIVIDUAL;
+        }
+        return activeRoles.stream()
+            .map(UserRole::getRoleType)
+            .sorted((left, right) -> Integer.compare(rolePriority(left), rolePriority(right)))
+            .findFirst()
+            .orElse(RoleType.INDIVIDUAL);
+    }
+
+    private int rolePriority(RoleType roleType) {
+        return switch (roleType) {
+            case ADMIN -> 0;
+            case CORPORATE -> 1;
+            case INDIVIDUAL -> 2;
+        };
     }
 }

@@ -1,0 +1,109 @@
+<a routerLink="/app/products" class="back">← Ürünlere dön</a>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Ürün yüklenemedi." (retry)="loadProduct()" />
+} @else {
+  @if (product(); as p) {
+  <div class="layout">
+    <div class="gallery">
+      @if (p.imageUrls?.length) {
+        <img [src]="p.imageUrls[imgIdx()]!" [alt]="p.title" />
+        <div class="thumbs">
+          @for (u of p.imageUrls; track $index) {
+            <img
+              [src]="u"
+              alt=""
+              [class.active]="imgIdx() === $index"
+              (click)="setImg($index)"
+            />
+          }
+        </div>
+      } @else {
+        <div class="gallery" style="min-height: 200px; display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+          Görsel yok
+        </div>
+      }
+    </div>
+    <div>
+      <h1>{{ p.title }}</h1>
+      <div class="sub">{{ p.brand }} · {{ p.storeName }} · {{ p.categoryName }}</div>
+      <div class="price-row">
+        @if (showDiscount(p)) {
+          <span class="old">{{ formatMoney(p.unitPrice) }}</span>
+        }
+        <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2)) }}</span>
+      </div>
+      <div class="stars">{{ starString(stars(p)) }} · {{ p.reviewCount }} yorum · Stok: {{ p.stockQuantity }}</div>
+      @if (p.description) {
+        <p>{{ p.description }}</p>
+      }
+      @if (p.tags?.length) {
+        <div class="tags">
+          @for (t of p.tags; track t) {
+            <span>{{ t }}</span>
+          }
+        </div>
+      }
+      <div class="qty-row">
+        <label for="qty">Adet</label>
+        <input id="qty" type="number" min="1" [max]="p.stockQuantity" [(ngModel)]="qty" />
+        <button type="button" [disabled]="!p.active || p.stockQuantity <= 0" (click)="addToCart()">
+          Sepete ekle
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <section class="reviews">
+    <h2>Yorumlar</h2>
+    @if (reviewsLoading()) {
+      <app-loading-spinner [inline]="true" />
+    } @else {
+      @for (r of reviewItems(); track r.id) {
+        <article class="rev">
+          <div>{{ revStars(r) }} <strong>{{ r.reviewTitle }}</strong></div>
+          <div class="who">{{ r.userEmail }} · {{ shortDate(r.createdAt) }}</div>
+          <p>{{ r.reviewText }}</p>
+        </article>
+      }
+      @if (reviewItems().length === 0) {
+        <p style="color:#64748b">Henüz yorum yok.</p>
+      }
+      <app-pagination
+        [currentPage]="reviewPage()"
+        [totalPages]="reviewTotalPages()"
+        [disabled]="reviewsLoading()"
+        (pageChange)="onReviewPage($event)"
+      />
+    }
+
+    <div class="review-form" [formGroup]="reviewForm">
+      <h3>Yorum yaz</h3>
+      <div class="field">
+        <label for="oid">Sipariş</label>
+        <select id="oid" formControlName="orderId">
+          <option value="">Sipariş seçin</option>
+          @for (o of orderChoices(); track o.orderId) {
+            <option [value]="o.orderId">{{ o.incrementId }} — {{ shortDate(o.orderDate) }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="sr">Puan (1-5)</label>
+        <input id="sr" type="number" min="1" max="5" formControlName="starRating" />
+      </div>
+      <div class="field">
+        <label for="rt">Başlık</label>
+        <input id="rt" formControlName="reviewTitle" />
+      </div>
+      <div class="field">
+        <label for="rtx">Yorum</label>
+        <textarea id="rtx" formControlName="reviewText"></textarea>
+      </div>
+      <button type="button" (click)="submitReview()">Gönder</button>
+    </div>
+  </section>
+  }
+}
