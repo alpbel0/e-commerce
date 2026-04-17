@@ -49,6 +49,9 @@ public class Store {
     @Column(nullable = false)
     private String status;
 
+    @Column(nullable = false, unique = true)
+    private String slug;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -141,6 +144,14 @@ public class Store {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getSlug() {
+        return slug;
+    }
+
+    public void setSlug(String slug) {
+        this.slug = slug;
     }
 
     public LocalDateTime getCreatedAt() {

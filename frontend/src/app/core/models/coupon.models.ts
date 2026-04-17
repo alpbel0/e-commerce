@@ -3,7 +3,7 @@ export interface CouponResponse {
   storeId: string;
   storeName: string;
   code: string;
-  discountPercentage: string;
+  discountPercentage: number;
   active: boolean;
   validUntil: string | null;
   createdAt: string;

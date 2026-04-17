@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { CartService } from '../../../core/api/cart.service';
+import { CurrencyRateService } from '../../../core/api/currency-rate.service';
 import type { CartResponse, StoreCartResponse } from '../../../core/models/cart.models';
 import type { CouponResponse } from '../../../core/models/coupon.models';
 import { ToastService } from '../../../core/notify/toast.service';
@@ -41,6 +42,21 @@ import { formatMoney } from '../../../shared/util/money';
         font-size: 0.9rem;
       }
       .coupon-row select {
+        padding: 0.35rem 0.5rem;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+      }
+      .currency-row {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-size: 0.9rem;
+      }
+      .currency-row select {
+        width: auto;
+        min-width: 110px;
         padding: 0.35rem 0.5rem;
         border-radius: 8px;
         border: 1px solid #cbd5e1;
@@ -112,6 +128,7 @@ import { formatMoney } from '../../../shared/util/money';
 })
 export class CartComponent implements OnInit {
   private readonly cartApi = inject(CartService);
+  private readonly currencyRatesApi = inject(CurrencyRateService);
   private readonly toast = inject(ToastService);
 
   readonly cart = signal<CartResponse | null>(null);
@@ -120,10 +137,14 @@ export class CartComponent implements OnInit {
   /** storeId -> available coupons */
   readonly couponOptions = signal<Record<string, CouponResponse[]>>({});
   readonly selectedCoupon = signal<Record<string, string>>({});
+  readonly displayCurrency = signal('');
+  readonly usdRates = signal<Record<string, number>>({ USD: 1 });
+  readonly availableCurrencies = signal<string[]>(['TRY', 'USD', 'EUR']);
 
   readonly formatMoney = formatMoney;
 
   ngOnInit(): void {
+    this.loadCurrencyRates();
     this.refresh();
   }
 
@@ -210,6 +231,7 @@ export class CartComponent implements OnInit {
 
   private applyCartState(c: CartResponse): void {
     this.cart.set(c);
+    this.setInitialDisplayCurrency(c);
     this.prefetchCoupons(c);
   }
 
@@ -220,5 +242,89 @@ export class CartComponent implements OnInit {
 
   storeHasDiscount(s: StoreCartResponse): boolean {
     return parseFloat(s.discountApplied || '0') > 0;
+  }
+
+  setDisplayCurrency(currency: string): void {
+    const normalized = this.normalizeCurrency(currency);
+    if (normalized) {
+      this.displayCurrency.set(normalized);
+    }
+  }
+
+  selectedDisplayCurrency(): string {
+    return this.displayCurrency() || 'USD';
+  }
+
+  formatDisplayMoney(value: string | number | null | undefined, fromCurrency: string | null | undefined): string {
+    const targetCurrency = this.selectedDisplayCurrency();
+    return formatMoney(this.convertMoney(value, fromCurrency, targetCurrency), targetCurrency);
+  }
+
+  convertedGrandTotal(): number {
+    const c = this.cart();
+    if (!c) return 0;
+    const targetCurrency = this.selectedDisplayCurrency();
+    return c.stores.reduce((sum, store) => sum + this.convertMoney(store.grandTotal, store.currency, targetCurrency), 0);
+  }
+
+  private loadCurrencyRates(): void {
+    this.currencyRatesApi.listRates().subscribe({
+      next: (rates) => {
+        const rateMap: Record<string, number> = { USD: 1 };
+        for (const rate of rates) {
+          const value = parseFloat(rate.rate);
+          if (!Number.isNaN(value) && value > 0) {
+            rateMap[rate.targetCurrency] = value;
+          }
+        }
+        this.usdRates.set(rateMap);
+        this.availableCurrencies.set(Object.keys(rateMap).sort());
+        const currentCurrency = this.displayCurrency();
+        if (currentCurrency && !rateMap[currentCurrency]) {
+          this.displayCurrency.set(rateMap['TRY'] ? 'TRY' : 'USD');
+        }
+      },
+      error: () => {
+        this.usdRates.set({ USD: 1 });
+        this.availableCurrencies.set(['USD']);
+        this.displayCurrency.set('USD');
+      }
+    });
+  }
+
+  private setInitialDisplayCurrency(c: CartResponse): void {
+    if (this.displayCurrency()) {
+      return;
+    }
+    const firstStoreCurrency = c.stores
+      .map((store) => this.normalizeCurrency(store.currency))
+      .find((currency) => currency && currency !== 'MIXED');
+    this.displayCurrency.set(firstStoreCurrency ?? (this.availableCurrencies().includes('TRY') ? 'TRY' : 'USD'));
+  }
+
+  private convertMoney(
+    value: string | number | null | undefined,
+    fromCurrency: string | null | undefined,
+    targetCurrency: string
+  ): number {
+    if (value == null || value === '') return 0;
+    const amount = typeof value === 'string' ? parseFloat(value) : value;
+    if (Number.isNaN(amount)) return 0;
+
+    const sourceCurrency = this.normalizeCurrency(fromCurrency);
+    if (!sourceCurrency || sourceCurrency === 'MIXED') {
+      return amount;
+    }
+    const rates = this.usdRates();
+    const sourceRate = rates[sourceCurrency] ?? 0;
+    const targetRate = rates[targetCurrency] ?? 0;
+    if (sourceRate <= 0 || targetRate <= 0) {
+      return amount;
+    }
+    return (amount / sourceRate) * targetRate;
+  }
+
+  private normalizeCurrency(currency: string | null | undefined): string {
+    return currency?.trim().toUpperCase() ?? '';
   }
 }

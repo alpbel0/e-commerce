@@ -9,6 +9,7 @@ export interface CartItemResponse {
   productId: string;
   sku: string;
   title: string;
+  currency: string;
   quantity: number;
   unitPrice: string;
   lineSubtotal: string;
@@ -19,6 +20,7 @@ export interface CartItemResponse {
 export interface StoreCartResponse {
   storeId: string;
   storeName: string;
+  currency: string;
   totalItemCount: number;
   subtotal: string;
   discountApplied: string;

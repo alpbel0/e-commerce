@@ -148,6 +148,32 @@ PHASE_1_DATASETS: tuple[DatasetConfig, ...] = (
         integer_columns=("quantity",),
         identifier_columns=("invoice_no", "stock_code", "customer_id"),
     ),
+    DatasetConfig(
+        source_system="PAKISTAN",
+        input_filename="Pakistan Largest Ecommerce Dataset.csv",
+        output_filename="pakistan_staging.csv",
+        reject_filename="pakistan_rejects.csv",
+        reader="csv",
+        rename_map={
+            "item_id": "line_item_id",
+            "status": "order_status",
+            "created_at": "order_date",
+            "sku": "product_id",
+            "price": "unit_price",
+            "qty_ordered": "quantity",
+            "grand_total": "grand_total",
+            "increment_id": "order_id",
+            "category_name_1": "category_name",
+            "sales_commission_code": "sales_commission_code",
+            "discount_amount": "discount_amount",
+            "payment_method": "payment_method",
+            "Customer ID": "customer_id",
+        },
+        date_columns=("order_date",),
+        numeric_columns=("unit_price", "quantity", "grand_total", "discount_amount"),
+        integer_columns=("quantity",),
+        identifier_columns=("line_item_id", "order_id", "product_id", "customer_id"),
+    ),
 )
 
 TRAIN_DATASET = DatasetConfig(

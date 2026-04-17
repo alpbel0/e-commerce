@@ -2,6 +2,7 @@ package com.project.ecommerce.order.dto;
 
 public enum CheckoutPaymentMethod {
     CREDIT_CARD,
+    STRIPE_CARD,
     DEBIT_CARD,
     PAYPAL,
     WIRE_TRANSFER,

@@ -8,6 +8,7 @@ import com.project.ecommerce.coupon.service.CouponManagementService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,5 +52,11 @@ public class CouponManagementController {
     @PatchMapping("/{couponId}")
     public CouponResponse updateCoupon(@PathVariable UUID couponId, @Valid @RequestBody UpdateCouponRequest request) {
         return couponManagementService.updateCoupon(couponId, request);
+    }
+
+    @DeleteMapping("/{couponId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCoupon(@PathVariable UUID couponId) {
+        couponManagementService.deleteCoupon(couponId);
     }
 }

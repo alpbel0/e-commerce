@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { forkJoin } from 'rxjs';
@@ -15,108 +16,163 @@ const DASHBOARD_PREFS_KEY = 'admin_dashboard_widget_prefs';
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [LoadingSpinnerComponent, ErrorStateComponent, ChartWrapperComponent],
+  imports: [LoadingSpinnerComponent, ErrorStateComponent, ChartWrapperComponent, DecimalPipe],
   templateUrl: './admin-dashboard.component.html',
-  styles: [
-    `
-      h2 {
-        margin: 0 0 1rem;
-      }
-      .kpis {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
-        margin-bottom: 1.5rem;
-      }
-      .kpi {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 12px 14px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        display: grid;
-        gap: 8px;
-      }
-      .kpi-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .kpi label {
-        display: block;
-        font-size: 0.72rem;
-        color: #64748b;
-      }
-      .kpi strong {
-        font-size: 1.1rem;
-        line-height: 1.15;
-      }
-      .trend {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #475569;
-      }
-      .trend::before {
-        content: '';
-        display: inline-block;
-      }
-      .trend-up::before {
-        width: 0;
-        height: 0;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-bottom: 8px solid #16a34a;
-      }
-      .trend-neutral::before {
-        width: 10px;
-        height: 2px;
-        background: #64748b;
-        border-radius: 999px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-        gap: 16px;
-        align-items: start;
-      }
-      .card {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 16px;
-        background: #fff;
-      }
-      .chart-card {
-        min-height: 380px;
-      }
-      h3 {
-        font-size: 0.95rem;
-        margin: 0 0 10px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 6px 4px;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      .chart-stack {
-        display: grid;
-        gap: 16px;
-      }
-      @media (max-width: 960px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    `
-  ]
+  styles: [`
+    /* Page header */
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .page-header__title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .page-header__sub { font-size: 0.875rem; color: var(--text-muted); }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--trans-base), transform var(--trans-fast);
+    }
+    .kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .kpi-card__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+    }
+    .kpi-card__icon--green  { background: #d1fae5; color: #059669; }
+    .kpi-card__icon--blue   { background: #dbeafe; color: #1d4ed8; }
+    .kpi-card__icon--purple { background: #ede9fe; color: #7c3aed; }
+    .kpi-card__icon--amber  { background: #fef3c7; color: #d97706; }
+    .kpi-card__icon--rose   { background: #ffe4e6; color: #e11d48; }
+    .kpi-card__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .kpi-card__label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .kpi-card__value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.15;
+    }
+    .trend {
+      font-size: 0.68rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .trend-up    { color: #059669; }
+    .trend-neutral { color: var(--text-muted); }
+
+    /* Widget controls */
+    .widget-controls {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .widget-controls__title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .widget-controls__toggles {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .toggle-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    /* Charts grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .charts-col { display: flex; flex-direction: column; gap: 20px; }
+
+    /* Section card */
+    .section-card { padding: 20px; }
+    .section-card__title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+    .chart-area { height: 300px; }
+
+    /* Table extras */
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: var(--clr-slate-100);
+      border-radius: 50%;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .product-name {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .revenue-cell { font-weight: 600; color: var(--text-primary); }
+
+    @media (max-width: 960px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+  `]
 })
 export class AdminDashboardComponent implements OnInit {
   private readonly analytics = inject(AnalyticsService);
@@ -165,7 +221,10 @@ export class AdminDashboardComponent implements OnInit {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (ctx) => ` ${formatMoney(String(ctx.raw ?? 0))}`
+          label: (ctx) => {
+            const store = this.topStores()[ctx.dataIndex];
+            return ` ${formatMoney(store?.totalRevenue ?? '0')}`;
+          }
         }
       }
     },

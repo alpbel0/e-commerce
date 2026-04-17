@@ -1,7 +1,9 @@
 <h2>Siparisler</h2>
-<p class="hint">Liste secili magazaya gore sayfali olarak yuklenir.</p>
+<p class="hint">
+  {{ isAdminRoute() ? 'Tum siparisler sayfali olarak yuklenir.' : 'Liste secili magazaya gore sayfali olarak yuklenir.' }}
+</p>
 
-@if (!ctx.selectedStoreId()) {
+@if (!isAdminRoute() && !ctx.selectedStoreId()) {
   <app-empty-state title="Magaza secin" message="Ust menuden magaza secin." />
 } @else if (loading()) {
   <app-loading-spinner />
@@ -15,6 +17,14 @@
         <option value="">Tumu</option>
         @for (s of statusOptions; track s) {
           <option [value]="s">{{ s }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Para birimi
+      <select [value]="selectedDisplayCurrency()" (change)="setDisplayCurrency($any($event.target).value)">
+        @for (currency of availableCurrencies(); track currency) {
+          <option [value]="currency">{{ currency }}</option>
         }
       </select>
     </label>
@@ -40,11 +50,23 @@
           <tr>
             <td>{{ o.incrementId }}</td>
             <td>{{ o.storeName }}</td>
-            <td><span [class]="badgeClass(o.status)">{{ o.status }}</span></td>
+            <td>
+              <select
+                class="status-select"
+                [class]="badgeClass(o.status) + ' status-select'"
+                [value]="o.status"
+                [disabled]="isOrderSaving(o.orderId)"
+                (change)="onOrderStatusChange(o, $event)"
+              >
+                @for (s of statusOptions; track s) {
+                  <option [value]="s">{{ s }}</option>
+                }
+              </select>
+            </td>
             <td>{{ o.paymentStatus }}</td>
-            <td>{{ formatMoney(o.grandTotal) }}</td>
+            <td>{{ formatDisplayMoney(o.grandTotal, o.currency) }}</td>
             <td>{{ shortDate(o.orderDate) }}</td>
-            <td><a [routerLink]="['/corporate/orders', o.orderId]">Detay</a></td>
+            <td><a [routerLink]="detailLink(o.orderId)">Detay</a></td>
           </tr>
         }
       </tbody>

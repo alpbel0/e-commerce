@@ -1,58 +1,100 @@
-<h2>Kayıt</h2>
-<form [formGroup]="form" (ngSubmit)="submit()">
+<h1 class="reg-title">Hesap oluştur</h1>
+<p class="reg-subtitle">Bireysel veya kurumsal hesabınızı açın</p>
+
+<form [formGroup]="form" (ngSubmit)="submit()" class="reg-form" novalidate>
+
+  <div class="field-row">
+    <div class="field">
+      <label class="field__label" for="firstName">Ad</label>
+      <input id="firstName" formControlName="firstName" autocomplete="given-name" placeholder="Adınız"
+        [class.field__input--error]="form.controls.firstName.touched && form.controls.firstName.invalid" />
+      @if (form.controls.firstName.errors?.['server']) {
+        <p class="field__error">{{ form.controls.firstName.errors?.['server'] }}</p>
+      }
+    </div>
+    <div class="field">
+      <label class="field__label" for="lastName">Soyad</label>
+      <input id="lastName" formControlName="lastName" autocomplete="family-name" placeholder="Soyadınız"
+        [class.field__input--error]="form.controls.lastName.touched && form.controls.lastName.invalid" />
+      @if (form.controls.lastName.errors?.['server']) {
+        <p class="field__error">{{ form.controls.lastName.errors?.['server'] }}</p>
+      }
+    </div>
+  </div>
+
   <div class="field">
-    <label for="email">E-posta</label>
-    <input id="email" type="email" formControlName="email" autocomplete="email" />
+    <label class="field__label" for="email">E-posta</label>
+    <input id="email" type="email" formControlName="email" autocomplete="email" placeholder="ornek@sirket.com"
+      [class.field__input--error]="form.controls.email.touched && form.controls.email.invalid" />
     @if (form.controls.email.touched && form.controls.email.errors?.['required']) {
-      <p class="err">Zorunlu</p>
+      <p class="field__error">E-posta zorunludur.</p>
     }
     @if (form.controls.email.errors?.['server']) {
-      <p class="err">{{ form.controls.email.errors?.['server'] }}</p>
+      <p class="field__error">{{ form.controls.email.errors?.['server'] }}</p>
     }
   </div>
+
   <div class="field">
-    <label for="firstName">Ad</label>
-    <input id="firstName" formControlName="firstName" autocomplete="given-name" />
-    @if (form.controls.firstName.errors?.['server']) {
-      <p class="err">{{ form.controls.firstName.errors?.['server'] }}</p>
-    }
-  </div>
-  <div class="field">
-    <label for="lastName">Soyad</label>
-    <input id="lastName" formControlName="lastName" autocomplete="family-name" />
-    @if (form.controls.lastName.errors?.['server']) {
-      <p class="err">{{ form.controls.lastName.errors?.['server'] }}</p>
-    }
-  </div>
-  <div class="field">
-    <label for="password">Şifre</label>
-    <input id="password" type="password" formControlName="password" autocomplete="new-password" />
-    <p class="hint">8–64 karakter; büyük, küçük, rakam ve özel karakter.</p>
+    <label class="field__label" for="password">Şifre</label>
+    <input id="password" type="password" formControlName="password" autocomplete="new-password" placeholder="••••••••"
+      [class.field__input--error]="form.controls.password.touched && form.controls.password.invalid" />
+    <p class="field__hint">8–64 karakter; büyük, küçük, rakam ve özel karakter içermeli.</p>
     @if (form.controls.password.touched && form.controls.password.errors?.['pattern']) {
-      <p class="err">Şifre kurallara uymuyor</p>
+      <p class="field__error">Şifre kurallara uymuyor.</p>
     }
     @if (form.controls.password.errors?.['server']) {
-      <p class="err">{{ form.controls.password.errors?.['server'] }}</p>
+      <p class="field__error">{{ form.controls.password.errors?.['server'] }}</p>
     }
   </div>
+
   <div class="field">
-    <label for="role">Rol</label>
-    <select id="role" formControlName="role">
-      <option value="INDIVIDUAL">Bireysel</option>
-      <option value="CORPORATE">Kurumsal (mağaza)</option>
-    </select>
+    <label class="field__label">Hesap tipi</label>
+    <div class="role-picker">
+      <label class="role-option" [class.role-option--selected]="form.controls.role.value === 'INDIVIDUAL'">
+        <input type="radio" formControlName="role" value="INDIVIDUAL" />
+        <div class="role-option__content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span class="role-option__label">Bireysel</span>
+          <span class="role-option__desc">Alışveriş yap, takip et</span>
+        </div>
+      </label>
+      <label class="role-option" [class.role-option--selected]="form.controls.role.value === 'CORPORATE'">
+        <input type="radio" formControlName="role" value="CORPORATE" />
+        <div class="role-option__content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <span class="role-option__label">Kurumsal</span>
+          <span class="role-option__desc">Mağaza aç, sat, analiz et</span>
+        </div>
+      </label>
+    </div>
   </div>
+
   @if (showStoreName()) {
-    <div class="field">
-      <label for="storeName">Mağaza adı</label>
-      <input id="storeName" formControlName="storeName" />
+    <div class="field animate-fade-in-up">
+      <label class="field__label" for="storeName">Mağaza adı</label>
+      <input id="storeName" formControlName="storeName" placeholder="Mağazanızın adı"
+        [class.field__input--error]="form.controls.storeName.touched && form.controls.storeName.invalid" />
       @if (form.controls.storeName.errors?.['server']) {
-        <p class="err">{{ form.controls.storeName.errors?.['server'] }}</p>
+        <p class="field__error">{{ form.controls.storeName.errors?.['server'] }}</p>
       }
     </div>
   }
-  <button type="submit" [disabled]="submitting">Kayıt ol</button>
+
+  <button id="register-submit-btn" type="submit" class="submit-btn" [disabled]="submitting">
+    @if (submitting) {
+      <span class="submit-btn__spinner"></span>
+      Kaydediliyor...
+    } @else {
+      Hesap Oluştur
+    }
+  </button>
 </form>
-<p class="hint" style="margin-top: 1rem">
-  <a routerLink="/auth/login">Girişe dön</a>
+
+<p class="reg-footer">
+  Zaten hesabın var mı?
+  <a routerLink="/auth/login" class="reg-footer__link">Giriş yap</a>
 </p>

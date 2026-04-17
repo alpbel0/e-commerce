@@ -25,6 +25,7 @@ public class AnalyticsService {
 
     private static final int DEFAULT_LIMIT = 5;
     private static final int MAX_LIMIT = 20;
+    private static final int MAX_ADMIN_STORE_LIMIT = 5_000;
 
     private final JdbcTemplate jdbcTemplate;
     private final CurrentUserService currentUserService;
@@ -98,13 +99,13 @@ public class AnalyticsService {
         List<RankedStoreResponse> items = jdbcTemplate.query(
             """
             SELECT
-                o.store_id,
+                s.id AS store_id,
                 s.name AS store_name,
-                COUNT(*) AS total_orders,
+                COUNT(o.id) AS total_orders,
                 COALESCE(SUM(o.grand_total), 0.00) AS total_revenue
-            FROM orders o
-            JOIN stores s ON s.id = o.store_id
-            GROUP BY o.store_id, s.name
+            FROM stores s
+            LEFT JOIN orders o ON o.store_id = s.id
+            GROUP BY s.id, s.name
             ORDER BY total_revenue DESC, total_orders DESC
             LIMIT ?
             """,
@@ -114,7 +115,7 @@ public class AnalyticsService {
                 resultSet.getLong("total_orders"),
                 money(resultSet.getBigDecimal("total_revenue"))
             ),
-            resolveLimit(limit)
+            resolveAdminStoreLimit(limit)
         );
         return new ApiListResponse<>(items, items.size());
     }
@@ -313,6 +314,13 @@ public class AnalyticsService {
             return DEFAULT_LIMIT;
         }
         return Math.min(Math.max(requestedLimit, 1), MAX_LIMIT);
+    }
+
+    private int resolveAdminStoreLimit(Integer requestedLimit) {
+        if (requestedLimit == null) {
+            return DEFAULT_LIMIT;
+        }
+        return Math.min(Math.max(requestedLimit, 1), MAX_ADMIN_STORE_LIMIT);
     }
 
     private BigDecimal money(BigDecimal value) {

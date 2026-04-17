@@ -8,6 +8,7 @@ public record CartItemResponse(
     UUID productId,
     String sku,
     String title,
+    String currency,
     int quantity,
     BigDecimal unitPrice,
     BigDecimal lineSubtotal,

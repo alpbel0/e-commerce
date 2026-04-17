@@ -43,6 +43,12 @@ public class Product {
     @Column(name = "image_urls")
     private String[] imageUrls;
 
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency = "USD";
+
+    @Column(name = "source_country", length = 100)
+    private String sourceCountry;
+
     @Column(name = "unit_price", nullable = false)
     private BigDecimal unitPrice;
 
@@ -145,6 +151,22 @@ public class Product {
 
     public void setBrand(String brand) {
         this.brand = brand;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getSourceCountry() {
+        return sourceCountry;
+    }
+
+    public void setSourceCountry(String sourceCountry) {
+        this.sourceCountry = sourceCountry;
     }
 
     public BigDecimal getUnitPrice() {

@@ -1,7 +1,9 @@
-<h2>Dashboard</h2>
-<p class="hint" style="margin:0 0 1rem;color:#64748b;font-size:0.9rem">
-  Üst menüden mağaza seçerek verileri filtreleyebilirsiniz.
-</p>
+<section class="page-header">
+  <div>
+    <h1 class="page-header__title">Mağaza Dashboard</h1>
+    <p class="page-header__sub">Üst menüden mağaza seçerek verileri filtreleyebilirsiniz.</p>
+  </div>
+</section>
 
 @if (!ctx.selectedStoreId()) {
   <app-empty-state title="Mağaza seçin" message="Mağaza bulunamadı veya henüz seçilmedi." />
@@ -11,51 +13,102 @@
   <app-error-state message="Özet yüklenemedi." (retry)="retry()" />
 } @else {
   @if (summary(); as s) {
-    <div class="kpis">
-      <div class="kpi">
-        <label>Toplam ciro</label>
-        <strong>{{ formatMoney(s.totalRevenue) }}</strong>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Toplam Ciro</span>
+          <strong class="kpi-card__value">{{ formatMoney(s.totalRevenue) }}</strong>
+        </div>
       </div>
-      <div class="kpi">
-        <label>Sipariş</label>
-        <strong>{{ s.totalOrders }}</strong>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Sipariş</span>
+          <strong class="kpi-card__value">{{ s.totalOrders }}</strong>
+        </div>
       </div>
-      <div class="kpi">
-        <label>Ürün</label>
-        <strong>{{ s.totalProducts }}</strong>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--purple">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Aktif Ürün</span>
+          <strong class="kpi-card__value">{{ s.totalProducts }}</strong>
+        </div>
       </div>
-      <div class="kpi">
-        <label>Ort. sepet</label>
-        <strong>{{ formatMoney(s.averageOrderValue) }}</strong>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Ort. Sipariş Değeri</span>
+          <strong class="kpi-card__value">{{ formatMoney(s.averageOrderValue) }}</strong>
+        </div>
       </div>
-      <div class="kpi">
-        <label>Yorum</label>
-        <strong>{{ s.totalReviews }}</strong>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--rose">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Toplam Yorum</span>
+          <strong class="kpi-card__value">{{ s.totalReviews }}</strong>
+        </div>
       </div>
     </div>
 
-    <h3>Çok satanlar</h3>
-    @if (topProducts().length === 0) {
-      <app-empty-state title="Veri yok" message="Bu mağaza için satış verisi yok." />
-    } @else {
-      <table>
-        <thead>
-          <tr>
-            <th>Ürün</th>
-            <th>Adet</th>
-            <th>Ciro</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (p of topProducts(); track p.productId) {
+    <!-- Top products table -->
+    <section class="ec-card section-card">
+      <h2 class="section-card__title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>
+        </svg>
+        En Çok Satan Ürünler
+      </h2>
+
+      @if (topProducts().length === 0) {
+        <app-empty-state title="Veri yok" message="Bu mağaza için satış verisi bulunamadı." />
+      } @else {
+        <table class="ec-table">
+          <thead>
             <tr>
-              <td>{{ p.productTitle }}</td>
-              <td>{{ p.totalQuantitySold }}</td>
-              <td>{{ formatMoney(p.totalRevenue) }}</td>
+              <th>#</th>
+              <th>Ürün</th>
+              <th>Adet</th>
+              <th>Ciro</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    }
+          </thead>
+          <tbody>
+            @for (p of topProducts(); track p.productId; let i = $index) {
+              <tr>
+                <td><span class="rank-badge">{{ i + 1 }}</span></td>
+                <td class="product-name">{{ p.productTitle }}</td>
+                <td>{{ p.totalQuantitySold }}</td>
+                <td class="revenue-cell">{{ formatMoney(p.totalRevenue) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
   }
 }

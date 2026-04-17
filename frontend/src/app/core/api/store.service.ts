@@ -30,4 +30,13 @@ export class StoreService {
   getById(storeId: string): Observable<StoreDetailResponse> {
     return this.http.get<StoreDetailResponse>(`${this.base}/${storeId}`);
   }
+
+  getBySlug(slug: string): Observable<StoreDetailResponse> {
+    return this.http.get<StoreDetailResponse>(`${this.base}/slug/${slug}`);
+  }
+
+  getStoresByOwner(ownerId: string): Observable<ApiPageResponse<StoreSummaryResponse>> {
+    let h = new HttpParams().set('ownerId', ownerId);
+    return this.http.get<ApiPageResponse<StoreSummaryResponse>>(this.base, { params: h });
+  }
 }

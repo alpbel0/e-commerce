@@ -12,6 +12,8 @@ public record PatchProductRequest(
     String description,
     String brand,
     List<String> imageUrls,
+    String currency,
+    String sourceCountry,
     @DecimalMin(value = "0.00", message = "unitPrice must be non-negative")
     BigDecimal unitPrice,
     @DecimalMin(value = "0.00", message = "discountPercentage must be non-negative")

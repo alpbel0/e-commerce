@@ -109,8 +109,10 @@ class AuthIntegrationTest {
 
         AppUser corporate = appUserRepository.findByEmailIgnoreCase("registered.corporate@test.local").orElseThrow();
         assertThat(storeRepository.findByOwnerId(corporate.getId()))
-            .extracting(Store::getName)
-            .contains("Registered Corporate Store");
+            .anySatisfy(store -> {
+                assertThat(store.getName()).isEqualTo("Registered Corporate Store");
+                assertThat(store.getSlug()).startsWith("registered-corporate-store-");
+            });
     }
 
     @Test
@@ -251,6 +253,7 @@ class AuthIntegrationTest {
         store.setName(name);
         store.setContactEmail(owner.getEmail());
         store.setStatus("OPEN");
+        store.setSlug(name.toLowerCase(java.util.Locale.ENGLISH).replaceAll("\\s+", "-") + "-" + UUID.randomUUID().toString().substring(0, 8));
         storeRepository.save(store);
     }
 

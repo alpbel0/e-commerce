@@ -1,4 +1,4 @@
-<h2>Ürünler</h2>
+<h2>Urunler</h2>
 
 <app-product-filters
   [categories]="categoriesList()"
@@ -9,27 +9,41 @@
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Ürünler yüklenemedi." (retry)="load()" />
+  <app-error-state message="Urunler yuklenemedi." (retry)="load()" />
 } @else if (items().length === 0) {
-  <app-empty-state title="Ürün bulunamadı" message="Filtreleri değiştirmeyi deneyin." />
+  <app-empty-state title="Urun bulunamadi" message="Filtreleri degistirmeyi deneyin." />
 } @else {
   <div class="grid">
     @for (p of items(); track p.id) {
       <article class="card">
-        <h3>
-          <a class="title" [routerLink]="['/app/products', p.id]">{{ p.title }}</a>
-        </h3>
-        <div class="meta">{{ p.storeName }} · {{ p.categoryName }}</div>
-        <div class="price-row">
-          @if (showDiscount(p)) {
-            <span class="old">{{ formatMoney(p.unitPrice) }}</span>
+        <a class="cover" [routerLink]="['/app/products', p.id]">
+          @if (hasImage(p)) {
+            <img [src]="p.primaryImageUrl!" [alt]="imageAlt(p)" loading="lazy" />
+          } @else {
+            <span class="cover-empty">Gorsel yok</span>
           }
-          <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2)) }}</span>
-        </div>
-        <div class="stars">{{ starString(stars(p)) }} ({{ p.reviewCount }})</div>
-        <div class="actions">
-          <a class="detail" [routerLink]="['/app/products', p.id]">Detay</a>
-          <button type="button" [disabled]="!canAdd(p)" (click)="addToCart(p)">Sepete ekle</button>
+        </a>
+        <div class="content">
+          <h3>
+            <a class="title" [routerLink]="['/app/products', p.id]">{{ p.title }}</a>
+          </h3>
+          <div class="meta">{{ p.storeName }} · {{ p.categoryName }}</div>
+          <div class="price-row">
+            @if (showDiscount(p)) {
+              <span class="old">{{ formatMoney(p.unitPrice, p.currency) }}</span>
+            }
+            <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2), p.currency) }}</span>
+          </div>
+          <div class="stars">{{ starString(stars(p)) }} ({{ p.reviewCount }})</div>
+          <div class="actions">
+            <a class="detail" [routerLink]="['/app/products', p.id]">Detay</a>
+            <button type="button" [disabled]="!canAdd(p)" (click)="addToCart(p)">Sepete ekle</button>
+            <button type="button" class="wishlist-btn" (click)="addToWishlist(p, $event)" title="Favorilere ekle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </article>
     }

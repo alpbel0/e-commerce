@@ -11,6 +11,7 @@ public record CheckoutOrderResponse(
     BigDecimal subtotal,
     BigDecimal discountAmount,
     BigDecimal grandTotal,
+    String currency,
     String shipmentStatus
 ) {
 }

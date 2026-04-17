@@ -26,13 +26,22 @@ public class StoreController {
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size,
         @RequestParam(required = false) String sort,
-        @RequestParam(required = false) String status
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) UUID ownerId
     ) {
+        if (ownerId != null) {
+            return storeService.getStoresByOwner(ownerId, page, size);
+        }
         return storeService.listStores(page, size, sort, status);
     }
 
     @GetMapping("/{storeId}")
     public StoreDetailResponse getStore(@PathVariable UUID storeId) {
         return storeService.getStore(storeId);
+    }
+
+    @GetMapping("/slug/{slug}")
+    public StoreDetailResponse getStoreBySlug(@PathVariable String slug) {
+        return storeService.getStoreBySlug(slug);
     }
 }

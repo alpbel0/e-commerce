@@ -16,6 +16,8 @@ public record UpdateProductRequest(
     String description,
     String brand,
     List<String> imageUrls,
+    String currency,
+    String sourceCountry,
     @NotNull(message = "unitPrice is required")
     @DecimalMin(value = "0.00", message = "unitPrice must be non-negative")
     BigDecimal unitPrice,

@@ -44,6 +44,9 @@ public class AppUser {
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
+    @Column(name = "total_spend", nullable = false)
+    private java.math.BigDecimal totalSpend = java.math.BigDecimal.ZERO;
+
     public UUID getId() {
         return id;
     }
@@ -130,5 +133,13 @@ public class AppUser {
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public java.math.BigDecimal getTotalSpend() {
+        return totalSpend;
+    }
+
+    public void setTotalSpend(java.math.BigDecimal totalSpend) {
+        this.totalSpend = totalSpend;
     }
 }

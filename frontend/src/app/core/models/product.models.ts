@@ -2,6 +2,9 @@ export interface ProductSummaryResponse {
   id: string;
   sku: string;
   title: string;
+  primaryImageUrl: string | null;
+  currency: string;
+  sourceCountry: string | null;
   unitPrice: string;
   discountPercentage: string;
   stockQuantity: number;
@@ -20,6 +23,8 @@ export interface ProductDetailResponse {
   title: string;
   description: string | null;
   brand: string | null;
+  currency: string;
+  sourceCountry: string | null;
   unitPrice: string;
   discountPercentage: string;
   costOfProduct: string;
@@ -46,6 +51,8 @@ export interface CreateProductRequest {
   description?: string | null;
   brand?: string | null;
   imageUrls?: string[] | null;
+  currency?: string | null;
+  sourceCountry?: string | null;
   unitPrice: string;
   discountPercentage?: string | null;
   costOfProduct?: string | null;
@@ -59,6 +66,8 @@ export interface UpdateProductRequest {
   description?: string | null;
   brand?: string | null;
   imageUrls?: string[] | null;
+  currency?: string | null;
+  sourceCountry?: string | null;
   unitPrice: string;
   discountPercentage?: string | null;
   costOfProduct?: string | null;
@@ -73,6 +82,8 @@ export interface PatchProductRequest {
   description?: string | null;
   brand?: string | null;
   imageUrls?: string[] | null;
+  currency?: string | null;
+  sourceCountry?: string | null;
   unitPrice?: string | null;
   discountPercentage?: string | null;
   costOfProduct?: string | null;

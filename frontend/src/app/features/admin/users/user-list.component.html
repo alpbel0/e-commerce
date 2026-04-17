@@ -46,7 +46,7 @@
           <td>{{ u.email }}</td>
           <td>{{ u.firstName }} {{ u.lastName }}</td>
           <td>
-            <select [value]="u.activeRole" (change)="changeRole(u, $event)">
+            <select [ngModel]="u.activeRole" (ngModelChange)="changeRole(u, $event)">
               @for (r of roles; track r) {
                 <option [value]="r">{{ r }}</option>
               }

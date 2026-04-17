@@ -11,6 +11,8 @@ public record ProductDetailResponse(
     String title,
     String description,
     String brand,
+    String currency,
+    String sourceCountry,
     BigDecimal unitPrice,
     BigDecimal discountPercentage,
     BigDecimal costOfProduct,

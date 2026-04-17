@@ -54,7 +54,11 @@ export const corporateRoutes: Routes = [
       import('./reviews/review-management.component').then((m) => m.ReviewManagementComponent),
     title: 'Review Management'
   },
-  { path: 'coupons', ...ph('Kuponlar'), title: 'Kuponlar' },
+  {
+    path: 'coupons',
+    loadComponent: () => import('./coupons/coupons.component').then((m) => m.CouponsComponent),
+    title: 'Kuponlar'
+  },
   {
     path: 'store-settings',
     loadComponent: () =>

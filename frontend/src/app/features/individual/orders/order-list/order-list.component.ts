@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { CurrencyRateService } from '../../../../core/api/currency-rate.service';
 import { OrderService } from '../../../../core/api/order.service';
 import type { OrderSummaryResponse } from '../../../../core/models/order.models';
 import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
@@ -60,6 +61,29 @@ import { formatMoney } from '../../../../shared/util/money';
         background: #fff;
         cursor: pointer;
       }
+      .currency-picker {
+        display: flex;
+        align-items: end;
+        gap: 8px;
+      }
+      .currency-picker label {
+        display: grid;
+        gap: 4px;
+        font-size: 0.8rem;
+        color: #475569;
+      }
+      .currency-picker select {
+        min-width: 130px;
+        padding: 0.4rem 0.6rem;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+      }
+      .toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: end;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -111,6 +135,7 @@ import { formatMoney } from '../../../../shared/util/money';
 })
 export class OrderListComponent {
   private readonly orders = inject(OrderService);
+  private readonly currencyRates = inject(CurrencyRateService);
 
   readonly items = signal<OrderSummaryResponse[]>([]);
   readonly loading = signal(true);
@@ -120,6 +145,9 @@ export class OrderListComponent {
   readonly status = signal<string>('');
   readonly paymentStatus = signal<string>('');
   readonly storeQuery = signal('');
+  readonly displayCurrency = signal('');
+  readonly usdRates = signal<Record<string, number>>({ USD: 1 });
+  readonly availableCurrencies = signal<string[]>(['TRY', 'USD', 'EUR']);
 
   readonly formatMoney = formatMoney;
   readonly statusOptions = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'] as const;
@@ -136,6 +164,7 @@ export class OrderListComponent {
   });
 
   constructor() {
+    this.loadCurrencyRates();
     this.load();
   }
 
@@ -179,6 +208,22 @@ export class OrderListComponent {
     this.storeQuery.set(value);
   }
 
+  setDisplayCurrency(value: string): void {
+    const normalized = this.normalizeCurrency(value);
+    if (normalized) {
+      this.displayCurrency.set(normalized);
+    }
+  }
+
+  selectedDisplayCurrency(): string {
+    return this.displayCurrency() || 'USD';
+  }
+
+  formatDisplayMoney(value: string | number | null | undefined, fromCurrency: string | null | undefined): string {
+    const targetCurrency = this.selectedDisplayCurrency();
+    return formatMoney(this.convertMoney(value, fromCurrency, targetCurrency), targetCurrency);
+  }
+
   onPage(page: number): void {
     this.page.set(page);
     this.load();
@@ -193,7 +238,7 @@ export class OrderListComponent {
         row.storeName,
         row.status,
         row.paymentStatus,
-        row.grandTotal,
+        this.formatDisplayMoney(row.grandTotal, row.currency),
         row.orderDate
       ]
         .map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`)
@@ -218,5 +263,55 @@ export class OrderListComponent {
 
   shortDate(value: string): string {
     return (value ?? '').slice(0, 10);
+  }
+
+  private loadCurrencyRates(): void {
+    this.currencyRates.listRates().subscribe({
+      next: (rates) => {
+        const rateMap: Record<string, number> = { USD: 1 };
+        for (const rate of rates) {
+          const value = parseFloat(rate.rate);
+          if (!Number.isNaN(value) && value > 0) {
+            rateMap[rate.targetCurrency] = value;
+          }
+        }
+        this.usdRates.set(rateMap);
+        this.availableCurrencies.set(Object.keys(rateMap).sort());
+        if (!this.displayCurrency()) {
+          this.displayCurrency.set(rateMap['TRY'] ? 'TRY' : 'USD');
+        }
+      },
+      error: () => {
+        this.usdRates.set({ USD: 1 });
+        this.availableCurrencies.set(['USD']);
+        this.displayCurrency.set('USD');
+      }
+    });
+  }
+
+  private convertMoney(
+    value: string | number | null | undefined,
+    fromCurrency: string | null | undefined,
+    targetCurrency: string
+  ): number {
+    if (value == null || value === '') return 0;
+    const amount = typeof value === 'string' ? parseFloat(value) : value;
+    if (Number.isNaN(amount)) return 0;
+
+    const sourceCurrency = this.normalizeCurrency(fromCurrency);
+    if (!sourceCurrency || sourceCurrency === 'MIXED') {
+      return amount;
+    }
+    const rates = this.usdRates();
+    const sourceRate = rates[sourceCurrency] ?? 0;
+    const targetRate = rates[targetCurrency] ?? 0;
+    if (sourceRate <= 0 || targetRate <= 0) {
+      return amount;
+    }
+    return (amount / sourceRate) * targetRate;
+  }
+
+  private normalizeCurrency(currency: string | null | undefined): string {
+    return currency?.trim().toUpperCase() ?? '';
   }
 }

@@ -7,6 +7,7 @@ import java.util.UUID;
 public record StoreCartResponse(
     UUID storeId,
     String storeName,
+    String currency,
     int totalItemCount,
     BigDecimal subtotal,
     BigDecimal discountApplied,

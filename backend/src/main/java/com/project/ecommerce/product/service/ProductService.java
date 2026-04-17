@@ -13,9 +13,12 @@ import com.project.ecommerce.product.dto.ProductDetailResponse;
 import com.project.ecommerce.product.dto.ProductSummaryResponse;
 import com.project.ecommerce.product.dto.UpdateProductRequest;
 import com.project.ecommerce.product.dto.UpdateProductStockRequest;
+import com.project.ecommerce.product.dto.AddProductImagesRequest;
 import com.project.ecommerce.product.repository.ProductRepository;
 import com.project.ecommerce.store.domain.Store;
 import com.project.ecommerce.store.repository.StoreRepository;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +55,14 @@ public class ProductService {
         this.categoryRepository = categoryRepository;
         this.currentUserService = currentUserService;
         this.auditLogService = auditLogService;
+    }
+
+    public List<ProductSummaryResponse> getFeaturedProducts(Integer limit) {
+        int resolvedLimit = limit == null ? 10 : Math.min(Math.max(limit, 1), 50);
+        Pageable pageable = PageRequest.of(0, resolvedLimit);
+        return productRepository.findFeaturedActiveProducts(pageable).stream()
+            .map(this::toSummaryResponse)
+            .toList();
     }
 
     public ApiPageResponse<ProductSummaryResponse> listProducts(
@@ -112,6 +123,8 @@ public class ProductService {
         product.setDescription(request.description());
         product.setBrand(request.brand());
         product.setImageUrls(request.imageUrls());
+        product.setCurrency(normalizeCurrency(request.currency(), "USD"));
+        product.setSourceCountry(blankToNull(request.sourceCountry()));
         product.setUnitPrice(request.unitPrice());
         product.setDiscountPercentage(request.discountPercentage());
         product.setCostOfProduct(request.costOfProduct());
@@ -156,6 +169,8 @@ public class ProductService {
         product.setDescription(request.description());
         product.setBrand(request.brand());
         product.setImageUrls(request.imageUrls());
+        product.setCurrency(normalizeCurrency(request.currency(), product.getCurrency()));
+        product.setSourceCountry(blankToNull(request.sourceCountry()));
         product.setUnitPrice(request.unitPrice());
         product.setDiscountPercentage(request.discountPercentage());
         product.setCostOfProduct(request.costOfProduct());
@@ -193,6 +208,12 @@ public class ProductService {
         if (request.imageUrls() != null) {
             product.setImageUrls(request.imageUrls());
         }
+        if (request.currency() != null) {
+            product.setCurrency(normalizeCurrency(request.currency(), product.getCurrency()));
+        }
+        if (request.sourceCountry() != null) {
+            product.setSourceCountry(blankToNull(request.sourceCountry()));
+        }
         if (request.unitPrice() != null) {
             product.setUnitPrice(request.unitPrice());
         }
@@ -228,6 +249,30 @@ public class ProductService {
             currentUserService.requireCurrentAppUser(),
             "PRODUCT_STOCK_UPDATED",
             java.util.Map.of("productId", product.getId(), "stockQuantity", request.stockQuantity())
+        );
+        return toDetailResponse(product);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAnyRole('CORPORATE', 'ADMIN')")
+    public ProductDetailResponse addProductImages(UUID productId, AddProductImagesRequest request) {
+        Product product = requireManageableActiveProduct(productId);
+
+        List<String> existingImages = new ArrayList<>(product.getImageUrls());
+        for (String url : request.imageUrls()) {
+            if (url != null && !url.isBlank() && !existingImages.contains(url.trim())) {
+                existingImages.add(url.trim());
+            }
+        }
+        product.setImageUrls(existingImages);
+
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "PRODUCT_IMAGES_ADDED",
+            java.util.Map.of(
+                "productId", product.getId(),
+                "addedCount", request.imageUrls().size()
+            )
         );
         return toDetailResponse(product);
     }
@@ -284,6 +329,9 @@ public class ProductService {
             product.getId(),
             product.getSku(),
             product.getTitle(),
+            product.getImageUrls().isEmpty() ? null : product.getImageUrls().getFirst(),
+            product.getCurrency(),
+            product.getSourceCountry(),
             product.getUnitPrice(),
             product.getDiscountPercentage(),
             product.getStockQuantity(),
@@ -304,6 +352,8 @@ public class ProductService {
             product.getTitle(),
             product.getDescription(),
             product.getBrand(),
+            product.getCurrency(),
+            product.getSourceCountry(),
             product.getUnitPrice(),
             product.getDiscountPercentage(),
             product.getCostOfProduct(),
@@ -321,5 +371,16 @@ public class ProductService {
             product.getCreatedAt(),
             product.getUpdatedAt()
         );
+    }
+
+    private String normalizeCurrency(String currency, String fallback) {
+        if (currency == null || currency.isBlank()) {
+            return fallback == null || fallback.isBlank() ? "USD" : fallback.trim().toUpperCase();
+        }
+        return currency.trim().toUpperCase();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

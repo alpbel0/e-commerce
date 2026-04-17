@@ -129,8 +129,7 @@ export class AdminUserListComponent implements OnInit {
     });
   }
 
-  changeRole(u: AdminUserListResponse, ev: Event): void {
-    const role = (ev.target as HTMLSelectElement).value as RoleType;
+  changeRole(u: AdminUserListResponse, role: RoleType): void {
     if (role === u.activeRole) return;
     this.admin.updateUserRole(u.id, { role }).subscribe({
       next: (row) => {

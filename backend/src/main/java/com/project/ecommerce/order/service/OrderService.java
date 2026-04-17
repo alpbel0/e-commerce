@@ -2,6 +2,7 @@ package com.project.ecommerce.order.service;
 
 import com.project.ecommerce.auth.domain.AppUser;
 import com.project.ecommerce.auth.domain.RoleType;
+import com.project.ecommerce.auth.repository.AppUserRepository;
 import com.project.ecommerce.auth.security.AuthenticatedUser;
 import com.project.ecommerce.auth.service.CurrentUserService;
 import com.project.ecommerce.cart.domain.Cart;
@@ -28,6 +29,7 @@ import com.project.ecommerce.order.repository.OrderRepository;
 import com.project.ecommerce.auditlog.service.AuditLogService;
 import com.project.ecommerce.notification.service.NotificationService;
 import com.project.ecommerce.product.domain.Product;
+import com.project.ecommerce.product.repository.ProductRepository;
 import com.project.ecommerce.shipment.domain.Shipment;
 import com.project.ecommerce.shipment.dto.ShipmentSummaryResponse;
 import com.project.ecommerce.shipment.repository.ShipmentRepository;
@@ -70,6 +72,8 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final CartStoreCouponRepository cartStoreCouponRepository;
+    private final ProductRepository productRepository;
+    private final AppUserRepository appUserRepository;
     private final CurrentUserService currentUserService;
     private final ShipmentMapper shipmentMapper;
     private final NotificationService notificationService;
@@ -82,6 +86,8 @@ public class OrderService {
         CartRepository cartRepository,
         CartItemRepository cartItemRepository,
         CartStoreCouponRepository cartStoreCouponRepository,
+        ProductRepository productRepository,
+        AppUserRepository appUserRepository,
         CurrentUserService currentUserService,
         ShipmentMapper shipmentMapper,
         NotificationService notificationService,
@@ -93,6 +99,8 @@ public class OrderService {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.cartStoreCouponRepository = cartStoreCouponRepository;
+        this.productRepository = productRepository;
+        this.appUserRepository = appUserRepository;
         this.currentUserService = currentUserService;
         this.shipmentMapper = shipmentMapper;
         this.notificationService = notificationService;
@@ -114,6 +122,37 @@ public class OrderService {
         List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
         if (cartItems.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty");
+        }
+
+        // Idempotency check: if same idempotency key exists and order is not cancelled, return existing orders
+        String idempotencyKey = blankToNull(request.idempotencyKey());
+        if (idempotencyKey != null) {
+            List<Order> existingOrders = orderRepository.findAllByIdempotencyKeyAndUserId(idempotencyKey, currentUser.getId());
+            if (!existingOrders.isEmpty()) {
+                Order firstOrder = existingOrders.getFirst();
+                if (!"CANCELLED".equals(firstOrder.getStatus())) {
+                    List<CheckoutOrderResponse> idempotentResponse = existingOrders.stream()
+                        .map(order -> {
+                            Shipment shipment = shipmentRepository.findByOrderId(order.getId()).orElse(null);
+                            return new CheckoutOrderResponse(
+                                order.getId(),
+                                order.getIncrementId(),
+                                order.getStore().getId(),
+                                order.getStore().getName(),
+                                order.getSubtotal(),
+                                order.getDiscountAmount(),
+                                order.getGrandTotal(),
+                                order.getCurrency(),
+                                shipment == null ? null : shipment.getStatus()
+                            );
+                        })
+                        .toList();
+                    BigDecimal total = existingOrders.stream()
+                        .map(Order::getGrandTotal)
+                        .reduce(ZERO_MONEY, BigDecimal::add);
+                    return new CheckoutResponse(idempotentResponse, idempotentResponse.size(), total);
+                }
+            }
         }
 
         Map<UUID, CartStoreCoupon> couponsByStoreId = new LinkedHashMap<>();
@@ -145,6 +184,7 @@ public class OrderService {
                 ? ZERO_MONEY
                 : calculateDiscount(subtotal, storeCoupon.getCoupon().getDiscountPercentage());
             BigDecimal grandTotal = money(subtotal.subtract(discountAmount).max(BigDecimal.ZERO));
+            String currency = resolveStoreCurrency(storeItems);
 
             Order order = new Order();
             order.setId(UUID.randomUUID());
@@ -160,8 +200,9 @@ public class OrderService {
             order.setShippingFee(ZERO_MONEY);
             order.setTaxAmount(ZERO_MONEY);
             order.setGrandTotal(grandTotal);
-            order.setCurrency("TRY");
+            order.setCurrency(currency);
             order.setCouponCode(storeCoupon == null ? null : storeCoupon.getCoupon().getCode());
+            order.setIdempotencyKey(idempotencyKey);
             order.setShippingAddressLine1(request.shippingAddressLine1().trim());
             order.setShippingAddressLine2(blankToNull(request.shippingAddressLine2()));
             order.setShippingCity(request.shippingCity().trim());
@@ -194,7 +235,7 @@ public class OrderService {
                 orderItem.setReturnedQuantity(0);
                 orderItemRepository.save(orderItem);
 
-                product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
+                reserveStock(product, cartItem.getQuantity());
             }
 
             Shipment shipment = new Shipment();
@@ -211,6 +252,7 @@ public class OrderService {
                 order.getSubtotal(),
                 order.getDiscountAmount(),
                 order.getGrandTotal(),
+                order.getCurrency(),
                 shipment.getStatus()
             ));
 
@@ -309,6 +351,46 @@ public class OrderService {
 
     @Transactional
     @PreAuthorize("hasRole('INDIVIDUAL')")
+    public OrderDetailResponse cancelOrder(UUID orderId) {
+        AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
+        if (authenticatedUser.getActiveRole() != RoleType.INDIVIDUAL) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only individual users can cancel their own orders");
+        }
+
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (!order.getUser().getId().equals(authenticatedUser.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only cancel your own orders");
+        }
+        if (!"PENDING".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only pending orders can be cancelled");
+        }
+
+        String previousStatus = order.getStatus();
+        order.setStatus("CANCELLED");
+
+        // Restore stock for each order item
+        for (OrderItem orderItem : orderItemRepository.findByOrderId(order.getId())) {
+            productRepository.incrementStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+        }
+
+        // Mark shipment as failed
+        shipmentRepository.findByOrderId(order.getId()).ifPresent(shipment -> shipment.setStatus("FAILED"));
+
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "ORDER_CANCELLED",
+            java.util.Map.of(
+                "orderId", order.getId(),
+                "previousStatus", previousStatus
+            )
+        );
+        return getOrderDetail(orderId);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('INDIVIDUAL')")
     public OrderItemResponse requestReturn(UUID orderItemId, RequestReturnRequest request) {
         AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
         if (authenticatedUser.getActiveRole() != RoleType.INDIVIDUAL) {
@@ -367,6 +449,10 @@ public class OrderService {
             Product product = orderItem.getProduct();
             product.setStockQuantity(product.getStockQuantity() + orderItem.getReturnedQuantity());
             BigDecimal refundAmount = calculateRefundAmount(orderItem);
+            // Deduct refund from user's totalSpend
+            AppUser orderUser = orderItem.getOrder().getUser();
+            orderUser.setTotalSpend(money(orderUser.getTotalSpend().subtract(refundAmount).max(BigDecimal.ZERO)));
+            appUserRepository.save(orderUser);
             auditLogService.log(
                 currentUserService.requireCurrentAppUser(),
                 "RETURN_COMPLETED",
@@ -445,6 +531,21 @@ public class OrderService {
 
         String previousPaymentStatus = order.getPaymentStatus();
         order.setPaymentStatus(nextPaymentStatus);
+
+        // On payment success: add to user's totalSpend
+        if ("PAID".equals(nextPaymentStatus) && !"PAID".equals(previousPaymentStatus)) {
+            AppUser orderUser = order.getUser();
+            orderUser.setTotalSpend(money(orderUser.getTotalSpend().add(order.getGrandTotal())));
+            appUserRepository.save(orderUser);
+        }
+
+        // On payment failure: restore reserved stock
+        if ("FAILED".equals(nextPaymentStatus) && !"FAILED".equals(previousPaymentStatus)) {
+            for (OrderItem orderItem : orderItemRepository.findByOrderId(order.getId())) {
+                productRepository.incrementStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+            }
+        }
+
         auditLogService.log(
             currentUserService.requireCurrentAppUser(),
             "ORDER_PAYMENT_STATUS_UPDATED",
@@ -528,6 +629,13 @@ public class OrderService {
         }
     }
 
+    private void reserveStock(Product product, int quantity) {
+        int updatedRows = productRepository.decrementStockIfAvailable(product.getId(), quantity);
+        if (updatedRows != 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cart contains quantity above available stock");
+        }
+    }
+
     private BigDecimal lineSubtotal(CartItem cartItem) {
         return money(cartItem.getProduct().getUnitPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
     }
@@ -542,6 +650,24 @@ public class OrderService {
             return subtotal;
         }
         return money(discount);
+    }
+
+    private String resolveStoreCurrency(List<CartItem> storeItems) {
+        String currency = normalizeCurrency(storeItems.getFirst().getProduct().getCurrency());
+        for (CartItem cartItem : storeItems) {
+            String itemCurrency = normalizeCurrency(cartItem.getProduct().getCurrency());
+            if (!currency.equals(itemCurrency)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart contains mixed currencies for the same store");
+            }
+        }
+        return currency;
+    }
+
+    private String normalizeCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart contains product without currency");
+        }
+        return currency.trim().toUpperCase();
     }
 
     private Map<UUID, BigDecimal> distributeOrderDiscount(List<CartItem> storeItems, BigDecimal totalDiscountAmount) {
@@ -638,6 +764,7 @@ public class OrderService {
             money(order.getSubtotal()),
             money(order.getDiscountAmount() == null ? ZERO_MONEY : order.getDiscountAmount()),
             money(order.getGrandTotal()),
+            order.getCurrency(),
             order.getCouponCode(),
             order.getOrderDate()
         );

@@ -7,13 +7,14 @@ import { NavbarComponent } from '../../components/navbar/navbar.component';
 import { SidebarComponent, type AppSidebarLink } from '../../components/sidebar/sidebar.component';
 
 const LS_STORE = 'corporate_selected_store_id';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Component({
   selector: 'app-corporate-layout',
   standalone: true,
   imports: [RouterOutlet, NavbarComponent, SidebarComponent],
   template: `
-    <div class="layout">
+    <div class="app-shell">
       <app-navbar
         layout="corporate"
         homeLink="/corporate/dashboard"
@@ -23,39 +24,23 @@ const LS_STORE = 'corporate_selected_store_id';
         [selectedStoreId]="selectedStoreId()"
         (selectedStoreIdChange)="onStoreChange($event)"
       />
-      <div class="body">
+      <div class="app-body">
         <app-sidebar [links]="links" />
-        <main class="main">
-          <router-outlet />
+        <main class="app-main">
+          <div class="app-content animate-fade-in-up">
+            <router-outlet />
+          </div>
         </main>
       </div>
     </div>
   `,
-  styles: [
-    `
-      .layout {
-        display: flex;
-        flex-direction: column;
-        min-height: 100%;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        overflow: hidden;
-        background: #fff;
-      }
-      .body {
-        display: flex;
-        align-items: stretch;
-        min-height: 360px;
-        background: #f8fafc;
-      }
-      .main {
-        flex: 1;
-        padding: 20px 24px;
-        background: #fff;
-        border-left: 1px solid #e2e8f0;
-      }
-    `
-  ]
+  styles: [`
+    .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+    .app-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+    .app-main { flex: 1; overflow-y: auto; background: var(--surface-bg); }
+    .app-content { padding: 28px 32px; max-width: 1400px; }
+    @media (max-width: 768px) { .app-content { padding: 20px 16px; } }
+  `]
 })
 export class CorporateLayoutComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
@@ -65,26 +50,28 @@ export class CorporateLayoutComponent implements OnInit {
   readonly selectedStoreId = signal<string | null>(null);
 
   readonly links: AppSidebarLink[] = [
-    { label: 'Dashboard', routerLink: '/corporate/dashboard', exact: true },
-    { label: 'Urunlerim', routerLink: '/corporate/products' },
-    { label: 'Envanter', routerLink: '/corporate/inventory' },
-    { label: 'Siparisler', routerLink: '/corporate/orders' },
-    { label: 'Kuponlar', routerLink: '/corporate/coupons' },
-    { label: 'Magaza Ayarlari', routerLink: '/corporate/store-settings' },
-    { label: 'Analizler', routerLink: '/corporate/analytics' },
-    { label: 'Review Management', routerLink: '/corporate/reviews' },
-    { label: 'Musteri Analizi', routerLink: '/corporate/customers' },
-    { label: 'Gelir Drill-down', routerLink: '/corporate/revenue-drilldown' }
+    { label: 'Dashboard',       routerLink: '/corporate/dashboard',        exact: true, icon: 'heroHome' },
+    { label: 'Ürünlerim',       routerLink: '/corporate/products',                      icon: 'heroCube' },
+    { label: 'Envanter',        routerLink: '/corporate/inventory',                     icon: 'heroSquaresPlus' },
+    { label: 'Siparişler',      routerLink: '/corporate/orders',                        icon: 'heroShoppingBag' },
+    { label: 'Kuponlar',        routerLink: '/corporate/coupons',                       icon: 'heroTag' },
+    { label: 'Mağaza Ayarları', routerLink: '/corporate/store-settings',               icon: 'heroBuildingStorefront' },
+    { label: 'Analizler',       routerLink: '/corporate/analytics',                     icon: 'heroChartBar' },
+    { label: 'Değerlendirmeler',routerLink: '/corporate/reviews',                       icon: 'heroStar' },
+    { label: 'Müşteri Analizi', routerLink: '/corporate/customers',                     icon: 'heroUserGroup' },
+    { label: 'Gelir Raporu',    routerLink: '/corporate/revenue-drilldown',             icon: 'heroCurrencyDollar' }
   ];
 
   constructor() {
     effect(() => {
       const ids = this.authStore.ownedStoreIds();
       const names = this.authStore.ownedStoreNames();
-      const options = ids.map((id, index) => ({
-        id,
-        name: names[index] ?? `Store ${index + 1}`
-      }));
+      const options = ids
+        .map((id, index) => ({
+          id,
+          name: names[index] ?? `Store ${index + 1}`
+        }))
+        .filter((option) => UUID_PATTERN.test(option.id));
       this.storeOptions.set(options);
 
       const saved = localStorage.getItem(LS_STORE);
@@ -111,6 +98,12 @@ export class CorporateLayoutComponent implements OnInit {
   }
 
   onStoreChange(id: string): void {
+    if (!UUID_PATTERN.test(id)) {
+      this.selectedStoreId.set(null);
+      this.corpCtx.setSelectedStoreId(null);
+      localStorage.removeItem(LS_STORE);
+      return;
+    }
     this.selectedStoreId.set(id);
     this.corpCtx.setSelectedStoreId(id);
     localStorage.setItem(LS_STORE, id);

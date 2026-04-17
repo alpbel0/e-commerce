@@ -11,56 +11,124 @@ import type { ApiErrorResponse, RoleType } from '../../../core/models/common.mod
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './register.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        max-width: 440px;
-        margin: 0 auto;
-      }
-      .field {
-        margin-bottom: 1rem;
-      }
-      label {
-        display: block;
-        font-size: 0.875rem;
-        margin-bottom: 0.25rem;
-      }
-      input,
-      select {
-        width: 100%;
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        box-sizing: border-box;
-      }
-      button {
-        width: 100%;
-        padding: 0.6rem 1rem;
-        border: none;
-        border-radius: 8px;
-        background: #2563eb;
-        color: #fff;
-        font-weight: 600;
-        cursor: pointer;
-        margin-top: 0.5rem;
-      }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .err {
-        color: #b91c1c;
-        font-size: 0.8rem;
-        margin-top: 0.25rem;
-      }
-      .hint {
-        font-size: 0.8rem;
-        color: #64748b;
-        margin-top: 0.25rem;
-      }
-    `
-  ]
+  styles: [`
+    :host { display: block; }
+
+    .reg-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .reg-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    /* Form */
+    .reg-form { display: flex; flex-direction: column; gap: 16px; }
+
+    /* Two-col row */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Field */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field__label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+    .field__hint { font-size: 0.75rem; color: var(--text-muted); }
+    .field__error { font-size: 0.76rem; color: var(--clr-danger-500); }
+    .field__input--error {
+      border-color: var(--clr-danger-500) !important;
+      box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important;
+    }
+
+    /* Role picker */
+    .role-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .role-option {
+      position: relative;
+      cursor: pointer;
+    }
+    .role-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .role-option__content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 10px;
+      border: 1.5px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      text-align: center;
+      transition: border-color var(--trans-fast), background var(--trans-fast), box-shadow var(--trans-fast);
+      color: var(--text-muted);
+    }
+    .role-option:hover .role-option__content {
+      border-color: var(--clr-primary-300);
+      background: var(--clr-primary-50);
+      color: var(--clr-primary-600);
+    }
+    .role-option--selected .role-option__content {
+      border-color: var(--clr-primary-500);
+      background: var(--clr-primary-50);
+      color: var(--clr-primary-600);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    }
+    .role-option__label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .role-option__desc { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* Submit */
+    .submit-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--clr-primary-600);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background var(--trans-fast), transform var(--trans-fast), box-shadow var(--trans-fast);
+      margin-top: 4px;
+    }
+    .submit-btn:hover:not(:disabled) {
+      background: var(--clr-primary-700);
+      box-shadow: 0 6px 18px rgba(79,70,229,.35);
+      transform: translateY(-1px);
+    }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .submit-btn__spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    .reg-footer {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 24px;
+    }
+    .reg-footer__link { color: var(--clr-primary-600); font-weight: 600; }
+    .reg-footer__link:hover { text-decoration: underline; }
+  `]
 })
 export class RegisterComponent implements OnInit {
   private readonly fb = inject(FormBuilder);

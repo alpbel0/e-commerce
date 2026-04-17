@@ -12,12 +12,12 @@ import com.project.ecommerce.store.repository.StoreRepository;
 import com.project.ecommerce.user.dto.UpdateUserRoleRequest;
 import com.project.ecommerce.user.dto.UpdateUserStatusRequest;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,22 +52,18 @@ public class UserManagementService {
         int page,
         int size
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("email").ascending());
+        Pageable pageable = PageRequest.of(page, size);
 
         String normalizedQuery = q == null ? null : q.trim();
-        Page<AppUser> userPage = normalizedQuery == null || normalizedQuery.isEmpty()
-            ? appUserRepository.findAll(pageable)
-            : appUserRepository.searchUsers(normalizedQuery, pageable);
+        if (normalizedQuery != null && normalizedQuery.isEmpty()) {
+            normalizedQuery = null;
+        }
+        String queryPattern = normalizedQuery == null ? null : "%" + normalizedQuery.toLowerCase(Locale.ROOT) + "%";
+        String roleFilter = role == null ? null : role.name();
+
+        Page<AppUser> userPage = appUserRepository.findForAdminList(queryPattern, active, roleFilter, pageable);
 
         List<AdminUserListResponse> items = userPage.getContent().stream()
-            .filter(user -> {
-                RoleType userRole = resolveActiveRole(user);
-
-                boolean matchesRole = role == null || userRole == role;
-                boolean matchesActive = active == null || user.isActive() == active;
-
-                return matchesRole && matchesActive;
-            })
             .map(user -> {
                 RoleType activeRole = resolveActiveRole(user);
                 return new AdminUserListResponse(

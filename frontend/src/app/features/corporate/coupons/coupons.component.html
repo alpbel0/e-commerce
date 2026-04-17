@@ -1,0 +1,69 @@
+<div class="page-header">
+  <h2>Kuponlar</h2>
+</div>
+
+<div class="form-card">
+  <h3>Yeni Kupon Oluştur</h3>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="code">Kupon Kodu</label>
+        <input id="code" type="text" formControlName="code" placeholder="INDIRIM10" />
+      </div>
+      <div class="form-group">
+        <label for="discountPercentage">İndirim Oranı (%)</label>
+        <input id="discountPercentage" type="number" formControlName="discountPercentage" placeholder="10" min="1" max="100" />
+      </div>
+      <div class="form-group">
+        <label for="validUntil">Geçerlilik Tarihi</label>
+        <input id="validUntil" type="date" formControlName="validUntil" />
+      </div>
+    </div>
+    <button type="submit" class="btn-primary" [disabled]="form.invalid || saving()">
+      {{ saving() ? 'Oluşturuluyor...' : 'Kupon Oluştur' }}
+    </button>
+  </form>
+</div>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Kuponlar yüklenemedi." (retry)="load()" />
+} @else if (coupons().length === 0) {
+  <app-empty-state title="Kupon bulunamadı" message="Henüz kupon oluşturulmamış." />
+} @else {
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Mağaza</th>
+          <th>Kod</th>
+          <th>İndirim</th>
+          <th>Geçerlilik</th>
+          <th>Durum</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of coupons(); track c.id) {
+          <tr>
+            <td>{{ c.storeName }}</td>
+            <td><strong>{{ c.code }}</strong></td>
+            <td><span class="discount-badge">%{{ c.discountPercentage }}</span></td>
+            <td>{{ formatDate(c.validUntil) }}</td>
+            <td>
+              @if (c.active && !isExpired(c.validUntil)) {
+                <span class="status active">Aktif</span>
+              } @else {
+                <span class="status inactive">İnaktif</span>
+              }
+            </td>
+            <td>
+              <button type="button" class="btn-delete" (click)="deleteCoupon(c.id)">Sil</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

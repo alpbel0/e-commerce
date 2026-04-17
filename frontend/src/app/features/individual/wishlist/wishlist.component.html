@@ -1,0 +1,50 @@
+<h2>Favorilerim</h2>
+
+@if (loading()) {
+  <app-loading-spinner />
+} @else if (error()) {
+  <app-error-state message="Favoriler yüklenemedi." (retry)="load()" />
+} @else if (items().length === 0) {
+  <app-empty-state title="Favori ürününüz yok" message="Beğendiğiniz ürünleri favorilere ekleyebilirsiniz." />
+} @else {
+  <div class="grid">
+    @for (p of items(); track p.id) {
+      <article class="card">
+        <a class="cover" [routerLink]="['/app/products', p.id]">
+          @if (hasImage(p)) {
+            <img [src]="p.imageUrl!" [alt]="imageAlt(p)" loading="lazy" />
+          } @else {
+            <span class="cover-empty">Görsel yok</span>
+          }
+          <button type="button" class="remove-btn" (click)="removeFromWishlist(p.id, $event)" title="Favorilerden çıkar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </button>
+        </a>
+        <div class="content">
+          <h3>
+            <a class="title" [routerLink]="['/app/products', p.id]">{{ p.title }}</a>
+          </h3>
+          <div class="meta">{{ p.storeName }} · {{ p.categoryName }}</div>
+          <div class="price-row">
+            @if (showDiscount(p)) {
+              <span class="old">{{ formatMoney(p.unitPrice, p.currency) }}</span>
+            }
+            <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2), p.currency) }}</span>
+          </div>
+          <div class="stars">{{ starString(stars(p)) }} ({{ p.reviewCount }})</div>
+          <div class="quantity-row">
+            <span class="meta">Adet:</span>
+            <button type="button" class="qty-btn" (click)="decrementQty(p, $event)" [disabled]="p.quantity <= 1">−</button>
+            <span class="qty-value">{{ p.quantity }}</span>
+            <button type="button" class="qty-btn" (click)="incrementQty(p, $event)">+</button>
+          </div>
+          <div class="actions">
+            <a class="detail" [routerLink]="['/app/products', p.id]">Detay</a>
+          </div>
+        </div>
+      </article>
+    }
+  </div>
+}

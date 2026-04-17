@@ -1,5 +1,5 @@
 <div class="back">
-  <a routerLink="/corporate/orders">← Sipariş listesi</a>
+  <a [routerLink]="backLink()">← Sipariş listesi</a>
 </div>
 
 @if (loading()) {
@@ -101,6 +101,10 @@
                 </button>
                 <button type="button" class="danger" [disabled]="saving()" (click)="decideReturn(it, 'REJECTED')">
                   Reddet
+                </button>
+              } @else if (it.returnStatus === 'RETURNED' && canRefundWithStripe(it)) {
+                <button type="button" class="secondary" [disabled]="saving()" (click)="refundStripeItem(it)">
+                  Stripe refund
                 </button>
               }
             </td>

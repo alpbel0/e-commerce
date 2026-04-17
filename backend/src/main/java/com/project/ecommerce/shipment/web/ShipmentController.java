@@ -27,6 +27,11 @@ public class ShipmentController {
         return shipmentService.getShipment(shipmentId);
     }
 
+    @GetMapping("/order/{orderId}")
+    public ShipmentSummaryResponse getShipmentByOrderId(@PathVariable UUID orderId) {
+        return shipmentService.getShipmentByOrderId(orderId);
+    }
+
     @PatchMapping("/{shipmentId}")
     public ShipmentSummaryResponse updateShipment(
         @PathVariable UUID shipmentId,

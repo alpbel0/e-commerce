@@ -14,7 +14,7 @@ import type {
 } from '../models/admin.models';
 import type { RoleType } from '../models/common.models';
 import type { CategoryResponse } from '../models/category.models';
-import type { StoreDetailResponse, UpdateStoreStatusRequest } from '../models/store.models';
+import type { StoreDetailResponse, StoreSummaryResponse, UpdateStoreStatusRequest } from '../models/store.models';
 
 export interface AdminUserListQuery {
   q?: string;
@@ -52,6 +52,30 @@ export class AdminService {
 
   updateStoreStatus(storeId: string, body: UpdateStoreStatusRequest): Observable<StoreDetailResponse> {
     return this.http.patch<StoreDetailResponse>(`${this.storesBase}/${storeId}/status`, body);
+  }
+
+  approveStore(storeId: string): Observable<StoreDetailResponse> {
+    return this.http.patch<StoreDetailResponse>(`${this.storesBase}/${storeId}/status`, { status: 'OPEN' });
+  }
+
+  rejectStore(storeId: string): Observable<StoreDetailResponse> {
+    return this.http.patch<StoreDetailResponse>(`${this.storesBase}/${storeId}/status`, { status: 'SUSPENDED' });
+  }
+
+  listStores(params?: { page?: number; size?: number; status?: string }): Observable<ApiPageResponse<StoreSummaryResponse>> {
+    let h = new HttpParams();
+    if (params?.page != null) h = h.set('page', String(params.page));
+    if (params?.size != null) h = h.set('size', String(params.size));
+    if (params?.status) h = h.set('status', params.status);
+    return this.http.get<ApiPageResponse<StoreSummaryResponse>>(this.storesBase, { params: h });
+  }
+
+  getAllStores(): Observable<ApiPageResponse<StoreSummaryResponse>> {
+    return this.listStores({ size: 100 });
+  }
+
+  getStore(storeId: string): Observable<StoreDetailResponse> {
+    return this.http.get<StoreDetailResponse>(`${this.storesBase}/${storeId}`);
   }
 
   createCategory(body: CreateCategoryRequest): Observable<CategoryResponse> {

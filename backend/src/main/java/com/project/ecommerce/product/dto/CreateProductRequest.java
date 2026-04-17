@@ -16,6 +16,8 @@ public record CreateProductRequest(
     String description,
     String brand,
     List<String> imageUrls,
+    String currency,
+    String sourceCountry,
     @NotNull @DecimalMin("0.00") BigDecimal unitPrice,
     @DecimalMin("0.00") BigDecimal discountPercentage,
     @DecimalMin("0.00") BigDecimal costOfProduct,

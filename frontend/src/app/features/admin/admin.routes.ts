@@ -19,6 +19,18 @@ export const adminRoutes: Routes = [
     title: 'Magazalar'
   },
   {
+    path: 'orders',
+    loadComponent: () =>
+      import('../corporate/orders/corporate-order-list.component').then((m) => m.CorporateOrderListComponent),
+    title: 'Siparisler'
+  },
+  {
+    path: 'orders/:id',
+    loadComponent: () =>
+      import('../corporate/orders/corporate-order-detail.component').then((m) => m.CorporateOrderDetailComponent),
+    title: 'Siparis'
+  },
+  {
     path: 'categories',
     loadComponent: () =>
       import('./categories/category-list.component').then((m) => m.AdminCategoryListComponent),

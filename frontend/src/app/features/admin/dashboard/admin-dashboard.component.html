@@ -1,126 +1,205 @@
-<h2>Admin ozet</h2>
+<section class="page-header">
+  <div class="page-header__left">
+    <h1 class="page-header__title">Admin Dashboard</h1>
+    <p class="page-header__sub">Platform geneli özet ve analitikler</p>
+  </div>
+  <div class="page-header__actions">
+    <button type="button" class="ec-btn ec-btn--ghost" (click)="load()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
+      </svg>
+      Yenile
+    </button>
+  </div>
+</section>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Ozet yuklenemedi." (retry)="load()" />
+  <app-error-state message="Dashboard yüklenemedi." (retry)="load()" />
 } @else {
   @if (summary(); as sum) {
-    <div class="kpis">
-      <div class="kpi">
-        <div class="kpi-head">
-          <label>Ciro</label>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Toplam Ciro</span>
+          <strong class="kpi-card__value">{{ formatMoney(sum.totalRevenue) }}</strong>
           <span [class]="trendClass(trendTone(sum.totalRevenue))">{{ trendLabel(trendTone(sum.totalRevenue)) }}</span>
         </div>
-        <strong>{{ formatMoney(sum.totalRevenue) }}</strong>
       </div>
-      <div class="kpi">
-        <div class="kpi-head">
-          <label>Siparis</label>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Toplam Sipariş</span>
+          <strong class="kpi-card__value">{{ sum.totalOrders | number }}</strong>
           <span [class]="trendClass(trendTone(sum.totalOrders))">{{ trendLabel(trendTone(sum.totalOrders)) }}</span>
         </div>
-        <strong>{{ sum.totalOrders }}</strong>
       </div>
-      <div class="kpi">
-        <div class="kpi-head">
-          <label>Musteri</label>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--purple">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Müşteri Sayısı</span>
+          <strong class="kpi-card__value">{{ sum.totalCustomers | number }}</strong>
           <span [class]="trendClass(trendTone(sum.totalCustomers))">{{ trendLabel(trendTone(sum.totalCustomers)) }}</span>
         </div>
-        <strong>{{ sum.totalCustomers }}</strong>
       </div>
-      <div class="kpi">
-        <div class="kpi-head">
-          <label>Magaza</label>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Mağaza Sayısı</span>
+          <strong class="kpi-card__value">{{ sum.totalStores }}</strong>
           <span [class]="trendClass(trendTone(sum.totalStores))">{{ trendLabel(trendTone(sum.totalStores)) }}</span>
         </div>
-        <strong>{{ sum.totalStores }}</strong>
       </div>
-      <div class="kpi">
-        <div class="kpi-head">
-          <label>Urun</label>
+
+      <div class="kpi-card">
+        <div class="kpi-card__icon kpi-card__icon--rose">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+        </div>
+        <div class="kpi-card__body">
+          <span class="kpi-card__label">Ürün Sayısı</span>
+          <strong class="kpi-card__value">{{ sum.totalProducts | number }}</strong>
           <span [class]="trendClass(trendTone(sum.totalProducts))">{{ trendLabel(trendTone(sum.totalProducts)) }}</span>
         </div>
-        <strong>{{ sum.totalProducts }}</strong>
       </div>
     </div>
 
-    <div class="grid">
-      <section class="card">
-        <h3>Cok satan urunler</h3>
-        <table>
+    <!-- Widget controls -->
+    <div class="widget-controls ec-card">
+      <span class="widget-controls__title">Widget Ayarları</span>
+      <div class="widget-controls__toggles">
+        <label class="toggle-label">
+          <input
+            #storesToggle
+            type="checkbox"
+            [checked]="showTopStoresWidget()"
+            (change)="toggleWidget('stores', storesToggle.checked)"
+          />
+          <span>Top Mağazalar</span>
+        </label>
+        <label class="toggle-label">
+          <input
+            #productsToggle
+            type="checkbox"
+            [checked]="showTopProductsWidget()"
+            (change)="toggleWidget('products', productsToggle.checked)"
+          />
+          <span>Top Ürünler</span>
+        </label>
+        <button type="button" class="ec-btn ec-btn--ghost" (click)="swapWidgetOrder()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+          </svg>
+          Sırayı Değiştir
+        </button>
+      </div>
+    </div>
+
+    <!-- Charts grid -->
+    <div class="charts-grid">
+      <!-- Table: top products -->
+      <section class="ec-card section-card">
+        <h2 class="section-card__title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>
+          </svg>
+          En Çok Satan Ürünler
+        </h2>
+        <table class="ec-table">
           <thead>
             <tr>
-              <th>Urun</th>
+              <th>#</th>
+              <th>Ürün</th>
               <th>Adet</th>
               <th>Ciro</th>
             </tr>
           </thead>
           <tbody>
-            @for (p of topProducts(); track p.productId) {
+            @for (p of topProducts(); track p.productId; let i = $index) {
               <tr>
-                <td>{{ p.productTitle }}</td>
-                <td>{{ p.totalQuantitySold }}</td>
-                <td>{{ formatMoney(p.totalRevenue) }}</td>
+                <td><span class="rank-badge">{{ i + 1 }}</span></td>
+                <td class="product-name">{{ p.productTitle }}</td>
+                <td>{{ p.totalQuantitySold | number }}</td>
+                <td class="revenue-cell">{{ formatMoney(p.totalRevenue) }}</td>
               </tr>
             }
           </tbody>
         </table>
       </section>
 
-      <div class="chart-stack">
-        <section class="card">
-          <h3>Widget ayarlari</h3>
-          <label>
-            <input
-              #storesToggle
-              type="checkbox"
-              [checked]="showTopStoresWidget()"
-              (change)="toggleWidget('stores', storesToggle.checked)"
-            />
-            Top stores
-          </label>
-          <br />
-          <label>
-            <input
-              #productsToggle
-              type="checkbox"
-              [checked]="showTopProductsWidget()"
-              (change)="toggleWidget('products', productsToggle.checked)"
-            />
-            Top products
-          </label>
-          <br />
-          <button type="button" (click)="swapWidgetOrder()">Sirayi degistir</button>
-        </section>
-
+      <!-- Charts column -->
+      <div class="charts-col">
         @if (topStoresFirst()) {
           @if (showTopStoresWidget()) {
-            <section class="card chart-card">
-              <h3>Top stores</h3>
-              <app-chart-wrapper [data]="topStoresChartData()" [options]="topStoresChartOptions" />
+            <section class="ec-card section-card">
+              <h2 class="section-card__title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Top Mağazalar — Ciro
+              </h2>
+              <div class="chart-area">
+                <app-chart-wrapper [data]="topStoresChartData()" [options]="topStoresChartOptions" />
+              </div>
             </section>
           }
           @if (showTopProductsWidget()) {
-            <section class="card chart-card">
-              <h3>Top products</h3>
-              <app-chart-wrapper [data]="topProductsChartData()" [options]="topProductsChartOptions" />
+            <section class="ec-card section-card">
+              <h2 class="section-card__title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                </svg>
+                Top Ürünler — Satış Adedi
+              </h2>
+              <div class="chart-area">
+                <app-chart-wrapper [data]="topProductsChartData()" [options]="topProductsChartOptions" />
+              </div>
             </section>
           }
         } @else {
           @if (showTopProductsWidget()) {
-            <section class="card chart-card">
-              <h3>Top products</h3>
-              <app-chart-wrapper [data]="topProductsChartData()" [options]="topProductsChartOptions" />
+            <section class="ec-card section-card">
+              <h2 class="section-card__title">Top Ürünler — Satış Adedi</h2>
+              <div class="chart-area">
+                <app-chart-wrapper [data]="topProductsChartData()" [options]="topProductsChartOptions" />
+              </div>
             </section>
           }
           @if (showTopStoresWidget()) {
-            <section class="card chart-card">
-              <h3>Top stores</h3>
-              <app-chart-wrapper [data]="topStoresChartData()" [options]="topStoresChartOptions" />
+            <section class="ec-card section-card">
+              <h2 class="section-card__title">Top Mağazalar — Ciro</h2>
+              <div class="chart-area">
+                <app-chart-wrapper [data]="topStoresChartData()" [options]="topStoresChartOptions" />
+              </div>
             </section>
           }
         }
       </div>
     </div>
+
   }
 }

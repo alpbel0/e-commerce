@@ -94,4 +94,9 @@ public class OrderController {
     public ShipmentSummaryResponse getOrderShipment(@PathVariable UUID orderId) {
         return orderService.getOrderShipment(orderId);
     }
+
+    @PostMapping("/{orderId}/cancel")
+    public OrderDetailResponse cancelOrder(@PathVariable UUID orderId) {
+        return orderService.cancelOrder(orderId);
+    }
 }

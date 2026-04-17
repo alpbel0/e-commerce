@@ -35,7 +35,7 @@
         <tr>
           <td class="muted">{{ p.sku }}</td>
           <td>{{ p.title }}</td>
-          <td>{{ formatMoney(effectivePrice(p.unitPrice, p.discountPercentage)) }}</td>
+          <td>{{ formatMoney(effectivePrice(p.unitPrice, p.discountPercentage), p.currency) }}</td>
           <td>{{ p.stockQuantity }}</td>
           <td>
             @if (p.active) {

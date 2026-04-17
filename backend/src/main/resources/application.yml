@@ -11,7 +11,7 @@ app:
   security:
     jwt:
       secret: ${JWT_SECRET:VGhpc0lzQURlbW9TZWNyZXRLZXlGb3JMb2NhbERldk9ubHlfQ2hhbmdlTWVCZWZvcmVQcm9k}
-      access-token-expiration-seconds: ${JWT_ACCESS_EXPIRATION_SECONDS:900}
+      access-token-expiration-seconds: ${JWT_ACCESS_EXPIRATION_SECONDS:21600}
       refresh-token-expiration-seconds: ${JWT_REFRESH_EXPIRATION_SECONDS:604800}
       password-reset-expiration-seconds: ${JWT_PASSWORD_RESET_EXPIRATION_SECONDS:1800}
 

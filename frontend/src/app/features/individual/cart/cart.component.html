@@ -14,6 +14,18 @@
       actionLink="/app/products"
     />
   } @else {
+    <div class="currency-row">
+      <label for="display-currency">Para birimi:</label>
+      <select
+        id="display-currency"
+        [value]="selectedDisplayCurrency()"
+        (change)="setDisplayCurrency($any($event.target).value)"
+      >
+        @for (currency of availableCurrencies(); track currency) {
+          <option [value]="currency">{{ currency }}</option>
+        }
+      </select>
+    </div>
     @for (s of c.stores; track s.storeId) {
       <section class="store-block">
         <h3>{{ s.storeName }}</h3>
@@ -58,8 +70,8 @@
                     (change)="updateQty(s.storeId, it.itemId, +$any($event.target).value)"
                   />
                 </td>
-                <td>{{ formatMoney(it.unitPrice) }}</td>
-                <td>{{ formatMoney(it.lineSubtotal) }}</td>
+                <td>{{ formatDisplayMoney(it.unitPrice, it.currency) }}</td>
+                <td>{{ formatDisplayMoney(it.lineSubtotal, it.currency) }}</td>
                 <td>
                   <button type="button" class="remove" (click)="removeItem(it.itemId)">Sil</button>
                 </td>
@@ -68,17 +80,17 @@
           </tbody>
         </table>
         <div class="totals">
-          <div>Ara toplam: {{ formatMoney(s.subtotal) }}</div>
+          <div>Ara toplam: {{ formatDisplayMoney(s.subtotal, s.currency) }}</div>
           @if (storeHasDiscount(s)) {
-            <div>İndirim: −{{ formatMoney(s.discountApplied) }}</div>
+            <div>İndirim: −{{ formatDisplayMoney(s.discountApplied, s.currency) }}</div>
           }
-          <div class="grand">Mağaza toplamı: {{ formatMoney(s.grandTotal) }}</div>
+          <div class="grand">Mağaza toplamı: {{ formatDisplayMoney(s.grandTotal, s.currency) }}</div>
         </div>
       </section>
     }
     <p class="muted">Güncelleme: {{ c.updatedAt }}</p>
     <div class="totals" style="margin-top: 1rem">
-      <div><strong>Genel toplam: {{ formatMoney(c.grandTotal) }}</strong></div>
+      <div><strong>Genel toplam: {{ formatMoney(convertedGrandTotal(), selectedDisplayCurrency()) }}</strong></div>
     </div>
     <div class="actions">
       @if (canCheckout()) {

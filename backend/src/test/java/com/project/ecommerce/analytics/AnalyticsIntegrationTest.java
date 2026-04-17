@@ -118,6 +118,7 @@ class AnalyticsIntegrationTest {
         corporateStoreA = seedStore(corporateUser, "Corporate Analytics Store A");
         corporateStoreB = seedStore(corporateUser, "Corporate Analytics Store B");
         foreignStore = seedStore(foreignCorporate, "Foreign Analytics Store");
+        seedStore(foreignCorporate, "No Order Store");
 
         deletedProduct = seedProduct(corporateStoreA, category, "AN-DEL", "Deleted Revenue Product", new BigDecimal("120.00"), 10, false);
         Product activeProduct = seedProduct(corporateStoreB, category, "AN-ACT", "Active Revenue Product", new BigDecimal("80.00"), 10, true);
@@ -136,7 +137,7 @@ class AnalyticsIntegrationTest {
                 .header("Authorization", bearer(token)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalOrders").value(3))
-            .andExpect(jsonPath("$.totalStores").value(3))
+            .andExpect(jsonPath("$.totalStores").value(4))
             .andExpect(jsonPath("$.totalRevenue").value(356.00));
 
         mockMvc.perform(get("/api/analytics/admin/top-products")
@@ -147,8 +148,9 @@ class AnalyticsIntegrationTest {
 
         mockMvc.perform(get("/api/analytics/admin/top-stores")
                 .header("Authorization", bearer(token))
-                .param("limit", "3"))
+                .param("limit", "10"))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.count").value(4))
             .andExpect(jsonPath("$.items[0].storeName").value("Corporate Analytics Store A"));
     }
 

@@ -59,6 +59,20 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
         color: #64748b;
         margin: 0 0 8px;
       }
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .preview-grid img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+      }
       .check {
         display: flex;
         align-items: center;
@@ -188,6 +202,10 @@ export class ProductFormComponent implements OnInit {
       .map((s) => s.trim())
       .filter(Boolean);
     return parts.length ? parts : null;
+  }
+
+  previewImageUrls(): string[] {
+    return this.parseUrls(this.form.controls.imageUrlsText.value) ?? [];
   }
 
   submit(): void {

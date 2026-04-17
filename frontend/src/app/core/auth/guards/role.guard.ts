@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { catchError, map, of } from 'rxjs';
 
 import { AuthStore } from '../auth.store';
 
@@ -10,10 +11,11 @@ export const roleGuard: CanActivateFn = (route) => {
   if (!allowed?.length) {
     return true;
   }
-  const role = store.activeRole();
-  if (!role || !allowed.includes(role)) {
-    void router.navigate(['/unauthorized']);
-    return false;
-  }
-  return true;
+  return store.ensureProfileLoaded().pipe(
+    map(() => {
+      const role = store.activeRole();
+      return role && allowed.includes(role) ? true : router.createUrlTree(['/unauthorized']);
+    }),
+    catchError(() => of(router.createUrlTree(['/auth/login'])))
+  );
 };

@@ -9,7 +9,10 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -41,6 +44,16 @@ public class Review {
 
     @Column(name = "review_text")
     private String reviewText;
+
+    @Column(name = "text_score", precision = 5, scale = 4)
+    private BigDecimal textScore;
+
+    @Column(name = "sentiment_score", precision = 5, scale = 4)
+    private BigDecimal sentimentScore;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sentiment_label")
+    private ReviewSentimentLabel sentimentLabel;
 
     @Column(name = "review_images")
     private String[] reviewImages;
@@ -119,6 +132,30 @@ public class Review {
 
     public void setReviewText(String reviewText) {
         this.reviewText = reviewText;
+    }
+
+    public BigDecimal getTextScore() {
+        return textScore;
+    }
+
+    public void setTextScore(BigDecimal textScore) {
+        this.textScore = textScore;
+    }
+
+    public BigDecimal getSentimentScore() {
+        return sentimentScore;
+    }
+
+    public void setSentimentScore(BigDecimal sentimentScore) {
+        this.sentimentScore = sentimentScore;
+    }
+
+    public ReviewSentimentLabel getSentimentLabel() {
+        return sentimentLabel;
+    }
+
+    public void setSentimentLabel(ReviewSentimentLabel sentimentLabel) {
+        this.sentimentLabel = sentimentLabel;
     }
 
     public boolean isVerifiedPurchase() {

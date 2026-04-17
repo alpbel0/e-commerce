@@ -224,6 +224,7 @@ public class CartService {
             stores.add(new StoreCartResponse(
                 firstStore.getId(),
                 firstStore.getName(),
+                resolveStoreCurrency(storeItems),
                 storeItemCount,
                 storeSubtotal,
                 storeDiscount,
@@ -260,6 +261,7 @@ public class CartService {
             product.getId(),
             product.getSku(),
             product.getTitle(),
+            normalizeCurrency(product.getCurrency()),
             cartItem.getQuantity(),
             money(product.getUnitPrice()),
             lineSubtotal(cartItem),
@@ -270,6 +272,21 @@ public class CartService {
 
     private BigDecimal lineSubtotal(CartItem cartItem) {
         return money(cartItem.getProduct().getUnitPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
+    }
+
+    private String resolveStoreCurrency(List<CartItem> storeItems) {
+        String currency = normalizeCurrency(storeItems.getFirst().getProduct().getCurrency());
+        for (CartItem cartItem : storeItems) {
+            String itemCurrency = normalizeCurrency(cartItem.getProduct().getCurrency());
+            if (!currency.equals(itemCurrency)) {
+                return "MIXED";
+            }
+        }
+        return currency;
+    }
+
+    private String normalizeCurrency(String currency) {
+        return currency == null || currency.isBlank() ? "USD" : currency.trim().toUpperCase();
     }
 
     private BigDecimal calculateDiscount(BigDecimal subtotal, BigDecimal discountPercentage) {

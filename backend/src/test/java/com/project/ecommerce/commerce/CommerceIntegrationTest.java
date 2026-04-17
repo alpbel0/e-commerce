@@ -1,6 +1,9 @@
 package com.project.ecommerce.commerce;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -21,10 +24,17 @@ import com.project.ecommerce.category.domain.Category;
 import com.project.ecommerce.category.repository.CategoryRepository;
 import com.project.ecommerce.coupon.domain.Coupon;
 import com.project.ecommerce.coupon.repository.CouponRepository;
+import com.project.ecommerce.order.repository.OrderRepository;
 import com.project.ecommerce.product.domain.Product;
 import com.project.ecommerce.product.repository.ProductRepository;
+import com.project.ecommerce.payment.domain.Payment;
+import com.project.ecommerce.payment.domain.PaymentProvider;
+import com.project.ecommerce.payment.domain.PaymentStatus;
+import com.project.ecommerce.payment.repository.PaymentRepository;
+import com.project.ecommerce.payment.service.StripePaymentService;
 import com.project.ecommerce.store.domain.Store;
 import com.project.ecommerce.store.repository.StoreRepository;
+import com.stripe.model.Refund;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -37,6 +47,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -74,6 +85,15 @@ class CommerceIntegrationTest {
 
     @Autowired
     private CouponRepository couponRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @MockitoBean
+    private StripePaymentService stripePaymentService;
 
     private AppUser corporateUser;
     private Store storeA;
@@ -117,6 +137,8 @@ class CommerceIntegrationTest {
         foreignStore = seedStore(foreignCorporate, "Foreign Store");
 
         productA = seedProduct(storeA, category, "SKU-A", "Alpha Headphones", new BigDecimal("100.00"), 10, true);
+        productA.setCurrency("PKR");
+        productRepository.save(productA);
         productB = seedProduct(storeB, category, "SKU-B", "Beta Keyboard", new BigDecimal("50.00"), 10, true);
         seedProduct(foreignStore, category, "SKU-C", "Foreign Monitor", new BigDecimal("80.00"), 5, true);
 
@@ -325,6 +347,17 @@ class CommerceIntegrationTest {
     }
 
     @Test
+    void invalidCouponStoreIdShouldReturnBadRequest() throws Exception {
+        String adminToken = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
+
+        mockMvc.perform(get("/api/coupons")
+                .header("Authorization", bearer(adminToken))
+                .param("storeId", "not-a-uuid"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Invalid value for parameter 'storeId'"));
+    }
+
+    @Test
     void corporateShouldNotManageForeignStoreCouponAndStoreCodesShouldBeUniquePerStore() throws Exception {
         String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
 
@@ -369,6 +402,8 @@ class CommerceIntegrationTest {
                     """.formatted(productA.getId())))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.totalItemCount").value(2))
+            .andExpect(jsonPath("$.stores[0].currency").value("PKR"))
+            .andExpect(jsonPath("$.stores[0].items[0].currency").value("PKR"))
             .andReturn();
 
         String itemId = readJson(cartResult).get("stores").get(0).get("items").get(0).get("itemId").asText();
@@ -613,6 +648,8 @@ class CommerceIntegrationTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.totalOrdersCreated").value(2))
             .andExpect(jsonPath("$.grandTotal").value(220.00))
+            .andExpect(jsonPath("$.createdOrders[0].currency").value("PKR"))
+            .andExpect(jsonPath("$.createdOrders[1].currency").value("USD"))
             .andReturn();
 
         String firstOrderId = readJson(checkoutResult).get("createdOrders").get(0).get("orderId").asText();
@@ -739,6 +776,67 @@ class CommerceIntegrationTest {
                     """))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.message").value("Cancelled orders cannot be re-opened"));
+    }
+
+    @Test
+    void adminStatusUpdateShouldBeVisibleToCustomerAndCancellationShouldRestoreStock() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":2}
+                    """.formatted(productA.getId())))
+            .andExpect(status().isCreated());
+
+        MvcResult checkoutResult = mockMvc.perform(post("/api/orders")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentMethod":"CREDIT_CARD",
+                      "shippingAddressLine1":"Test Mah. No:4",
+                      "shippingCity":"Istanbul",
+                      "shippingCountry":"Turkey"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        String orderId = readJson(checkoutResult).get("createdOrders").get(0).get("orderId").asText();
+        String adminToken = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
+
+        mockMvc.perform(patch("/api/orders/{orderId}/status", orderId)
+                .header("Authorization", bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"PROCESSING"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("PROCESSING"));
+
+        mockMvc.perform(get("/api/orders/{orderId}", orderId)
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("PROCESSING"));
+
+        mockMvc.perform(patch("/api/orders/{orderId}/status", orderId)
+                .header("Authorization", bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"CANCELLED"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        mockMvc.perform(get("/api/orders/{orderId}", orderId)
+                .header("Authorization", bearer(individualToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        assertThat(productRepository.findById(productA.getId())).get().extracting(Product::getStockQuantity).isEqualTo(10);
+        assertThat(jdbcTemplate.queryForObject("select status from shipments where order_id = ?", String.class, UUID.fromString(orderId))).isEqualTo("FAILED");
     }
 
     @Test
@@ -1017,6 +1115,121 @@ class CommerceIntegrationTest {
         assertThat(productRepository.findById(productA.getId())).get().extracting(Product::getStockQuantity).isEqualTo(9);
     }
 
+    @Test
+    void approvedReturnShouldAllowCorporateStripeRefundForDiscountedNetAmount() throws Exception {
+        String individualToken = loginAndExtractAccessToken("individual@test.local", "IndPass1!");
+
+        mockMvc.perform(post("/api/carts/me/items")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"productId":"%s","quantity":2}
+                    """.formatted(productA.getId())))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/carts/me/stores/{storeId}/coupon", storeA.getId())
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"code":"WELCOME10"}
+                    """))
+            .andExpect(status().isOk());
+
+        MvcResult checkoutResult = mockMvc.perform(post("/api/orders")
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentMethod":"STRIPE_CARD",
+                      "shippingAddressLine1":"Refund Mah. No:2",
+                      "shippingCity":"Istanbul",
+                      "shippingCountry":"Turkey"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        UUID orderId = UUID.fromString(readJson(checkoutResult).get("createdOrders").get(0).get("orderId").asText());
+        BigDecimal orderGrandTotal = jdbcTemplate.queryForObject(
+            "select grand_total from orders where id = ?",
+            BigDecimal.class,
+            orderId
+        );
+        assertThat(orderGrandTotal).isEqualByComparingTo("180.00");
+
+        Payment payment = new Payment();
+        payment.setId(UUID.randomUUID());
+        payment.setOrder(orderRepository.findById(orderId).orElseThrow());
+        payment.setProvider(PaymentProvider.STRIPE);
+        payment.setProviderPaymentIntentId("pi_test_refund");
+        payment.setStatus(PaymentStatus.SUCCEEDED);
+        payment.setAmount(new BigDecimal("180.00"));
+        payment.setCurrency("PKR");
+        paymentRepository.save(payment);
+        jdbcTemplate.update("update orders set payment_status = 'PAID' where id = ?", orderId);
+
+        String corporateToken = loginAndExtractAccessToken("corporate@test.local", "CorpPass1!");
+        mockMvc.perform(patch("/api/orders/{orderId}/status", orderId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"DELIVERED"}
+                    """))
+            .andExpect(status().isOk());
+
+        String orderItemId = jdbcTemplate.queryForObject(
+            "select id from order_items where order_id = ? limit 1",
+            String.class,
+            orderId
+        );
+
+        mockMvc.perform(post("/api/orders/items/{orderItemId}/return", orderItemId)
+                .header("Authorization", bearer(individualToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "returnedQuantity":1,
+                      "reason":"Wrong size"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.refundableAmount").value(90.00));
+
+        mockMvc.perform(patch("/api/orders/items/{orderItemId}/return-status", orderItemId)
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":"RETURNED"}
+                    """))
+            .andExpect(status().isOk());
+
+        Refund stripeRefund = new Refund();
+        stripeRefund.setId("re_test_refund");
+        stripeRefund.setStatus("succeeded");
+        when(stripePaymentService.createRefund(anyString(), any(BigDecimal.class), anyString(), any()))
+            .thenReturn(stripeRefund);
+
+        mockMvc.perform(post("/api/payments/stripe/refunds")
+                .header("Authorization", bearer(corporateToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "orderItemId":"%s",
+                      "reason":"Return approved"
+                    }
+                    """.formatted(orderItemId)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.amount").value(90.00))
+            .andExpect(jsonPath("$.status").value("SUCCEEDED"));
+
+        assertThat(jdbcTemplate.queryForObject("select status from payments where order_id = ?", String.class, orderId))
+            .isEqualTo("PARTIALLY_REFUNDED");
+        assertThat(jdbcTemplate.queryForObject("select payment_status from orders where id = ?", String.class, orderId))
+            .isEqualTo("PAID");
+        assertThat(jdbcTemplate.queryForObject("select amount from payment_refunds where order_item_id = ?", BigDecimal.class, UUID.fromString(orderItemId)))
+            .isEqualByComparingTo("90.00");
+    }
+
     private Category seedCategory(String name, String slug) {
         Category entity = new Category();
         entity.setId(UUID.randomUUID());
@@ -1054,6 +1267,7 @@ class CommerceIntegrationTest {
         store.setId(UUID.randomUUID());
         store.setOwner(owner);
         store.setName(name);
+        store.setSlug(name.toLowerCase().replaceAll("[^a-z0-9]+", "-") + "-" + store.getId().toString().substring(0, 8));
         store.setDescription(name + " description");
         store.setContactEmail(owner.getEmail());
         store.setStatus("OPEN");

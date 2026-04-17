@@ -6,6 +6,8 @@ import { CartService } from '../../../../core/api/cart.service';
 import { OrderService } from '../../../../core/api/order.service';
 import { ProductService } from '../../../../core/api/product.service';
 import { ReviewService } from '../../../../core/api/review.service';
+import { WishlistService } from '../../../../core/api/wishlist.service';
+import { AuthStore } from '../../../../core/auth/auth.store';
 import type { OrderSummaryResponse } from '../../../../core/models/order.models';
 import type { ProductDetailResponse } from '../../../../core/models/product.models';
 import type { ReviewDto } from '../../../../core/models/review.models';
@@ -51,25 +53,38 @@ import { effectiveUnitPrice, formatMoney, starsFromRating } from '../../../../sh
         flex-direction: column;
         gap: 8px;
       }
-      .gallery img {
+      .hero {
         width: 100%;
-        max-height: 320px;
+        max-height: 360px;
+        min-height: 320px;
         object-fit: contain;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
         background: #f8fafc;
       }
-      .thumbs {
+      .gallery-empty {
+        min-height: 320px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #eff6ff, #f8fafc);
+        color: #94a3b8;
         display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+      }
+      .thumbs button {
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: pointer;
       }
       .thumbs img {
-        width: 56px;
-        height: 56px;
+        width: 100%;
+        max-width: 64px;
+        height: 64px;
         object-fit: cover;
         border-radius: 8px;
-        cursor: pointer;
         border: 2px solid transparent;
       }
       .thumbs img.active {
@@ -121,6 +136,16 @@ import { effectiveUnitPrice, formatMoney, starsFromRating } from '../../../../sh
       .qty-row button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+      .wishlist-btn {
+        background: #fef2f2 !important;
+        color: #ef4444 !important;
+        border: 1px solid #fecaca !important;
+        padding: 0.5rem 0.75rem !important;
+        margin-left: 8px;
+      }
+      .wishlist-btn:hover {
+        background: #fee2e2 !important;
       }
       .tags span {
         display: inline-block;
@@ -201,6 +226,8 @@ export class ProductDetailComponent implements OnInit {
   private readonly reviews = inject(ReviewService);
   private readonly cart = inject(CartService);
   private readonly orders = inject(OrderService);
+  private readonly wishlist = inject(WishlistService);
+  private readonly authStore = inject(AuthStore);
   private readonly toast = inject(ToastService);
   private readonly fb = inject(FormBuilder);
 
@@ -251,6 +278,7 @@ export class ProductDetailComponent implements OnInit {
     this.products.getById(this.productId).subscribe({
       next: (p) => {
         this.product.set(p);
+        this.imgIdx.set(0);
         this.loading.set(false);
         this.qty = 1;
       },
@@ -279,6 +307,10 @@ export class ProductDetailComponent implements OnInit {
   }
 
   loadOrderChoices(): void {
+    if (!this.authStore.isLoggedIn()) {
+      this.orderChoices.set([]);
+      return;
+    }
     this.orders.list({ page: 0, size: 40, sort: 'orderDate,desc' }).subscribe({
       next: (res) => this.orderChoices.set(res.items),
       error: () => this.orderChoices.set([])
@@ -289,6 +321,13 @@ export class ProductDetailComponent implements OnInit {
     this.imgIdx.set(i);
   }
 
+  selectedImage(p: ProductDetailResponse): string | null {
+    if (!p.imageUrls.length) {
+      return null;
+    }
+    return p.imageUrls[this.imgIdx()] ?? p.imageUrls[0] ?? null;
+  }
+
   showDiscount(p: ProductDetailResponse): boolean {
     return parseFloat(p.discountPercentage || '0') > 0;
   }
@@ -296,10 +335,27 @@ export class ProductDetailComponent implements OnInit {
   addToCart(): void {
     const p = this.product();
     if (!p || !p.active || p.stockQuantity <= 0) return;
+    if (!this.authStore.isLoggedIn()) {
+      this.redirectToLogin();
+      return;
+    }
     const q = Math.min(Math.max(1, this.qty), p.stockQuantity);
     this.cart.addItem({ productId: p.id, quantity: q }).subscribe({
       next: () => this.toast.showInfo('Sepete eklendi'),
       error: () => {}
+    });
+  }
+
+  addToWishlist(): void {
+    const p = this.product();
+    if (!p) return;
+    if (!this.authStore.isLoggedIn()) {
+      this.redirectToLogin();
+      return;
+    }
+    this.wishlist.addToWishlist(p.id).subscribe({
+      next: () => this.toast.showInfo('Favorilere eklendi'),
+      error: () => this.toast.showError('Favorilere eklenemedi')
     });
   }
 
@@ -312,7 +368,15 @@ export class ProductDetailComponent implements OnInit {
     return (s ?? '').slice(0, 10);
   }
 
+  isLoggedIn(): boolean {
+    return this.authStore.isLoggedIn();
+  }
+
   submitReview(): void {
+    if (!this.authStore.isLoggedIn()) {
+      this.redirectToLogin();
+      return;
+    }
     if (this.reviewForm.invalid || !this.product()) {
       this.reviewForm.markAllAsTouched();
       return;
@@ -346,5 +410,9 @@ export class ProductDetailComponent implements OnInit {
       },
       error: () => this.toast.showError('Sipariş doğrulanamadı.')
     });
+  }
+
+  private redirectToLogin(): void {
+    void this.router.navigate(['/auth/login'], { queryParams: { returnUrl: `/app/products/${this.productId}` } });
   }
 }

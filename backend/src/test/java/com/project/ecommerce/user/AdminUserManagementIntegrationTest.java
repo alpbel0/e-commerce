@@ -111,6 +111,21 @@ class AdminUserManagementIntegrationTest {
     }
 
     @Test
+    void adminCanFilterActiveCorporateUsers() throws Exception {
+        String token = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
+
+        mockMvc.perform(get("/api/admin/users")
+                .header("Authorization", bearer(token))
+                .param("role", "CORPORATE")
+                .param("active", "true"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].email").value("corporate@test.local"))
+            .andExpect(jsonPath("$.items[0].activeRole").value("CORPORATE"))
+            .andExpect(jsonPath("$.items[0].active").value(true));
+    }
+
+    @Test
     void adminCanFilterUsersByActiveStatus() throws Exception {
         String token = loginAndExtractAccessToken("admin@test.local", "Adm1nPass!");
 

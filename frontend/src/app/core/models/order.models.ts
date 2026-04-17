@@ -2,6 +2,7 @@ import type { ShipmentSummaryResponse } from './shipment.models';
 
 export type CheckoutPaymentMethod =
   | 'CREDIT_CARD'
+  | 'STRIPE_CARD'
   | 'DEBIT_CARD'
   | 'PAYPAL'
   | 'WIRE_TRANSFER'
@@ -27,6 +28,7 @@ export interface CheckoutOrderResponse {
   subtotal: string;
   discountAmount: string;
   grandTotal: string;
+  currency: string;
   shipmentStatus: string;
 }
 
@@ -47,6 +49,7 @@ export interface OrderSummaryResponse {
   subtotal: string;
   discountAmount: string;
   grandTotal: string;
+  currency: string;
   couponCode: string | null;
   orderDate: string;
 }

@@ -56,6 +56,14 @@ public class ShipmentService {
         return shipmentMapper.toSummaryResponse(shipment);
     }
 
+    @PreAuthorize("hasAnyRole('INDIVIDUAL', 'CORPORATE', 'ADMIN')")
+    public ShipmentSummaryResponse getShipmentByOrderId(UUID orderId) {
+        Shipment shipment = shipmentRepository.findByOrderId(orderId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+        authorizeShipmentAccess(shipment);
+        return shipmentMapper.toSummaryResponse(shipment);
+    }
+
     @Transactional
     @PreAuthorize("hasAnyRole('CORPORATE', 'ADMIN')")
     public ShipmentSummaryResponse updateShipment(UUID shipmentId, UpdateShipmentRequest request) {

@@ -76,6 +76,64 @@ def _transform_online_retail(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.Data
     return filtered, rejects
 
 
+def _transform_pakistan(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    transformed = frame.copy()
+
+    pakistan_status_map = {
+        "complete": "DELIVERED",
+        "completed": "DELIVERED",
+        "received": "DELIVERED",
+        "closed": "DELIVERED",
+        "canceled": "CANCELLED",
+        "cancelled": "CANCELLED",
+        "refund": "RETURNED",
+        "order_refunded": "RETURNED",
+        "exchange": "RETURNED",
+        "processing": "PROCESSING",
+        "pending": "PENDING",
+        "pending_paypal": "PENDING",
+        "payment_review": "PENDING",
+        "holded": "PENDING",
+        "fraud": "CANCELLED",
+        "cod": "PENDING",
+        "paid": "CONFIRMED",
+    }
+
+    transformed["order_status"] = transformed["order_status"].map(
+        lambda value: pakistan_status_map.get(str(value).strip().lower(), "PENDING")
+        if pd.notna(value) and str(value).strip() not in {"", "\\N", "nan"}
+        else "PENDING"
+    )
+    transformed["payment_method"] = transformed["payment_method"].map(
+        lambda value: PAYMENT_METHOD_MAP.get(str(value).strip().lower(), str(value).strip().upper())
+        if pd.notna(value) and str(value).strip() not in {"", "\\N", "nan"}
+        else pd.NA
+    )
+    transformed["category_name"] = transformed["category_name"].map(
+        lambda value: "UNCATEGORIZED"
+        if pd.isna(value) or str(value).strip() in {"", "\\N", "nan"}
+        else str(value).strip()
+    )
+
+    for column_name in ("line_item_id", "order_id", "product_id", "customer_id"):
+        transformed[column_name] = transformed[column_name].map(
+            lambda value: str(value).replace(".0", "").strip()
+            if pd.notna(value) and str(value).strip() not in {"", "\\N", "nan"}
+            else pd.NA
+        ).astype("string")
+
+    required_columns = ["line_item_id", "order_id", "product_id", "customer_id"]
+    rejected_mask = transformed[required_columns].isna().any(axis=1) | transformed["unit_price"].isna() | transformed["quantity"].isna()
+    rejected_mask = rejected_mask | (transformed["quantity"] <= 0)
+
+    rejects = transformed.loc[rejected_mask].copy()
+    if not rejects.empty:
+        rejects["reject_reason"] = "MISSING_REQUIRED_FIELDS_OR_NON_POSITIVE_QUANTITY"
+
+    filtered = transformed.loc[~rejected_mask].copy()
+    return filtered, rejects
+
+
 def transform_dataset(dataset: DatasetConfig, frame: pd.DataFrame) -> TransformResult:
     transformed = _apply_base_transformations(dataset, frame)
     rejects = pd.DataFrame(columns=list(transformed.columns) + ["reject_reason"])
@@ -86,6 +144,8 @@ def transform_dataset(dataset: DatasetConfig, frame: pd.DataFrame) -> TransformR
         transformed = _transform_customer_behavior(transformed)
     elif dataset.source_system == "ONLINE_RETAIL":
         transformed, rejects = _transform_online_retail(transformed)
+    elif dataset.source_system == "PAKISTAN":
+        transformed, rejects = _transform_pakistan(transformed)
 
     transformed = transformed.drop_duplicates().reset_index(drop=True)
     summary = {
@@ -94,4 +154,3 @@ def transform_dataset(dataset: DatasetConfig, frame: pd.DataFrame) -> TransformR
         "reject_rows": len(rejects),
     }
     return TransformResult(staging=transformed, rejects=rejects, summary=summary)
-

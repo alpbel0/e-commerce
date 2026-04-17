@@ -22,8 +22,6 @@ export const appRoutes: Routes = [
   {
     path: 'app',
     component: IndividualLayoutComponent,
-    canActivate: [authGuard, roleGuard],
-    data: { roles: ['INDIVIDUAL'] },
     loadChildren: () => import('./features/individual/individual.routes').then((m) => m.individualRoutes)
   },
 

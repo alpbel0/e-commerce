@@ -15,6 +15,7 @@ public record OrderSummaryResponse(
     BigDecimal subtotal,
     BigDecimal discountAmount,
     BigDecimal grandTotal,
+    String currency,
     String couponCode,
     LocalDateTime orderDate
 ) {

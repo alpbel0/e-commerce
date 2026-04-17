@@ -50,6 +50,19 @@ public class CouponManagementService {
         this.auditLogService = auditLogService;
     }
 
+    @PreAuthorize("hasRole('CORPORATE')")
+    public ApiPageResponse<CouponResponse> listCouponsForCurrentStore(Integer page, Integer size) {
+        AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
+        Pageable pageable = PageRequest.of(
+            page == null ? DEFAULT_PAGE : Math.max(page, 0),
+            size == null ? DEFAULT_SIZE : Math.min(Math.max(size, 1), MAX_SIZE),
+            Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        Page<Coupon> resultPage = couponRepository.findByStoreOwnerId(authenticatedUser.getUserId(), pageable);
+        var items = resultPage.stream().map(this::toResponse).toList();
+        return new ApiPageResponse<>(items, resultPage.getNumber(), resultPage.getSize(), resultPage.getTotalElements(), resultPage.getTotalPages());
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN', 'CORPORATE')")
     public ApiPageResponse<CouponResponse> listCoupons(Integer page, Integer size, UUID storeId) {
         AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
@@ -152,6 +165,25 @@ public class CouponManagementService {
             )
         );
         return toResponse(coupon);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'CORPORATE')")
+    public void deleteCoupon(UUID couponId) {
+        Coupon coupon = couponRepository.findById(couponId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
+        authorizeCouponAccess(coupon);
+
+        coupon.setActive(false);
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "COUPON_DELETED",
+            Map.of(
+                "couponId", coupon.getId(),
+                "storeId", coupon.getStore().getId(),
+                "code", coupon.getCode()
+            )
+        );
     }
 
     private void authorizeCouponAccess(Coupon coupon) {

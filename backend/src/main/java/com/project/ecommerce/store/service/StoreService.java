@@ -5,6 +5,7 @@ import com.project.ecommerce.auth.security.AuthenticatedUser;
 import com.project.ecommerce.auth.service.CurrentUserService;
 import com.project.ecommerce.common.api.ApiPageResponse;
 import com.project.ecommerce.store.domain.Store;
+import com.project.ecommerce.store.dto.CreateStoreRequest;
 import com.project.ecommerce.store.dto.StoreDetailResponse;
 import com.project.ecommerce.store.dto.StoreSummaryResponse;
 import com.project.ecommerce.store.dto.UpdateStoreRequest;
@@ -67,6 +68,53 @@ public class StoreService {
     public StoreDetailResponse getStore(UUID storeId) {
         var store = storeRepository.findById(storeId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found"));
+        return toDetailResponse(store);
+    }
+
+    public StoreDetailResponse getStoreBySlug(String slug) {
+        var store = storeRepository.findBySlug(slug)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found"));
+        return toDetailResponse(store);
+    }
+
+    public ApiPageResponse<StoreSummaryResponse> getStoresByOwner(UUID ownerId, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page == null ? 0 : page, size == null ? 20 : size);
+        var resultPage = storeRepository.findByOwnerId(ownerId, pageable);
+        var items = resultPage.stream().map(store -> new StoreSummaryResponse(
+            store.getId(),
+            store.getName(),
+            store.getContactEmail(),
+            store.getStatus(),
+            store.getProductCount(),
+            store.getOwner() != null ? store.getOwner().getEmail() : null
+        )).toList();
+        return new ApiPageResponse<>(items, resultPage.getNumber(), resultPage.getSize(), resultPage.getTotalElements(), resultPage.getTotalPages());
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('CORPORATE')")
+    public StoreDetailResponse createCorporateStore(CreateStoreRequest request) {
+        AuthenticatedUser currentUser = currentUserService.requireAuthenticatedUser();
+
+        Store store = new Store();
+        store.setId(UUID.randomUUID());
+        store.setOwner(currentUserService.requireCurrentAppUser());
+        store.setName(request.name().trim());
+        store.setDescription(blankToNull(request.description()));
+        store.setContactEmail(request.contactEmail() != null ? request.contactEmail().trim() : null);
+        store.setContactPhone(blankToNull(request.contactPhone()));
+        store.setAddress(blankToNull(request.address()));
+        store.setTotalSales(java.math.BigDecimal.ZERO);
+        store.setProductCount(0);
+        store.setStatus("PENDING");
+        store.setSlug(generateSlug(request.name()));
+        storeRepository.save(store);
+
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "STORE_CREATED",
+            Map.of("storeId", store.getId(), "name", store.getName())
+        );
         return toDetailResponse(store);
     }
 
@@ -179,6 +227,7 @@ public class StoreService {
             store.getProductCount(),
             store.getRating(),
             store.getStatus(),
+            store.getSlug(),
             store.getOwner().getId(),
             store.getCreatedAt(),
             store.getUpdatedAt()
@@ -191,5 +240,14 @@ public class StoreService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String generateSlug(String name) {
+        String slug = name.toLowerCase(java.util.Locale.ENGLISH)
+            .replaceAll("[^a-z0-9\\s-]", "")
+            .replaceAll("\\s+", "-")
+            .replaceAll("-+", "-")
+            .trim();
+        return slug + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 }

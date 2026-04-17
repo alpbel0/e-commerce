@@ -95,6 +95,7 @@ public class AuthService {
             store.setName(request.storeName().trim());
             store.setContactEmail(user.getEmail());
             store.setStatus("OPEN");
+            store.setSlug(generateSlug(request.storeName()));
             storeRepository.save(store);
         }
 
@@ -261,5 +262,14 @@ public class AuthService {
                 authenticatedUser.getActiveRole()
             )
         );
+    }
+
+    private String generateSlug(String name) {
+        String slug = name.toLowerCase(java.util.Locale.ENGLISH)
+            .replaceAll("[^a-z0-9\\s-]", "")
+            .replaceAll("\\s+", "-")
+            .replaceAll("-+", "-")
+            .trim();
+        return slug + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 }

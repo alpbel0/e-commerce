@@ -1,6 +1,7 @@
 import { Component, effect, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
+import { CurrencyRateService } from '../../../core/api/currency-rate.service';
 import { OrderService } from '../../../core/api/order.service';
 import { CorporateContextService } from '../../../core/corporate/corporate-context.service';
 import type { OrderSummaryResponse } from '../../../core/models/order.models';
@@ -26,12 +27,30 @@ import { formatMoney } from '../../../shared/util/money';
         color: #64748b;
       }
       .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: end;
         margin-bottom: 1rem;
       }
       .filters select {
         padding: 0.4rem 0.6rem;
         border-radius: 8px;
         border: 1px solid #cbd5e1;
+      }
+      .filters label {
+        display: grid;
+        gap: 4px;
+        font-size: 0.82rem;
+        color: #475569;
+      }
+      .status-select {
+        min-width: 130px;
+        padding: 0.3rem 0.45rem;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        font-size: 0.78rem;
       }
       table {
         width: 100%;
@@ -81,6 +100,8 @@ import { formatMoney } from '../../../shared/util/money';
 })
 export class CorporateOrderListComponent {
   private readonly orders = inject(OrderService);
+  private readonly currencyRates = inject(CurrencyRateService);
+  private readonly router = inject(Router);
   readonly ctx = inject(CorporateContextService);
 
   readonly loading = signal(false);
@@ -89,11 +110,16 @@ export class CorporateOrderListComponent {
   readonly status = signal<string>('');
   readonly page = signal(0);
   readonly totalPages = signal(0);
+  readonly savingOrderIds = signal<Set<string>>(new Set());
+  readonly displayCurrency = signal('');
+  readonly usdRates = signal<Record<string, number>>({ USD: 1 });
+  readonly availableCurrencies = signal<string[]>(['TRY', 'USD', 'EUR']);
 
   readonly formatMoney = formatMoney;
   readonly statusOptions = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'] as const;
 
   constructor() {
+    this.loadCurrencyRates();
     effect(() => {
       const sid = this.ctx.selectedStoreId();
       const st = this.status();
@@ -102,7 +128,7 @@ export class CorporateOrderListComponent {
   }
 
   private fetch(sid: string | null, st: string): void {
-    if (!sid) {
+    if (!this.isAdminRoute() && !sid) {
       this.loading.set(false);
       this.items.set([]);
       this.page.set(0);
@@ -117,7 +143,7 @@ export class CorporateOrderListComponent {
         size: 20,
         sort: 'orderDate,desc',
         status: st || undefined,
-        storeId: sid
+        storeId: this.isAdminRoute() ? undefined : sid ?? undefined
       })
       .subscribe({
         next: (res) => {
@@ -138,6 +164,53 @@ export class CorporateOrderListComponent {
     this.status.set(v);
   }
 
+  onOrderStatusChange(order: OrderSummaryResponse, ev: Event): void {
+    const status = (ev.target as HTMLSelectElement).value;
+    if (!status || status === order.status) {
+      return;
+    }
+    this.savingOrderIds.update((ids) => new Set(ids).add(order.orderId));
+    this.orders.updateStatus(order.orderId, { status }).subscribe({
+      next: (detail) => {
+        this.items.update((items) =>
+          items.map((item) =>
+            item.orderId === order.orderId
+              ? {
+                  ...item,
+                  status: detail.status,
+                  paymentStatus: detail.paymentStatus,
+                  grandTotal: detail.grandTotal,
+                  currency: detail.currency
+                }
+              : item
+          )
+        );
+        this.removeSavingOrder(order.orderId);
+      },
+      error: () => this.removeSavingOrder(order.orderId)
+    });
+  }
+
+  isOrderSaving(orderId: string): boolean {
+    return this.savingOrderIds().has(orderId);
+  }
+
+  setDisplayCurrency(value: string): void {
+    const normalized = this.normalizeCurrency(value);
+    if (normalized) {
+      this.displayCurrency.set(normalized);
+    }
+  }
+
+  selectedDisplayCurrency(): string {
+    return this.displayCurrency() || 'USD';
+  }
+
+  formatDisplayMoney(value: string | number | null | undefined, fromCurrency: string | null | undefined): string {
+    const targetCurrency = this.selectedDisplayCurrency();
+    return formatMoney(this.convertMoney(value, fromCurrency, targetCurrency), targetCurrency);
+  }
+
   onPageChange(page: number): void {
     this.page.set(page);
   }
@@ -145,6 +218,14 @@ export class CorporateOrderListComponent {
   retry(): void {
     const sid = this.ctx.selectedStoreId();
     this.fetch(sid, this.status());
+  }
+
+  isAdminRoute(): boolean {
+    return this.router.url.startsWith('/admin/');
+  }
+
+  detailLink(orderId: string): string[] {
+    return [this.isAdminRoute() ? '/admin/orders' : '/corporate/orders', orderId];
   }
 
   badgeClass(s: string): string {
@@ -156,5 +237,63 @@ export class CorporateOrderListComponent {
 
   shortDate(s: string): string {
     return (s ?? '').slice(0, 16).replace('T', ' ');
+  }
+
+  private loadCurrencyRates(): void {
+    this.currencyRates.listRates().subscribe({
+      next: (rates) => {
+        const rateMap: Record<string, number> = { USD: 1 };
+        for (const rate of rates) {
+          const value = parseFloat(rate.rate);
+          if (!Number.isNaN(value) && value > 0) {
+            rateMap[rate.targetCurrency] = value;
+          }
+        }
+        this.usdRates.set(rateMap);
+        this.availableCurrencies.set(Object.keys(rateMap).sort());
+        if (!this.displayCurrency()) {
+          this.displayCurrency.set(rateMap['TRY'] ? 'TRY' : 'USD');
+        }
+      },
+      error: () => {
+        this.usdRates.set({ USD: 1 });
+        this.availableCurrencies.set(['USD']);
+        this.displayCurrency.set('USD');
+      }
+    });
+  }
+
+  private convertMoney(
+    value: string | number | null | undefined,
+    fromCurrency: string | null | undefined,
+    targetCurrency: string
+  ): number {
+    if (value == null || value === '') return 0;
+    const amount = typeof value === 'string' ? parseFloat(value) : value;
+    if (Number.isNaN(amount)) return 0;
+
+    const sourceCurrency = this.normalizeCurrency(fromCurrency);
+    if (!sourceCurrency || sourceCurrency === 'MIXED') {
+      return amount;
+    }
+    const rates = this.usdRates();
+    const sourceRate = rates[sourceCurrency] ?? 0;
+    const targetRate = rates[targetCurrency] ?? 0;
+    if (sourceRate <= 0 || targetRate <= 0) {
+      return amount;
+    }
+    return (amount / sourceRate) * targetRate;
+  }
+
+  private normalizeCurrency(currency: string | null | undefined): string {
+    return currency?.trim().toUpperCase() ?? '';
+  }
+
+  private removeSavingOrder(orderId: string): void {
+    this.savingOrderIds.update((ids) => {
+      const next = new Set(ids);
+      next.delete(orderId);
+      return next;
+    });
   }
 }

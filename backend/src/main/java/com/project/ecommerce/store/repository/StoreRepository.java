@@ -14,6 +14,9 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     @EntityGraph(attributePaths = {"owner"})
     List<Store> findByOwnerId(UUID ownerId);
 
+    @EntityGraph(attributePaths = {"owner"})
+    Page<Store> findByOwnerId(UUID ownerId, Pageable pageable);
+
     @Override
     @EntityGraph(attributePaths = {"owner"})
     Page<Store> findAll(Pageable pageable);
@@ -30,4 +33,7 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
 
     @EntityGraph(attributePaths = {"owner"})
     Optional<Store> findByNameIgnoreCase(String name);
+
+    @EntityGraph(attributePaths = {"owner"})
+    Optional<Store> findBySlug(String slug);
 }

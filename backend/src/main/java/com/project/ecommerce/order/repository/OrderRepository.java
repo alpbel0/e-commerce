@@ -1,6 +1,7 @@
 package com.project.ecommerce.order.repository;
 
 import com.project.ecommerce.order.domain.Order;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -9,6 +10,11 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OrderRepository extends JpaRepository<Order, UUID> {
+
+    Optional<Order> findByIdempotencyKeyAndUserId(String idempotencyKey, UUID userId);
+
+    @EntityGraph(attributePaths = {"user", "store", "store.owner"})
+    List<Order> findAllByIdempotencyKeyAndUserId(String idempotencyKey, UUID userId);
 
     @EntityGraph(attributePaths = {"user", "store", "store.owner"})
     Page<Order> findByUserIdOrderByOrderDateDesc(UUID userId, Pageable pageable);

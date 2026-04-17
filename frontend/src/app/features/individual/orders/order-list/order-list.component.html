@@ -33,7 +33,19 @@
     </label>
   </div>
 
-  <button type="button" class="export" (click)="exportCsv()">CSV export</button>
+  <div class="toolbar-actions">
+    <div class="currency-picker">
+      <label>
+        Para birimi
+        <select [value]="selectedDisplayCurrency()" (change)="setDisplayCurrency($any($event.target).value)">
+          @for (currency of availableCurrencies(); track currency) {
+            <option [value]="currency">{{ currency }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    <button type="button" class="export" (click)="exportCsv()">CSV export</button>
+  </div>
 </div>
 
 @if (loading()) {
@@ -62,7 +74,7 @@
           <td>{{ order.storeName }}</td>
           <td><span [class]="badgeClass(order.status)">{{ order.status }}</span></td>
           <td>{{ order.paymentStatus }}</td>
-          <td>{{ formatMoney(order.grandTotal) }}</td>
+          <td>{{ formatDisplayMoney(order.grandTotal, order.currency) }}</td>
           <td>{{ shortDate(order.orderDate) }}</td>
           <td><a [routerLink]="['/app/orders', order.orderId]">Detay</a></td>
         </tr>

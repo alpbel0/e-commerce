@@ -1,9 +1,10 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, forkJoin } from 'rxjs';
 
 import { OrderService } from '../../../core/api/order.service';
+import { PaymentService } from '../../../core/api/payment.service';
 import { ReviewService } from '../../../core/api/review.service';
 import { ShipmentService } from '../../../core/api/shipment.service';
 import { ToastService } from '../../../core/notify/toast.service';
@@ -106,7 +107,9 @@ import { formatMoney } from '../../../shared/util/money';
 })
 export class CorporateOrderDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly orders = inject(OrderService);
+  private readonly payments = inject(PaymentService);
   private readonly shipments = inject(ShipmentService);
   private readonly reviews = inject(ReviewService);
   private readonly fb = inject(FormBuilder);
@@ -142,6 +145,10 @@ export class CorporateOrderDetailComponent implements OnInit {
   });
 
   private orderId = '';
+
+  backLink(): string {
+    return this.router.url.startsWith('/admin/') ? '/admin/orders' : '/corporate/orders';
+  }
 
   ngOnInit(): void {
     this.orderId = this.route.snapshot.paramMap.get('id') ?? '';
@@ -262,12 +269,37 @@ export class CorporateOrderDetailComponent implements OnInit {
     this.saving.set(true);
     this.orders.updateReturnStatus(item.orderItemId, { status, note: null }).subscribe({
       next: () => {
+        if (status === 'RETURNED' && this.canRefundWithStripe(item)) {
+          this.refundStripeItem(item, 'Return approved');
+          return;
+        }
         this.saving.set(false);
         this.toast.showInfo('İade kararı kaydedildi');
         this.load();
       },
       error: () => this.saving.set(false)
     });
+  }
+
+  refundStripeItem(item: OrderItemResponse, reason = 'Customer return'): void {
+    if (!this.canRefundWithStripe(item)) {
+      this.toast.showError('Stripe refund sadece odenmis Stripe siparisleri icin kullanilir.');
+      return;
+    }
+    this.saving.set(true);
+    this.payments.createStripeRefund({ orderItemId: item.orderItemId, reason }).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.toast.showInfo('Stripe refund olusturuldu');
+        this.load();
+      },
+      error: () => this.saving.set(false)
+    });
+  }
+
+  canRefundWithStripe(_item: OrderItemResponse): boolean {
+    const o = this.order();
+    return !!o && o.paymentMethod === 'STRIPE_CARD' && o.paymentStatus === 'PAID';
   }
 
   setDraft(reviewId: string, text: string): void {

@@ -1,6 +1,7 @@
 package com.project.ecommerce.product.web;
 
 import com.project.ecommerce.common.api.ApiPageResponse;
+import com.project.ecommerce.product.dto.AddProductImagesRequest;
 import com.project.ecommerce.product.dto.PatchProductRequest;
 import com.project.ecommerce.product.dto.CreateProductRequest;
 import com.project.ecommerce.product.dto.ProductDetailResponse;
@@ -9,6 +10,7 @@ import com.project.ecommerce.product.dto.UpdateProductRequest;
 import com.project.ecommerce.product.dto.UpdateProductStockRequest;
 import com.project.ecommerce.product.service.ProductService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,6 +46,11 @@ public class ProductController {
         @RequestParam(required = false) Boolean active
     ) {
         return productService.listProducts(page, size, sort, categoryId, storeId, query, active);
+    }
+
+    @GetMapping("/featured")
+    public List<ProductSummaryResponse> getFeaturedProducts(@RequestParam(required = false) Integer limit) {
+        return productService.getFeaturedProducts(limit);
     }
 
     @GetMapping("/{productId}")
@@ -85,5 +92,13 @@ public class ProductController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProduct(@PathVariable UUID productId) {
         productService.softDeleteProduct(productId);
+    }
+
+    @PostMapping("/{productId}/images")
+    public ProductDetailResponse addProductImages(
+        @PathVariable UUID productId,
+        @Valid @RequestBody AddProductImagesRequest request
+    ) {
+        return productService.addProductImages(productId, request);
     }
 }

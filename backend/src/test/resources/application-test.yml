@@ -20,7 +20,7 @@ app:
   security:
     jwt:
       secret: VGhpc0lzQVRlc3RTZWNyZXRLZXlGb3JCYWNrZW5kQXV0aFRlc3RzT25seV9DaGFuZ2VNZQ==
-      access-token-expiration-seconds: 900
+      access-token-expiration-seconds: 21600
       refresh-token-expiration-seconds: 604800
       password-reset-expiration-seconds: 1800
 

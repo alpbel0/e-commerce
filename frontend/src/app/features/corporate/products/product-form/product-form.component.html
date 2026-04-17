@@ -1,73 +1,97 @@
 <div class="row-actions">
-  <a routerLink="/corporate/products">← Listeye dön</a>
+  <a routerLink="/corporate/products">← Listeye don</a>
 </div>
 
 @if (!ctx.selectedStoreId()) {
-  <p class="hint">Üst menüden mağaza seçin.</p>
+  <p class="hint">Ust menuden magaza secin.</p>
 } @else if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Yüklenemedi." (retry)="retry()" />
+  <app-error-state message="Yuklenemedi." (retry)="retry()" />
 } @else {
-  <h2>{{ editMode() ? 'Ürün düzenle' : 'Yeni ürün' }}</h2>
+  <h2>{{ editMode() ? 'Urun duzenle' : 'Yeni urun' }}</h2>
   <form [formGroup]="form" (ngSubmit)="submit()">
     <div class="grid">
       <div>
         <label for="sku">SKU</label>
         <input id="sku" formControlName="sku" [readonly]="editMode()" />
       </div>
+
       <div>
-        <label for="ti">Başlık</label>
+        <label for="ti">Baslik</label>
         <input id="ti" formControlName="title" />
       </div>
+
       <div>
         <label for="cat">Kategori</label>
         <select id="cat" formControlName="categoryId">
-          <option value="" disabled>Seçin</option>
+          <option value="" disabled>Secin</option>
           @for (c of categories(); track c.id) {
             <option [value]="c.id">{{ c.name }}</option>
           }
         </select>
       </div>
+
       <div>
         <label for="br">Marka</label>
         <input id="br" formControlName="brand" />
       </div>
+
       <div>
-        <label for="de">Açıklama</label>
+        <label for="de">Aciklama</label>
         <textarea id="de" formControlName="description"></textarea>
       </div>
+
       <div>
         <label for="up">Birim fiyat</label>
         <input id="up" formControlName="unitPrice" inputmode="decimal" />
       </div>
+
       <div>
-        <label for="di">İndirim %</label>
+        <label for="di">Indirim %</label>
         <input id="di" formControlName="discountPercentage" inputmode="decimal" />
       </div>
+
       <div>
         <label for="co">Maliyet (opsiyonel)</label>
         <input id="co" formControlName="costOfProduct" inputmode="decimal" />
       </div>
+
       <div>
         <label for="st">Stok</label>
         <input id="st" type="number" min="0" formControlName="stockQuantity" />
       </div>
+
       <div>
-        <label for="im">Görsel URL’leri (satır satır)</label>
-        <textarea id="im" formControlName="imageUrlsText"></textarea>
+        <label for="im">Gorsel URL'leri</label>
+        <p class="hint">Her satira bir URL yaz. Ilk satir kapak gorseli olarak kullanilir.</p>
+        <textarea
+          id="im"
+          formControlName="imageUrlsText"
+          placeholder="https://example.com/cover.jpg&#10;https://example.com/gallery-2.jpg&#10;https://example.com/gallery-3.jpg"
+        ></textarea>
+        @if (previewImageUrls().length > 0) {
+          <div class="preview-grid">
+            @for (url of previewImageUrls(); track url) {
+              <img [src]="url" alt="Gorsel onizleme" />
+            }
+          </div>
+        }
       </div>
+
       <div>
-        <label for="tg">Etiketler (virgülle)</label>
+        <label for="tg">Etiketler (virgulle)</label>
         <input id="tg" formControlName="tagsText" />
       </div>
+
       @if (editMode()) {
         <div class="check">
           <input id="ac" type="checkbox" formControlName="active" />
-          <label for="ac" style="margin: 0">Yayında (aktif)</label>
+          <label for="ac" style="margin: 0">Yayinda (aktif)</label>
         </div>
       }
     </div>
-    <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor…' : 'Kaydet' }}</button>
+
+    <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor...' : 'Kaydet' }}</button>
   </form>
 }

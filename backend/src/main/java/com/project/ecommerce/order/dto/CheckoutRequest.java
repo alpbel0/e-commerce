@@ -12,6 +12,7 @@ public record CheckoutRequest(
     String shippingPostalCode,
     @NotBlank String shippingCountry,
     String customerPhone,
-    String notes
+    String notes,
+    String idempotencyKey
 ) {
 }

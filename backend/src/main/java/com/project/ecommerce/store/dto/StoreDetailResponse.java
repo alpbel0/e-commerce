@@ -15,6 +15,7 @@ public record StoreDetailResponse(
     Integer productCount,
     BigDecimal rating,
     String status,
+    String slug,
     UUID ownerId,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

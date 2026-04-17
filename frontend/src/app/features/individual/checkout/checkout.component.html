@@ -1,32 +1,61 @@
-<h2>Ödeme</h2>
+<h2>Odeme</h2>
 
 @if (empty()) {
-  <div class="warn">Sepetiniz boş. <a routerLink="/app/products">Ürünlere dön</a></div>
+  <div class="warn">Sepetiniz bos. <a routerLink="/app/products">Urunlere don</a></div>
 } @else {
   <form [formGroup]="form" (ngSubmit)="submit()">
     <div class="field">
-      <label for="pm">Ödeme yöntemi</label>
+      <label for="pm">Odeme yontemi</label>
       <select id="pm" formControlName="paymentMethod">
         @for (m of paymentMethods; track m.value) {
           <option [value]="m.value">{{ m.label }}</option>
         }
       </select>
     </div>
+
+    <div class="stripe-box" [style.display]="isStripeSelected() ? 'block' : 'none'">
+      <div class="field">
+        <label>Kart numarasi *</label>
+        <div class="stripe-field" [class.stripe-field--error]="stripeReady() && !cardNumberComplete()">
+          <div id="stripe-card-number" #stripeCardNumberElement></div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Son kullanma tarihi *</label>
+          <div class="stripe-field" [class.stripe-field--error]="stripeReady() && !cardExpiryComplete()">
+            <div id="stripe-card-expiry" #stripeCardExpiryElement></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Guvenlik kodu *</label>
+          <div class="stripe-field" [class.stripe-field--error]="stripeReady() && !cardCvcComplete()">
+            <div id="stripe-card-cvc" #stripeCardCvcElement></div>
+          </div>
+        </div>
+      </div>
+      @if (stripeError()) {
+        <p class="help">{{ stripeError() }}</p>
+      } @else {
+        <p class="help">Test karti: 4242 4242 4242 4242 · Son kullanma: 12/28 · Guvenlik kodu: 020</p>
+      }
+    </div>
+
     <div class="field">
-      <label for="a1">Adres satırı 1 *</label>
+      <label for="a1">Adres satiri 1 *</label>
       <input id="a1" formControlName="shippingAddressLine1" autocomplete="address-line1" />
     </div>
     <div class="field">
-      <label for="a2">Adres satırı 2</label>
+      <label for="a2">Adres satiri 2</label>
       <input id="a2" formControlName="shippingAddressLine2" autocomplete="address-line2" />
     </div>
     <div class="row2">
       <div class="field">
-        <label for="city">Şehir *</label>
+        <label for="city">Sehir *</label>
         <input id="city" formControlName="shippingCity" />
       </div>
       <div class="field">
-        <label for="state">Eyalet / ilçe</label>
+        <label for="state">Eyalet / ilce</label>
         <input id="state" formControlName="shippingState" />
       </div>
     </div>
@@ -36,7 +65,7 @@
         <input id="zip" formControlName="shippingPostalCode" />
       </div>
       <div class="field">
-        <label for="ctry">Ülke *</label>
+        <label for="ctry">Ulke *</label>
         <input id="ctry" formControlName="shippingCountry" />
       </div>
     </div>
@@ -48,11 +77,16 @@
       <label for="no">Not</label>
       <textarea id="no" formControlName="notes" rows="2"></textarea>
     </div>
-    <button type="submit" [disabled]="submitting()">
+    <button
+      type="submit"
+      [disabled]="submitting() || (isStripeSelected() && (!stripeReady() || !cardNumberComplete() || !cardExpiryComplete() || !cardCvcComplete()))"
+    >
       @if (submitting()) {
         <app-loading-spinner [inline]="true" />
+      } @else if (isStripeSelected()) {
+        Stripe ile ode
       } @else {
-        Siparişi tamamla
+        Siparisi tamamla
       }
     </button>
   </form>
