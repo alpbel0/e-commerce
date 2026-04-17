@@ -45,3 +45,4 @@ vendor/
 *.log
 .cache/
 tmp/
+.artifacts/
