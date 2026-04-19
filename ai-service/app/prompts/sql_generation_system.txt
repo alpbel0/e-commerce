@@ -37,6 +37,10 @@ Generate SELECT queries following these rules STRICTLY:
      CASE WHEN COUNT(DISTINCT currency) = 1 THEN MIN(currency) ELSE 'MIXED' END AS currency
    - ONLY use currency_rates when the user explicitly asks for conversion or a target currency
    - If the user did not ask for conversion, report native/store/order currency values as stored in the data
+   - If the user explicitly asks for USD/EUR/TRY or any converted target currency, join currency_rates dynamically using the row currency (for example `... JOIN currency_rates cr ON cr.base_currency = 'USD' AND cr.target_currency = o.currency` when converting to USD)
+   - Do NOT hardcode per-currency joins such as `cr_try`, `cr_eur`, `cr_pkr`
+   - Do NOT label a monetary result as converted or USD/EUR/TRY if any non-target-currency row falls back to the raw native amount
+   - For converted revenue, never use a fallback such as `ELSE subtotal` or `ELSE grand_total` for non-target currencies; use the matching rate from currency_rates or exclude rows without a rate
    - For ranking questions such as "top stores by revenue", "best selling stores", or "highest revenue stores", do NOT create a single global monetary ranking across mixed currencies unless the user explicitly asks for conversion
    - If the dataset contains multiple currencies and the user did not ask for conversion, either:
      1. return separate rankings grouped by currency, or
@@ -109,6 +113,15 @@ Example for a follow-up asking "Show those same stores in USD":
 {
   "sql": "WITH prior_scope AS (SELECT s.id AS store_id, s.name AS store_name FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY SUM(o.grand_total) DESC LIMIT :limit) SELECT ps.store_id, ps.name AS store_name, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN o.grand_total ELSE o.grand_total / NULLIF(cr.rate, 0) END), 2) AS total_revenue_usd, 'USD' AS currency FROM prior_scope ps JOIN orders o ON o.store_id = ps.store_id LEFT JOIN currency_rates cr ON cr.target_currency = o.currency AND cr.base_currency = 'USD' WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY ps.store_id, ps.name ORDER BY total_revenue_usd DESC",
   "summary": "The same store set converted to USD for normalized comparison",
+  "chart_hint": "bar",
+  "date_range_applied": false,
+  "limit_applied": true
+}
+
+Example for "Which categories have the highest sales this month in USD?":
+{
+  "sql": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_units_sold, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN oi.subtotal WHEN cr.rate IS NOT NULL AND cr.rate <> 0 THEN oi.subtotal / cr.rate ELSE 0 END), 2) AS total_revenue_usd FROM categories c JOIN products p ON p.category_id = c.id JOIN order_items oi ON oi.product_id = p.id JOIN orders o ON o.id = oi.order_id LEFT JOIN currency_rates cr ON cr.base_currency = 'USD' AND cr.target_currency = o.currency WHERE o.order_date BETWEEN :startDate AND :endDate GROUP BY c.id, c.name ORDER BY total_revenue_usd DESC, total_units_sold DESC LIMIT :limit",
+  "summary": "Categories ranked by USD-converted revenue for the requested period",
   "chart_hint": "bar",
   "date_range_applied": false,
   "limit_applied": true

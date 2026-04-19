@@ -7,7 +7,9 @@ import type { ApiPageResponse } from '../models/common.models';
 import type {
   AdminUserListResponse,
   AuditLogResponse,
+  CreateAdminUserRequest,
   CreateCategoryRequest,
+  DeleteUserResponse,
   UpdateCategoryRequest,
   UpdateUserRoleRequest,
   UpdateUserStatusRequest
@@ -31,6 +33,14 @@ export class AdminService {
   private readonly storesBase = `${environment.apiBaseUrl}/admin/stores`;
   private readonly categoriesBase = `${environment.apiBaseUrl}/admin/categories`;
   private readonly auditBase = `${environment.apiBaseUrl}/admin/audit-logs`;
+
+  createUser(body: CreateAdminUserRequest): Observable<AdminUserListResponse> {
+    return this.http.post<AdminUserListResponse>(this.usersBase, body);
+  }
+
+  deleteUser(userId: string): Observable<DeleteUserResponse> {
+    return this.http.delete<DeleteUserResponse>(`${this.usersBase}/${userId}`);
+  }
 
   listUsers(query?: AdminUserListQuery): Observable<ApiPageResponse<AdminUserListResponse>> {
     let h = new HttpParams();

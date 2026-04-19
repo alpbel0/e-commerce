@@ -29,6 +29,9 @@ Rules:
    - NEVER collapse mixed currencies into one normalized ranking unless the user explicitly asked for conversion
    - If the original intent is a native-currency ranking, repair toward per-currency grouping or explicit MIXED labeling
    - If the original intent explicitly asks for USD/EUR/TRY or another target currency, use currency_rates for conversion
+   - For converted revenue, join currency_rates dynamically on the row currency; do NOT hardcode separate joins such as cr_try or cr_eur
+   - For converted revenue, do NOT keep raw native amounts in an ELSE fallback such as ELSE oi.subtotal or ELSE o.grand_total
+   - If validator details mention unsafe currency conversion, replace the conversion logic with one generic currency_rates join and convert every non-target-currency row through that rate
 9. For follow-up requests:
    - Use recent conversation context to preserve the current entity set, filters, and analytical scope
    - If the user says "same stores", "those stores", "convert this", or similar, repair the SQL to keep the prior scope rather than broadening to the whole platform

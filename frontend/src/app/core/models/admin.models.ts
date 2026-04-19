@@ -17,6 +17,22 @@ export interface UpdateUserRoleRequest {
   role: RoleType;
 }
 
+export interface CreateAdminUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+  role: RoleType;
+  storeName?: string | null;
+  active?: boolean | null;
+}
+
+export interface DeleteUserResponse {
+  userId: string;
+  active: boolean;
+  message: string;
+}
+
 export interface CreateCategoryRequest {
   name: string;
   description?: string | null;

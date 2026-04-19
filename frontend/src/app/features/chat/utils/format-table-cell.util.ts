@@ -1,12 +1,13 @@
 const MONEY_COL =
   /revenue|ciro|price|fiyat|amount|tutar|harcama|spending|total|toplam|sales|satis|balance|bakiye/i;
 const NON_MONEY_NUMERIC_COL =
-  /count|adet|quantity|qty|order count|total orders|total order|orders|siparis|sipariş|id|no\b|number/i;
+  /count|adet|quantity|qty|units sold|total units sold|unit sold|unit count|order count|total orders|total order|orders|siparis|sipari|id|no\b|number/i;
 const RATING_COL = /rating|puan|score|sentiment/i;
 const DATE_COL = /date|tarih|time|created|updated|day|gun|month|ay/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
 const numFmt = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 });
+const intFmt = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 });
 const fixed2Fmt = new Intl.NumberFormat('tr-TR', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -22,12 +23,16 @@ export function formatTableCell(
   row?: unknown[],
   columns?: string[]
 ): string {
+  const isPlainNumericColumn = isNonMoneyNumericColumn(column);
   const isMoneyColumn = isCurrencyFormattedColumn(column);
 
   if (value === null || value === undefined || value === '') {
     return '-';
   }
   if (typeof value === 'number') {
+    if (isPlainNumericColumn) {
+      return Number.isInteger(value) ? intFmt.format(value) : numFmt.format(value);
+    }
     const currency = resolveRowCurrency(column, row, columns);
     if (isMoneyColumn && currency) {
       return formatCurrency(value, currency);
@@ -38,6 +43,12 @@ export function formatTableCell(
     return numFmt.format(value);
   }
   if (typeof value === 'string') {
+    if (isPlainNumericColumn) {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed) && value.trim() !== '') {
+        return Number.isInteger(parsed) ? intFmt.format(parsed) : numFmt.format(parsed);
+      }
+    }
     if (isMoneyColumn) {
       const parsed = Number(value);
       if (!Number.isNaN(parsed) && value.trim() !== '') {
@@ -67,6 +78,10 @@ export function formatTableCell(
 
 function isCurrencyFormattedColumn(column: string): boolean {
   return MONEY_COL.test(column) && !NON_MONEY_NUMERIC_COL.test(column);
+}
+
+function isNonMoneyNumericColumn(column: string): boolean {
+  return NON_MONEY_NUMERIC_COL.test(column);
 }
 
 function isRatingColumn(column: string): boolean {

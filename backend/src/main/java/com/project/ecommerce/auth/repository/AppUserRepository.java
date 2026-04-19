@@ -17,6 +17,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     Optional<AppUser> findByEmailIgnoreCase(String email);
 
+    long countByActiveTrue();
+
     @Query("SELECT u FROM AppUser u WHERE " +
            "(:q IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :q, '%')) " +
            "OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%')) " +

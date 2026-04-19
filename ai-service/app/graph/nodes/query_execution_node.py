@@ -126,6 +126,7 @@ async def query_execution_node(state: AgentState) -> Dict[str, Any]:
         return {
             "query_result": result,
             "row_count": response.row_count,
+            "query_error": None,
             "execution_steps": execution_steps,
         }
 

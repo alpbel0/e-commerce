@@ -170,6 +170,11 @@ class SQLValidator:
         if not query.has_limit:
             applied_defaults.append(f"LIMIT {DEFAULT_LIMIT}")
 
+        # Rule 11: Converted-currency analytics must use safe generic conversion
+        currency_conversion_result = self._check_currency_conversion_safety(sql, sql_lower)
+        if not currency_conversion_result.is_valid:
+            return currency_conversion_result
+
         return ValidationResult(
             is_valid=True,
             applied_defaults=applied_defaults
@@ -307,6 +312,99 @@ class SQLValidator:
                     "Rating and review analytics must aggregate from reviews.star_rating via "
                     "reviews -> products -> stores, not stored rating columns"
                 ),
+            )
+
+        return ValidationResult(is_valid=True)
+
+    def _check_currency_conversion_safety(self, sql: str, sql_lower: str) -> ValidationResult:
+        """Reject USD/EUR/TRY-labeled conversions that still fall back to raw native amounts."""
+        converted_alias_present = re.search(
+            r"\bas\s+(?:total_)?(?:revenue|sales|amount)_(usd|eur|try|gbp|inr|pkr|aud|cad)\b",
+            sql_lower,
+        ) is not None
+        explicit_converted_label = (
+            converted_alias_present or
+            "'usd' as currency" in sql_lower or
+            "'eur' as currency" in sql_lower or
+            "'try' as currency" in sql_lower
+        )
+
+        if not explicit_converted_label:
+            return ValidationResult(is_valid=True)
+
+        if "currency_rates" not in sql_lower:
+            return ValidationResult(
+                is_valid=False,
+                error_code="UNSAFE_CURRENCY_CONVERSION",
+                error_message="Converted currency analytics must join currency_rates dynamically",
+                error_details={
+                    "error_code": "UNSAFE_CURRENCY_CONVERSION",
+                    "reason": "converted monetary result without currency_rates join",
+                    "suggestion": (
+                        "Join currency_rates once using the row currency "
+                        "(for example currency_rates.target_currency = o.currency)."
+                    ),
+                },
+            )
+
+        hardcoded_rate_joins = re.findall(r"\bcurrency_rates\s+([a-zA-Z_][a-zA-Z0-9_]*)", sql, flags=re.IGNORECASE)
+        suspicious_hardcoded_aliases = [
+            alias for alias in hardcoded_rate_joins
+            if re.fullmatch(r"cr_[a-z]{3,4}", alias.lower())
+        ]
+        if suspicious_hardcoded_aliases:
+            return ValidationResult(
+                is_valid=False,
+                error_code="UNSAFE_CURRENCY_CONVERSION",
+                error_message="Converted currency analytics must not hardcode per-currency rate joins",
+                error_details={
+                    "error_code": "UNSAFE_CURRENCY_CONVERSION",
+                    "reason": "per-currency rate joins are brittle and can miss currencies",
+                    "aliases": suspicious_hardcoded_aliases,
+                    "suggestion": (
+                        "Replace separate rate joins with one generic currency_rates join "
+                        "keyed by the row currency."
+                    ),
+                },
+            )
+
+        raw_native_fallback = re.search(
+            r"else\s+(?:[a-zA-Z_][a-zA-Z0-9_]*\.)?(subtotal|grand_total|amount|unit_price)\b",
+            sql_lower,
+        )
+        if raw_native_fallback:
+            return ValidationResult(
+                is_valid=False,
+                error_code="UNSAFE_CURRENCY_CONVERSION",
+                error_message="Converted currency analytics cannot fall back to raw native monetary values",
+                error_details={
+                    "error_code": "UNSAFE_CURRENCY_CONVERSION",
+                    "reason": "non-target currency rows would be mislabeled as converted currency",
+                    "fallback_column": raw_native_fallback.group(1),
+                    "suggestion": (
+                        "Use the matching currency_rates rate for every non-target-currency row "
+                        "or exclude rows without a rate."
+                    ),
+                },
+            )
+
+        generic_currency_join = re.search(
+            r"target_currency\s*=\s*(?:[a-zA-Z_][a-zA-Z0-9_]*\.)?currency\b",
+            sql_lower,
+        )
+        if not generic_currency_join:
+            return ValidationResult(
+                is_valid=False,
+                error_code="UNSAFE_CURRENCY_CONVERSION",
+                error_message="Converted currency analytics must join rates on the row currency column",
+                error_details={
+                    "error_code": "UNSAFE_CURRENCY_CONVERSION",
+                    "reason": "currency_rates join is not keyed by the row currency",
+                    "suggestion": (
+                        "Join currency_rates on the source row currency column "
+                        "(for example cr.target_currency = o.currency)."
+                    ),
+                },
             )
 
         return ValidationResult(is_valid=True)

@@ -16,7 +16,7 @@ import java.util.List;
 @Service
 public class SchemaService {
 
-    private static final String SCHEMA_VERSION = "1.0.0";
+    private static final String SCHEMA_VERSION = "1.0.1";
 
     /**
      * Returns the analytics schema for AI consumption.
@@ -32,10 +32,13 @@ public class SchemaService {
             createOrderItemsTable(),
             createShipmentsTable(),
             createReviewsTable(),
+            createReviewResponsesTable(),
             createCustomerProfilesTable(),
             createCurrencyRatesTable(),
             createPaymentsTable(),
-            createPaymentMethodsTable()
+            createPaymentMethodsTable(),
+            createPaymentRefundsTable(),
+            createWishlistsTable()
         );
 
         List<Relationship> relationships = List.of(
@@ -48,17 +51,22 @@ public class SchemaService {
             new Relationship("shipments", "order_id", "orders", "id", "ONE_TO_ONE"),
             new Relationship("reviews", "product_id", "products", "id", "MANY_TO_ONE"),
             new Relationship("reviews", "user_id", "customer_profiles", "user_id", "MANY_TO_ONE"),
+            new Relationship("review_responses", "review_id", "reviews", "id", "MANY_TO_ONE"),
             new Relationship("payments", "order_id", "orders", "id", "ONE_TO_ONE"),
-            new Relationship("payments", "payment_method_id", "payment_methods", "id", "MANY_TO_ONE")
+            new Relationship("payments", "payment_method_id", "payment_methods", "id", "MANY_TO_ONE"),
+            new Relationship("payment_refunds", "payment_id", "payments", "id", "MANY_TO_ONE"),
+            new Relationship("payment_refunds", "order_item_id", "order_items", "id", "MANY_TO_ONE"),
+            new Relationship("wishlists", "product_id", "products", "id", "MANY_TO_ONE"),
+            new Relationship("wishlists", "user_id", "customer_profiles", "user_id", "MANY_TO_ONE")
         );
 
         RoleRules roleRules = new RoleRules(
             // adminAccessibleTables
-            List.of("stores", "products", "categories", "orders", "order_items", "shipments", "reviews", "customer_profiles", "currency_rates", "payments", "payment_methods"),
+            List.of("stores", "products", "categories", "orders", "order_items", "shipments", "reviews", "review_responses", "customer_profiles", "currency_rates", "payments", "payment_methods", "payment_refunds", "wishlists"),
             // corporateAccessibleTables
-            List.of("stores", "products", "categories", "orders", "order_items", "shipments", "reviews", "customer_profiles", "currency_rates", "payments", "payment_methods"),
+            List.of("stores", "products", "categories", "orders", "order_items", "shipments", "reviews", "review_responses", "customer_profiles", "currency_rates", "payments", "payment_methods", "payment_refunds", "wishlists"),
             // individualAccessibleTables
-            List.of("orders", "order_items", "shipments", "reviews", "customer_profiles", "products", "categories"),
+            List.of("orders", "order_items", "shipments", "reviews", "review_responses", "customer_profiles", "products", "categories", "wishlists", "payment_refunds"),
             // sensitiveColumns
             List.of("password", "password_hash", "email", "contact_email", "phone", "contact_phone", "address", "token", "refresh_token", "secret", "reset_token", "owner_id", "customer_email", "customer_phone", "shipping_address_line1", "shipping_address_line2", "shipping_city", "shipping_state", "shipping_postal_code", "shipping_country"),
             // piiColumns
@@ -230,6 +238,23 @@ public class SchemaService {
         );
     }
 
+    private TableSchema createReviewResponsesTable() {
+        return new TableSchema(
+            "review_responses",
+            "Seller responses to product reviews. Useful for response coverage and review handling analytics.",
+            List.of(
+                new ColumnSchema("id", "UUID", "Primary key", false, false),
+                new ColumnSchema("review_id", "UUID", "FK to reviews.id", false, false),
+                new ColumnSchema("response_text", "TEXT", "Seller response text", false, false),
+                new ColumnSchema("is_active", "BOOLEAN", "Whether the response is active", false, false),
+                new ColumnSchema("created_at", "TIMESTAMP", "Creation timestamp", false, false),
+                new ColumnSchema("updated_at", "TIMESTAMP", "Last update timestamp", false, false)
+                // Excluded: responder_user_id (internal identity field)
+            ),
+            true
+        );
+    }
+
     private TableSchema createCustomerProfilesTable() {
         return new TableSchema(
             "customer_profiles",
@@ -297,6 +322,40 @@ public class SchemaService {
                 new ColumnSchema("is_active", "BOOLEAN", "Whether method is active", false, false),
                 new ColumnSchema("created_at", "TIMESTAMP", "Creation timestamp", false, false),
                 new ColumnSchema("updated_at", "TIMESTAMP", "Last update timestamp", false, false)
+            ),
+            true
+        );
+    }
+
+    private TableSchema createPaymentRefundsTable() {
+        return new TableSchema(
+            "payment_refunds",
+            "Refund records linked to payments and optionally to specific order items.",
+            List.of(
+                new ColumnSchema("id", "UUID", "Primary key", false, false),
+                new ColumnSchema("payment_id", "UUID", "FK to payments.id", false, false),
+                new ColumnSchema("order_item_id", "UUID", "FK to order_items.id (optional)", false, false),
+                new ColumnSchema("amount", "DECIMAL(12,2)", "Refund amount", false, false),
+                new ColumnSchema("status", "VARCHAR(50)", "Refund status", false, false),
+                new ColumnSchema("reason", "TEXT", "Refund reason", false, false),
+                new ColumnSchema("created_at", "TIMESTAMP", "Creation timestamp", false, false),
+                new ColumnSchema("updated_at", "TIMESTAMP", "Last update timestamp", false, false)
+                // Excluded: provider_refund_id (provider/internal reference)
+            ),
+            true
+        );
+    }
+
+    private TableSchema createWishlistsTable() {
+        return new TableSchema(
+            "wishlists",
+            "Products saved by individual users for later consideration.",
+            List.of(
+                new ColumnSchema("id", "UUID", "Primary key", false, false),
+                new ColumnSchema("user_id", "UUID", "FK to users.id", false, false),
+                new ColumnSchema("product_id", "UUID", "FK to products.id", false, false),
+                new ColumnSchema("quantity", "INTEGER", "Desired quantity saved in wishlist", false, false),
+                new ColumnSchema("created_at", "TIMESTAMP", "Creation timestamp", false, false)
             ),
             true
         );

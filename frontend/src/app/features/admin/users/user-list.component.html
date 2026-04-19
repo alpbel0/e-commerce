@@ -1,5 +1,58 @@
 <h2>Kullanıcılar</h2>
 
+<div class="toolbar">
+  <button type="button" class="primary" (click)="scrollToCreate()">Yeni kullanıcı</button>
+</div>
+
+<section #createPanel class="create">
+  <h3 style="margin: 0 0 12px; font-size: 1rem">Kullanıcı oluştur</h3>
+  <form [formGroup]="createForm" (ngSubmit)="createUser()">
+    <div class="row">
+      <div>
+        <label for="cu-email">E-posta</label>
+        <input id="cu-email" type="email" autocomplete="off" formControlName="email" />
+      </div>
+      <div>
+        <label for="cu-password">Şifre</label>
+        <input id="cu-password" type="password" autocomplete="new-password" formControlName="password" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="cu-fn">Ad</label>
+        <input id="cu-fn" type="text" formControlName="firstName" />
+      </div>
+      <div>
+        <label for="cu-ln">Soyad</label>
+        <input id="cu-ln" type="text" formControlName="lastName" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="cu-role">Rol</label>
+        <select id="cu-role" formControlName="role">
+          @for (r of roles; track r) {
+            <option [value]="r">{{ r }}</option>
+          }
+        </select>
+      </div>
+      @if (createForm.controls.role.value === 'CORPORATE') {
+        <div>
+          <label for="cu-store">Mağaza adı</label>
+          <input id="cu-store" type="text" formControlName="storeName" autocomplete="off" />
+        </div>
+      }
+    </div>
+    <label class="check">
+      <input type="checkbox" formControlName="active" />
+      <span>Hesap aktif</span>
+    </label>
+    <button type="submit" class="primary" [disabled]="savingCreate()">
+      {{ savingCreate() ? 'Kaydediliyor…' : 'Oluştur' }}
+    </button>
+  </form>
+</section>
+
 <div class="filters">
   <label>
     Arama
@@ -46,15 +99,24 @@
           <td>{{ u.email }}</td>
           <td>{{ u.firstName }} {{ u.lastName }}</td>
           <td>
-            <select [ngModel]="u.activeRole" (ngModelChange)="changeRole(u, $event)">
+            <select
+              [ngModel]="u.activeRole"
+              (ngModelChange)="changeRole(u, $event)"
+              [disabled]="isSelf(u)"
+            >
               @for (r of roles; track r) {
                 <option [value]="r">{{ r }}</option>
               }
             </select>
           </td>
           <td>{{ u.active ? 'Evet' : 'Hayır' }}</td>
-          <td>
-            <button type="button" (click)="toggleActive(u)">{{ u.active ? 'Pasifleştir' : 'Aktifleştir' }}</button>
+          <td class="cell-actions">
+            <button type="button" (click)="toggleActive(u)" [disabled]="isSelf(u)">
+              {{ u.active ? 'Pasifleştir' : 'Aktifleştir' }}
+            </button>
+            @if (u.active && !isSelf(u)) {
+              <button type="button" class="warn" (click)="askDeactivate(u)">Hesabı kapat</button>
+            }
           </td>
         </tr>
       }
@@ -62,3 +124,17 @@
   </table>
   <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
 }
+
+<app-confirm-dialog
+  [open]="deleteOpen()"
+  title="Hesabı kapat"
+  [message]="
+    deleteTarget()
+      ? deleteTarget()!.email + ' kullanıcısı kalıcı olarak silinmez; hesap ve kurumsal mağazalar pasifleştirilir.'
+      : ''
+  "
+  confirmLabel="Kapat"
+  cancelLabel="Vazgeç"
+  (confirm)="confirmDeactivate()"
+  (cancel)="cancelDeactivate()"
+/>

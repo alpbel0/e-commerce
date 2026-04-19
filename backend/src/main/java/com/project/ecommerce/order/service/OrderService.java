@@ -386,6 +386,13 @@ public class OrderService {
                 "previousStatus", previousStatus
             )
         );
+        notificationService.createOrderNotification(
+            order.getStore().getOwner(),
+            order,
+            "ORDER_CANCELLED_BY_CUSTOMER",
+            "Order cancelled: " + order.getIncrementId(),
+            "Customer cancelled order " + order.getIncrementId() + " for store " + order.getStore().getName() + "."
+        );
         return getOrderDetail(orderId);
     }
 
@@ -425,6 +432,14 @@ public class OrderService {
                 "returnedQuantity", request.returnedQuantity()
             )
         );
+        notificationService.createOrderNotification(
+            orderItem.getOrder().getStore().getOwner(),
+            orderItem.getOrder(),
+            "RETURN_REQUESTED",
+            "Return requested: " + orderItem.getOrder().getIncrementId(),
+            "Customer requested a return for product " + orderItem.getProduct().getTitle()
+                + " in order " + orderItem.getOrder().getIncrementId() + "."
+        );
         return toOrderItemResponse(orderItem);
     }
 
@@ -463,6 +478,14 @@ public class OrderService {
                     "refundAmount", refundAmount
                 )
             );
+            notificationService.createOrderNotification(
+                orderItem.getOrder().getUser(),
+                orderItem.getOrder(),
+                "RETURN_APPROVED",
+                "Return approved: " + orderItem.getOrder().getIncrementId(),
+                "Your return request for product " + orderItem.getProduct().getTitle()
+                    + " has been approved."
+            );
         } else {
             auditLogService.log(
                 currentUserService.requireCurrentAppUser(),
@@ -472,6 +495,14 @@ public class OrderService {
                     "orderId", orderItem.getOrder().getId(),
                     "returnedQuantity", orderItem.getReturnedQuantity()
                 )
+            );
+            notificationService.createOrderNotification(
+                orderItem.getOrder().getUser(),
+                orderItem.getOrder(),
+                "RETURN_REJECTED",
+                "Return rejected: " + orderItem.getOrder().getIncrementId(),
+                "Your return request for product " + orderItem.getProduct().getTitle()
+                    + " has been rejected."
             );
         }
         return toOrderItemResponse(orderItem);
@@ -515,6 +546,16 @@ public class OrderService {
                 "newStatus", nextStatus
             )
         );
+        if (!previousStatus.equals(nextStatus)) {
+            notificationService.createOrderNotification(
+                order.getUser(),
+                order,
+                "ORDER_STATUS_UPDATED",
+                "Order status updated: " + order.getIncrementId(),
+                "Your order " + order.getIncrementId() + " status changed from "
+                    + previousStatus + " to " + nextStatus + "."
+            );
+        }
         return getOrderDetail(orderId);
     }
 
@@ -556,6 +597,16 @@ public class OrderService {
                 "newPaymentStatus", nextPaymentStatus
             )
         );
+        if (!previousPaymentStatus.equals(nextPaymentStatus)) {
+            notificationService.createOrderNotification(
+                order.getUser(),
+                order,
+                "ORDER_PAYMENT_STATUS_UPDATED",
+                "Payment status updated: " + order.getIncrementId(),
+                "Payment status for order " + order.getIncrementId() + " changed from "
+                    + previousPaymentStatus + " to " + nextPaymentStatus + "."
+            );
+        }
         return getOrderDetail(orderId);
     }
 

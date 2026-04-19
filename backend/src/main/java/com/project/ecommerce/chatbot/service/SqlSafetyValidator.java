@@ -22,9 +22,12 @@ public class SqlSafetyValidator {
         "order_items",
         "shipments",
         "reviews",
+        "review_responses",
         "currency_rates",
         "payments",
-        "payment_methods"
+        "payment_methods",
+        "payment_refunds",
+        "wishlists"
     );
 
     private static final Set<String> FORBIDDEN_KEYWORDS = Set.of(

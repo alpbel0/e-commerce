@@ -83,7 +83,7 @@ def create_workflow() -> StateGraph:
     workflow.add_node("rejection_final", lambda state: _terminal_response(state, "rejection"))
     workflow.add_node("clarification_final", lambda state: _terminal_response(state, "clarification"))
     workflow.add_node("validation_failure", lambda state: _failure_response(state, "SQL_VALIDATION_FAILED"))
-    workflow.add_node("execution_failure", lambda state: _failure_response(state, "QUERY_TIMEOUT"))
+    workflow.add_node("execution_failure", lambda state: _failure_response(state, "SQL_EXECUTION_FAILED"))
     workflow.add_node("repair_failure", lambda state: _failure_response(state, "SQL_REPAIR_FAILED"))
 
     workflow.set_entry_point("guardrails")
@@ -174,6 +174,7 @@ def _failure_response(state: AgentState, error_code: str) -> Dict[str, Any]:
     error_messages = {
         "SQL_VALIDATION_FAILED": "Your query did not pass the security checks. Please try a different analytics question.",
         "QUERY_TIMEOUT": "The query took too long. Please try a shorter date range or a more specific question.",
+        "SQL_EXECUTION_FAILED": "The query could not be executed after multiple repair attempts. Please rephrase your question.",
         "SQL_REPAIR_FAILED": "I could not repair the generated query. Please rephrase your question.",
     }
     answer = error_messages.get(error_code, "An error occurred.")

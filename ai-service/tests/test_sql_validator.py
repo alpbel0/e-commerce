@@ -318,6 +318,47 @@ class TestSQLValidator:
         )
         assert result.is_valid is True
 
+    def test_reject_converted_revenue_with_raw_native_fallback(self):
+        result = self.validator.validate(
+            (
+                "SELECT c.name, "
+                "ROUND(SUM(CASE "
+                "WHEN o.currency = 'USD' THEN oi.subtotal "
+                "WHEN o.currency = 'TRY' THEN oi.subtotal / NULLIF(cr_try.rate, 0) "
+                "ELSE oi.subtotal END), 2) AS total_revenue_usd "
+                "FROM categories c "
+                "JOIN products p ON p.category_id = c.id "
+                "JOIN order_items oi ON oi.product_id = p.id "
+                "JOIN orders o ON o.id = oi.order_id "
+                "LEFT JOIN currency_rates cr_try ON cr_try.base_currency = 'USD' AND cr_try.target_currency = 'TRY' "
+                "GROUP BY c.name"
+            ),
+            role="ADMIN",
+            require_scope_filter=False,
+        )
+        assert result.is_valid is False
+        assert result.error_code == "UNSAFE_CURRENCY_CONVERSION"
+
+    def test_allow_converted_revenue_with_generic_currency_rates_join(self):
+        result = self.validator.validate(
+            (
+                "SELECT c.name, "
+                "ROUND(SUM(CASE "
+                "WHEN o.currency = 'USD' THEN oi.subtotal "
+                "WHEN cr.rate IS NOT NULL AND cr.rate <> 0 THEN oi.subtotal / cr.rate "
+                "ELSE 0 END), 2) AS total_revenue_usd "
+                "FROM categories c "
+                "JOIN products p ON p.category_id = c.id "
+                "JOIN order_items oi ON oi.product_id = p.id "
+                "JOIN orders o ON o.id = oi.order_id "
+                "LEFT JOIN currency_rates cr ON cr.base_currency = 'USD' AND cr.target_currency = o.currency "
+                "GROUP BY c.name"
+            ),
+            role="ADMIN",
+            require_scope_filter=False,
+        )
+        assert result.is_valid is True
+
 
 class TestValidationResult:
     """Test ValidationResult dataclass."""
