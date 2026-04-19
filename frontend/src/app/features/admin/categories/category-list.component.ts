@@ -1,10 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { AdminService } from '../../../core/api/admin.service';
 import { CategoryService } from '../../../core/api/category.service';
-import { ToastService } from '../../../core/notify/toast.service';
 import type { CategoryResponse } from '../../../core/models/category.models';
+import { ToastService } from '../../../core/notify/toast.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
@@ -12,7 +13,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 @Component({
   selector: 'app-admin-category-list',
   standalone: true,
-  imports: [ReactiveFormsModule, LoadingSpinnerComponent, ErrorStateComponent, ConfirmDialogComponent],
+  imports: [ReactiveFormsModule, RouterLink, LoadingSpinnerComponent, ErrorStateComponent, ConfirmDialogComponent],
   templateUrl: './category-list.component.html',
   styles: [
     `
@@ -114,9 +115,9 @@ export class AdminCategoryListComponent implements OnInit {
     this.loading.set(true);
     this.error.set(false);
     this.categoriesApi.list().subscribe({
-      next: (res) => {
+      next: (response) => {
         this.loading.set(false);
-        this.items.set(res.items);
+        this.items.set(response.items);
       },
       error: () => {
         this.loading.set(false);
@@ -130,15 +131,15 @@ export class AdminCategoryListComponent implements OnInit {
       this.createForm.markAllAsTouched();
       return;
     }
-    const v = this.createForm.getRawValue();
+    const value = this.createForm.getRawValue();
     this.saving.set(true);
     this.admin
       .createCategory({
-        name: v.name.trim(),
-        description: v.description.trim() || null,
-        displayOrder: v.displayOrder,
+        name: value.name.trim(),
+        description: value.description.trim() || null,
+        displayOrder: value.displayOrder,
         parentId: null,
-        active: v.active
+        active: value.active
       })
       .subscribe({
         next: () => {
@@ -151,38 +152,33 @@ export class AdminCategoryListComponent implements OnInit {
       });
   }
 
-  patchField(c: CategoryResponse, field: 'name' | 'active', ev: Event): void {
-    const el = ev.target as HTMLInputElement;
+  patchField(category: CategoryResponse, field: 'name' | 'active', event: Event): void {
+    const target = event.target as HTMLInputElement;
     if (field === 'name') {
-      const name = el.value.trim();
-      if (!name || name === c.name) return;
-      this.pushPatch(c.id, { name });
+      const name = target.value.trim();
+      if (!name || name === category.name) return;
+      this.pushPatch(category.id, { name });
       return;
     }
-    const active = el.checked;
-    if (active === c.active) return;
-    this.pushPatch(c.id, { active });
+    const active = target.checked;
+    if (active === category.active) return;
+    this.pushPatch(category.id, { active });
   }
 
-  private pushPatch(
-    id: string,
-    body: { name: string } | { active: boolean }
-  ): void {
+  private pushPatch(id: string, body: { name: string } | { active: boolean }): void {
     this.saving.set(true);
-    this.admin
-      .updateCategory(id, body)
-      .subscribe({
-        next: (row) => {
-          this.saving.set(false);
-          this.items.update((list) => list.map((x) => (x.id === row.id ? row : x)));
-          this.toast.showInfo('Güncellendi');
-        },
-        error: () => this.saving.set(false)
-      });
+    this.admin.updateCategory(id, body).subscribe({
+      next: (row) => {
+        this.saving.set(false);
+        this.items.update((list) => list.map((item) => (item.id === row.id ? row : item)));
+        this.toast.showInfo('Kategori guncellendi');
+      },
+      error: () => this.saving.set(false)
+    });
   }
 
-  askDelete(c: CategoryResponse): void {
-    this.deleteTarget.set(c);
+  askDelete(category: CategoryResponse): void {
+    this.deleteTarget.set(category);
     this.deleteOpen.set(true);
   }
 
@@ -192,9 +188,9 @@ export class AdminCategoryListComponent implements OnInit {
   }
 
   confirmDelete(): void {
-    const c = this.deleteTarget();
-    if (!c) return;
-    this.admin.deleteCategory(c.id).subscribe({
+    const category = this.deleteTarget();
+    if (!category) return;
+    this.admin.deleteCategory(category.id).subscribe({
       next: () => {
         this.cancelDelete();
         this.toast.showInfo('Kategori silindi');

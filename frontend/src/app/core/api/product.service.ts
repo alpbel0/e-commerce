@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { ApiPageResponse } from '../models/common.models';
 import type {
+  AddProductImagesRequest,
   CreateProductRequest,
   PatchProductRequest,
   ProductDetailResponse,
@@ -56,6 +57,10 @@ export class ProductService {
 
   delete(productId: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${productId}`);
+  }
+
+  addImages(productId: string, body: AddProductImagesRequest): Observable<ProductDetailResponse> {
+    return this.http.post<ProductDetailResponse>(`${this.base}/${productId}/images`, body);
   }
 
   private toParams(p?: ProductListParams): HttpParams {

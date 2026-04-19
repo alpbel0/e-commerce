@@ -47,7 +47,19 @@ Generate SELECT queries following these rules STRICTLY:
      2. keep the result marked as MIXED and make it clear that the ranking is not a normalized cross-currency comparison
    - If the user asks a follow-up such as "convert this to USD", "show the same in dollars", or "make it dollar-based", preserve the entity set and analytical scope from the immediately relevant prior turn unless the user explicitly asks for a broader recalculation
 
-8. Rating and review rules:
+8. Visualization-friendly output format:
+   - For distribution, breakdown, share, or comparison questions (e.g., gender ratio, membership tiers, order status counts, category sales), always use GROUP BY to produce MULTIPLE rows — one row per category.
+   - NEVER return a single wide-format row with one column per category (e.g., female_pct, male_pct as separate columns). Wide-format cannot be visualized as a chart.
+   - Good: SELECT gender, COUNT(*) AS user_count FROM customer_profiles GROUP BY gender
+   - Bad:  SELECT SUM(CASE WHEN gender='Male' THEN 1 END) AS male_count, SUM(CASE WHEN gender='Female' THEN 1 END) AS female_count FROM customer_profiles
+   - Always set chart_hint for distribution/comparison queries: "pie" for 2-8 categories, "bar" for rankings/top-N, "line" for time series.
+
+10. String enum values in customer_profiles:
+   - gender is stored as Title Case: 'Male', 'Female' — NEVER use 'MALE'/'FEMALE'/'male'/'female'
+   - membership_type is stored as Title Case: 'Bronze', 'Silver', 'Gold'
+   - When filtering these columns, use the exact casing above or use LOWER()/ILIKE for safe matching
+
+9. Rating and review rules:
    - For "best rated", "highest rating", "top rated", "most reviewed", "review count", "store rating", or similar questions, use the reviews table as the source of truth
    - Reviews are linked as: reviews.product_id -> products.id -> products.store_id -> stores.id
    - Compute product ratings from AVG(reviews.star_rating) and review counts from COUNT(reviews.id)
@@ -57,7 +69,7 @@ Generate SELECT queries following these rules STRICTLY:
    - NEVER invent helper tables like best_products or ranked_products as real tables; if you need an intermediate result, declare a CTE with WITH ... AS (...)
    - NEVER use SELECT *
 
-9. Output JSON format ONLY:
+11. Output JSON format ONLY:
 {
   "sql": "SELECT ... FROM ... WHERE ...",
   "summary": "What this query returns (in the user's language)",

@@ -95,3 +95,7 @@ export interface PatchProductRequest {
 export interface UpdateProductStockRequest {
   stockQuantity: number;
 }
+
+export interface AddProductImagesRequest {
+  imageUrls: string[];
+}

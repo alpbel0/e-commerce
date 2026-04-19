@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { AdminService } from '../../../core/api/admin.service';
 import type { AuditLogResponse } from '../../../core/models/admin.models';
@@ -10,7 +11,7 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 @Component({
   selector: 'app-admin-audit-log-list',
   standalone: true,
-  imports: [FormsModule, LoadingSpinnerComponent, ErrorStateComponent, PaginationComponent],
+  imports: [FormsModule, RouterLink, LoadingSpinnerComponent, ErrorStateComponent, PaginationComponent],
   templateUrl: './audit-log-list.component.html',
   styles: [
     `
@@ -71,10 +72,10 @@ export class AdminAuditLogListComponent implements OnInit {
         action: this.actionFilter.trim() || undefined
       })
       .subscribe({
-        next: (res) => {
+        next: (response) => {
           this.loading.set(false);
-          this.items.set(res.items);
-          this.totalPages.set(res.totalPages);
+          this.items.set(response.items);
+          this.totalPages.set(response.totalPages);
         },
         error: () => {
           this.loading.set(false);
@@ -88,12 +89,12 @@ export class AdminAuditLogListComponent implements OnInit {
     this.load();
   }
 
-  onPage(p: number): void {
-    this.page.set(p);
+  onPage(page: number): void {
+    this.page.set(page);
     this.load();
   }
 
-  shortAt(s: string): string {
-    return (s ?? '').replace('T', ' ').slice(0, 19);
+  shortAt(value: string): string {
+    return (value ?? '').replace('T', ' ').slice(0, 19);
   }
 }

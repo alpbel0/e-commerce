@@ -2,14 +2,16 @@ import { Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angul
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { AdminService } from '../../../core/api/admin.service';
+import { StoreService } from '../../../core/api/store.service';
 import { AuthStore } from '../../../core/auth/auth.store';
-import type { RoleType } from '../../../core/models/common.models';
 import type { AdminUserListResponse } from '../../../core/models/admin.models';
+import type { RoleType } from '../../../core/models/common.models';
+import type { StoreSummaryResponse } from '../../../core/models/store.models';
+import { ToastService } from '../../../core/notify/toast.service';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { ToastService } from '../../../core/notify/toast.service';
-import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 const ADMIN_PASSWORD_PATTERN = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{8,64}$';
 
@@ -101,6 +103,7 @@ const ADMIN_PASSWORD_PATTERN = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d
         text-align: left;
         padding: 8px 6px;
         border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
       }
       .cell-actions {
         white-space: nowrap;
@@ -128,6 +131,13 @@ const ADMIN_PASSWORD_PATTERN = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d
         background: #b91c1c;
         color: #fff;
       }
+      .owned-stores {
+        background: #f8fafc;
+      }
+      .owned-stores ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
     `
   ]
 })
@@ -135,6 +145,7 @@ export class AdminUserListComponent implements OnInit {
   @ViewChild('createPanel') private readonly createPanel?: ElementRef<HTMLElement>;
 
   private readonly admin = inject(AdminService);
+  private readonly stores = inject(StoreService);
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthStore);
   private readonly fb = inject(FormBuilder);
@@ -148,6 +159,8 @@ export class AdminUserListComponent implements OnInit {
   readonly savingCreate = signal(false);
   readonly deleteOpen = signal(false);
   readonly deleteTarget = signal<AdminUserListResponse | null>(null);
+  readonly ownerStores = signal<Record<string, StoreSummaryResponse[]>>({});
+  readonly storesLoadingByUser = signal<Record<string, boolean>>({});
 
   q = '';
   roleFilter = '';
@@ -179,8 +192,7 @@ export class AdminUserListComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(false);
-    const active =
-      this.activeFilter === 'all' ? undefined : this.activeFilter === 'true' ? true : false;
+    const active = this.activeFilter === 'all' ? undefined : this.activeFilter === 'true';
     this.admin
       .listUsers({
         q: this.q.trim() || undefined,
@@ -190,10 +202,10 @@ export class AdminUserListComponent implements OnInit {
         size: 15
       })
       .subscribe({
-        next: (res) => {
+        next: (response) => {
           this.loading.set(false);
-          this.items.set(res.items);
-          this.totalPages.set(res.totalPages);
+          this.items.set(response.items);
+          this.totalPages.set(response.totalPages);
         },
         error: () => {
           this.loading.set(false);
@@ -207,33 +219,33 @@ export class AdminUserListComponent implements OnInit {
     this.load();
   }
 
-  onPage(p: number): void {
-    this.page.set(p);
+  onPage(page: number): void {
+    this.page.set(page);
     this.load();
   }
 
-  isSelf(u: AdminUserListResponse): boolean {
+  isSelf(user: AdminUserListResponse): boolean {
     const id = this.auth.currentUser()?.id;
-    return !!id && id === u.id;
+    return !!id && id === user.id;
   }
 
-  toggleActive(u: AdminUserListResponse): void {
-    if (this.isSelf(u)) return;
-    this.admin.updateUserStatus(u.id, { active: !u.active }).subscribe({
+  toggleActive(user: AdminUserListResponse): void {
+    if (this.isSelf(user)) return;
+    this.admin.updateUserStatus(user.id, { active: !user.active }).subscribe({
       next: (row) => {
-        this.items.update((list) => list.map((x) => (x.id === row.id ? row : x)));
-        this.toast.showInfo('Kullanıcı güncellendi');
+        this.items.update((list) => list.map((item) => (item.id === row.id ? row : item)));
+        this.toast.showInfo('Kullanici guncellendi');
       },
       error: () => {}
     });
   }
 
-  changeRole(u: AdminUserListResponse, role: RoleType): void {
-    if (this.isSelf(u) || role === u.activeRole) return;
-    this.admin.updateUserRole(u.id, { role }).subscribe({
+  changeRole(user: AdminUserListResponse, role: RoleType): void {
+    if (this.isSelf(user) || role === user.activeRole) return;
+    this.admin.updateUserRole(user.id, { role }).subscribe({
       next: (row) => {
-        this.items.update((list) => list.map((x) => (x.id === row.id ? row : x)));
-        this.toast.showInfo('Rol güncellendi');
+        this.items.update((list) => list.map((item) => (item.id === row.id ? row : item)));
+        this.toast.showInfo('Rol guncellendi');
       },
       error: () => {}
     });
@@ -241,30 +253,26 @@ export class AdminUserListComponent implements OnInit {
 
   createUser(): void {
     const role = this.createForm.controls.role.value;
-    if (role === 'CORPORATE') {
-      const sn = this.createForm.controls.storeName.value.trim();
-      if (!sn) {
-        this.toast.showError('Kurumsal hesap için mağaza adı zorunlu.');
-        this.createForm.controls.storeName.markAsTouched();
-        return;
-      }
+    if (role === 'CORPORATE' && !this.createForm.controls.storeName.value.trim()) {
+      this.toast.showError('Kurumsal hesap icin magaza adi zorunlu.');
+      this.createForm.controls.storeName.markAsTouched();
+      return;
     }
     if (this.createForm.invalid) {
       this.createForm.markAllAsTouched();
       return;
     }
-    const v = this.createForm.getRawValue();
+    const value = this.createForm.getRawValue();
     this.savingCreate.set(true);
-    const body = {
-      email: v.email.trim(),
-      firstName: v.firstName.trim(),
-      lastName: v.lastName.trim(),
-      password: v.password,
-      role: v.role,
-      active: v.active,
-      ...(v.role === 'CORPORATE' ? { storeName: v.storeName.trim() } : {})
-    };
-    this.admin.createUser(body).subscribe({
+    this.admin.createUser({
+      email: value.email.trim(),
+      firstName: value.firstName.trim(),
+      lastName: value.lastName.trim(),
+      password: value.password,
+      role: value.role,
+      active: value.active,
+      ...(value.role === 'CORPORATE' ? { storeName: value.storeName.trim() } : {})
+    }).subscribe({
       next: () => {
         this.savingCreate.set(false);
         this.createForm.reset({
@@ -276,16 +284,19 @@ export class AdminUserListComponent implements OnInit {
           storeName: '',
           active: true
         });
-        this.toast.showInfo('Kullanıcı oluşturuldu');
+        this.toast.showInfo('Kullanici olusturuldu');
         this.page.set(0);
         this.load();
       },
-      error: () => this.savingCreate.set(false)
+      error: () => {
+        this.savingCreate.set(false);
+        this.toast.showError('Kullanici olusturulamadi');
+      }
     });
   }
 
-  askDeactivate(u: AdminUserListResponse): void {
-    this.deleteTarget.set(u);
+  askDeactivate(user: AdminUserListResponse): void {
+    this.deleteTarget.set(user);
     this.deleteOpen.set(true);
   }
 
@@ -295,15 +306,44 @@ export class AdminUserListComponent implements OnInit {
   }
 
   confirmDeactivate(): void {
-    const u = this.deleteTarget();
-    if (!u) return;
-    this.admin.deleteUser(u.id).subscribe({
-      next: (res) => {
+    const user = this.deleteTarget();
+    if (!user) return;
+    this.admin.deleteUser(user.id).subscribe({
+      next: (response) => {
         this.cancelDeactivate();
-        this.toast.showInfo(res.message || 'Hesap kapatıldı');
+        this.toast.showInfo(response.message || 'Hesap kapatildi');
         this.load();
       },
       error: () => this.cancelDeactivate()
+    });
+  }
+
+  toggleOwnedStores(user: AdminUserListResponse): void {
+    if (user.activeRole !== 'CORPORATE') {
+      return;
+    }
+    const current = this.ownerStores();
+    if (current[user.id]) {
+      const next = { ...current };
+      delete next[user.id];
+      this.ownerStores.set(next);
+      return;
+    }
+
+    this.storesLoadingByUser.set({ ...this.storesLoadingByUser(), [user.id]: true });
+    this.stores.getStoresByOwner(user.id).subscribe({
+      next: (response) => {
+        this.ownerStores.set({ ...this.ownerStores(), [user.id]: response.items });
+        const nextLoading = { ...this.storesLoadingByUser() };
+        delete nextLoading[user.id];
+        this.storesLoadingByUser.set(nextLoading);
+      },
+      error: () => {
+        const nextLoading = { ...this.storesLoadingByUser() };
+        delete nextLoading[user.id];
+        this.storesLoadingByUser.set(nextLoading);
+        this.toast.showError('Magazalar yuklenemedi');
+      }
     });
   }
 }

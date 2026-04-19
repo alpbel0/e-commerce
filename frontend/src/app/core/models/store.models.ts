@@ -5,6 +5,7 @@ export interface StoreSummaryResponse {
   status: string;
   productCount: number | null;
   ownerEmail: string | null;
+  slug?: string | null;
 }
 
 export interface StoreDetailResponse {
@@ -29,6 +30,14 @@ export interface UpdateStoreRequest {
   contactEmail?: string | null;
   contactPhone?: string | null;
   status?: string | null;
+}
+
+export interface CreateStoreRequest {
+  name: string;
+  description?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  address?: string | null;
 }
 
 export interface UpdateStoreStatusRequest {

@@ -63,12 +63,22 @@ class VisualizationAgent:
     ) -> Dict[str, Any]:
         columns = query_result.get("columns") or []
         rows = query_result.get("rows") or []
-        if len(columns) < 2 or len(rows) < 2:
-            return self._skip("Not enough rows for chart")
+        if len(columns) < 2 or len(rows) < 1:
+            return self._skip("Not enough data for chart")
 
         data = self._rows_to_dicts(columns, rows)
         if not data:
             return self._skip("Query result could not be normalized")
+
+        # Wide-format single-row → long-format transform.
+        # When exactly 1 row is returned with multiple numeric columns (e.g. a
+        # cross-tab summary like female_pct | male_pct | total), transpose it so
+        # each numeric column becomes its own row. This lets pie/bar charts render
+        # distribution summaries that would otherwise be skipped.
+        if len(data) == 1:
+            data = self._maybe_transpose_wide_row(data[0])
+            if len(data) < 2:
+                return self._skip("Not enough data for chart")
 
         chart_type = self._choose_chart_type(data, chart_hint, sql_summary)
         if not chart_type:
@@ -79,6 +89,7 @@ class VisualizationAgent:
             data=data,
             language=language,
             sql_summary=sql_summary,
+            chart_hint=chart_hint,
         )
         if not chart:
             return self._skip("Chart rules rejected this result")
@@ -103,17 +114,39 @@ class VisualizationAgent:
             normalized.append({column: row[index] if index < len(row) else None for index, column in enumerate(columns)})
         return normalized
 
+    def _maybe_transpose_wide_row(self, row: dict[str, Any]) -> list[dict[str, Any]]:
+        """Transpose a single wide-format row into multiple long-format rows.
+
+        Each numeric column that is not an ID or a "total" aggregate becomes its
+        own row with {"category": <column_label>, "value": <numeric_value>}.
+        Non-numeric columns and totals/aggregates are excluded so they do not
+        pollute the chart (e.g. a 'total_customers' column would dwarf percentages).
+        """
+        numeric_cols = [
+            col for col, val in row.items()
+            if self._is_numeric(val)
+            and not ID_COLUMN_RE.search(col)
+            and not re.search(r"\b(total|grand|sum|count|all)\b", col, re.IGNORECASE)
+        ]
+        if len(numeric_cols) < 2:
+            return [row]
+        return [
+            {"category": col.replace("_", " ").strip().title(), "value": self._to_number(row[col])}
+            for col in numeric_cols
+        ]
+
     def _build_with_fallbacks(
         self,
         chart_type: str,
         data: list[dict[str, Any]],
         language: str,
         sql_summary: Optional[str],
+        chart_hint: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         builders = {
-            "line": self._build_line_chart,
-            "bar": self._build_bar_chart,
-            "pie": self._build_pie_chart,
+            "line": lambda **kw: self._build_line_chart(**kw),
+            "bar": lambda **kw: self._build_bar_chart(**kw),
+            "pie": lambda **kw: self._build_pie_chart(**kw),
         }
         fallback_order = {
             "line": ["line", "bar", "pie"],
@@ -124,7 +157,12 @@ class VisualizationAgent:
             builder = builders.get(candidate)
             if not builder:
                 continue
-            chart = builder(data=data, language=language, sql_summary=sql_summary)
+            chart = builder(
+                data=data,
+                language=language,
+                sql_summary=sql_summary,
+                chart_hint=chart_hint,
+            )
             if chart:
                 return chart
         return None
@@ -150,6 +188,13 @@ class VisualizationAgent:
         if category_col and metric_col:
             if self._should_use_pie(data, category_col, metric_col, summary):
                 return "pie"
+            return "bar"
+
+        # When the LLM hinted a chart type but column detection failed,
+        # still try the hinted type — the builder may succeed with looser matching.
+        if hint in {"line", "bar", "pie"}:
+            return hint
+        if metric_col:
             return "bar"
 
         return None
@@ -182,7 +227,10 @@ class VisualizationAgent:
                 elif self._is_low_cardinality_numeric_category(column, data):
                     numeric_fallback.append(column)
                 continue
-            if any(token in lower for token in ("title", "name", "status", "category", "brand", "seller")):
+            if any(token in lower for token in (
+                "title", "name", "status", "category", "brand", "seller",
+                "gender", "type", "level", "tier", "segment", "membership",
+            )):
                 preferred.append(column)
             else:
                 fallback.append(column)
@@ -249,6 +297,7 @@ class VisualizationAgent:
         data: list[dict[str, Any]],
         language: str,
         sql_summary: Optional[str],
+        chart_hint: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         time_col = self._find_time_column(data)
         metric_col = self._find_metric_column(data)
@@ -364,6 +413,7 @@ class VisualizationAgent:
         data: list[dict[str, Any]],
         language: str,
         sql_summary: Optional[str],
+        chart_hint: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         category_col = self._find_category_column(data)
         metric_col = self._find_metric_column(data)
@@ -372,7 +422,7 @@ class VisualizationAgent:
 
         currency_col = self._find_currency_column(data)
         if self._has_mixed_currency(data, currency_col) and MONEY_COLUMN_RE.search(metric_col.lower()):
-            return self._build_grouped_currency_bar_chart(data, category_col, metric_col, currency_col, language, sql_summary)
+            return self._build_grouped_currency_bar_chart(data, category_col, metric_col, currency_col, language, sql_summary, chart_hint)
 
         limited = self._top_rows(data, metric_col)
         series = [{
@@ -414,6 +464,7 @@ class VisualizationAgent:
         currency_col: Optional[str],
         language: str,
         sql_summary: Optional[str],
+        chart_hint: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         if not currency_col:
             return None
@@ -477,6 +528,7 @@ class VisualizationAgent:
         data: list[dict[str, Any]],
         language: str,
         sql_summary: Optional[str],
+        chart_hint: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         category_col = self._find_category_column(data)
         metric_col = self._find_metric_column(data)
@@ -490,7 +542,9 @@ class VisualizationAgent:
         if self._find_time_column(data):
             return None
 
-        if not self._is_pie_friendly_category(category_col, data):
+        # When chart_hint explicitly requests a pie, skip the category friendliness
+        # check — the LLM already decided this data suits a pie chart.
+        if chart_hint != "pie" and not self._is_pie_friendly_category(category_col, data):
             return None
 
         series = [{
@@ -659,11 +713,12 @@ class VisualizationAgent:
         if len(distinct) < 2 or len(distinct) > 10:
             return False
         lower = column.lower()
-        if RATING_COLUMN_RE.search(lower):
-            return True
+        # High-cardinality name/title columns with many slices look bad in pie.
         if any(token in lower for token in ("title", "name")) and len(distinct) > 5:
             return False
-        if any(token in lower for token in ("status", "category", "brand", "seller", "name", "title")):
+        # Any column with 2-10 distinct string values is pie-friendly.
+        # This covers gender, status, category, membership, tier, segment, etc.
+        if not self._is_numeric(next(iter(data), {}).get(column)):
             return True
         return self._is_low_cardinality_numeric_category(column, data)
 

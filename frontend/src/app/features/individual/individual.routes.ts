@@ -3,12 +3,6 @@ import { Routes } from '@angular/router';
 import { authGuard } from '../../core/auth/guards/auth.guard';
 import { roleGuard } from '../../core/auth/guards/role.guard';
 
-const ph = (title: string) => ({
-  loadComponent: () =>
-    import('../../shared/pages/phase-placeholder.component').then((m) => m.PhasePlaceholderComponent),
-  data: { title }
-});
-
 const individualOnly = {
   canActivate: [authGuard, roleGuard],
   data: { roles: ['INDIVIDUAL'] }
@@ -32,6 +26,12 @@ export const individualRoutes: Routes = [
     loadComponent: () =>
       import('./products/product-detail/product-detail.component').then((m) => m.ProductDetailComponent),
     title: 'Urun'
+  },
+  {
+    path: 'stores/:slug',
+    loadComponent: () =>
+      import('./stores/store-public.component').then((m) => m.StorePublicComponent),
+    title: 'Magaza'
   },
   {
     path: 'cart',
@@ -65,6 +65,13 @@ export const individualRoutes: Routes = [
     loadComponent: () =>
       import('./orders/shipment-tracking/shipment-tracking.component').then((m) => m.ShipmentTrackingComponent),
     title: 'Kargo Takip'
+  },
+  {
+    path: 'shipments/:shipmentId',
+    ...individualOnly,
+    loadComponent: () =>
+      import('./orders/shipment-tracking/shipment-tracking.component').then((m) => m.ShipmentTrackingComponent),
+    title: 'Kargo Detay'
   },
   {
     path: 'profile',

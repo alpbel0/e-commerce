@@ -145,7 +145,7 @@
       "description": "Customer demographic and behavioral data. For aggregate analysis only - no PII.",
       "columns": [
         {"name": "user_id", "dataType": "UUID", "description": "FK to users.id (PRIMARY KEY)", "isSensitive": false, "isPII": false},
-        {"name": "gender", "dataType": "VARCHAR(20)", "description": "MALE/FEMALE/OTHER", "isSensitive": false, "isPII": false},
+        {"name": "gender", "dataType": "VARCHAR(20)", "description": "Stored as Title Case: 'Male', 'Female'. Do NOT use uppercase 'MALE'/'FEMALE' in WHERE clauses.", "isSensitive": false, "isPII": false},
         {"name": "age", "dataType": "INTEGER", "description": "Customer age", "isSensitive": false, "isPII": false},
         {"name": "city", "dataType": "VARCHAR(100)", "description": "City name", "isSensitive": false, "isPII": false},
         {"name": "membership_type", "dataType": "VARCHAR(50)", "description": "Observed values in current dataset: Bronze/Silver/Gold", "isSensitive": false, "isPII": false},

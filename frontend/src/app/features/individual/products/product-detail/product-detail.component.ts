@@ -2,12 +2,12 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { CartService } from '../../../../core/api/cart.service';
 import { OrderService } from '../../../../core/api/order.service';
 import { ProductService } from '../../../../core/api/product.service';
 import { ReviewService } from '../../../../core/api/review.service';
 import { WishlistService } from '../../../../core/api/wishlist.service';
-import { AuthStore } from '../../../../core/auth/auth.store';
 import type { OrderSummaryResponse } from '../../../../core/models/order.models';
 import type { ProductDetailResponse } from '../../../../core/models/product.models';
 import type { ReviewDto } from '../../../../core/models/review.models';
@@ -118,6 +118,7 @@ import { effectiveUnitPrice, formatMoney, starsFromRating } from '../../../../sh
         align-items: center;
         gap: 10px;
         margin: 1rem 0;
+        flex-wrap: wrap;
       }
       .qty-row input {
         width: 72px;
@@ -142,7 +143,6 @@ import { effectiveUnitPrice, formatMoney, starsFromRating } from '../../../../sh
         color: #ef4444 !important;
         border: 1px solid #fecaca !important;
         padding: 0.5rem 0.75rem !important;
-        margin-left: 8px;
       }
       .wishlist-btn:hover {
         background: #fee2e2 !important;
@@ -173,6 +173,13 @@ import { effectiveUnitPrice, formatMoney, starsFromRating } from '../../../../sh
       .rev .who {
         font-size: 0.8rem;
         color: #64748b;
+      }
+      .review-response {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
       }
       .review-form {
         margin-top: 1.25rem;
@@ -207,14 +214,25 @@ import { effectiveUnitPrice, formatMoney, starsFromRating } from '../../../../sh
         min-height: 80px;
         resize: vertical;
       }
-      .review-form button {
+      .review-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
         margin-top: 8px;
+      }
+      .review-actions button {
         padding: 0.45rem 1rem;
         border-radius: 8px;
         border: none;
         background: #0f172a;
         color: #fff;
         cursor: pointer;
+      }
+      .review-actions button.secondary {
+        background: #475569;
+      }
+      .review-actions button.warn {
+        background: #b91c1c;
       }
     `
   ]
@@ -235,22 +253,24 @@ export class ProductDetailComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly imgIdx = signal(0);
-
   readonly reviewItems = signal<ReviewDto[]>([]);
   readonly reviewPage = signal(0);
   readonly reviewTotalPages = signal(0);
   readonly reviewsLoading = signal(false);
-
+  readonly editingReviewId = signal<string | null>(null);
+  readonly deletingReviewId = signal<string | null>(null);
   readonly orderChoices = signal<OrderSummaryResponse[]>([]);
 
   readonly formatMoney = formatMoney;
-  readonly effectivePrice = (p: ProductDetailResponse) =>
-    effectiveUnitPrice(p.unitPrice, p.discountPercentage);
-  readonly stars = (p: ProductDetailResponse) => starsFromRating(p.avgRating);
-  readonly starString = (n: number) => '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
-  readonly revStars = (r: ReviewDto) => '★'.repeat(r.starRating) + '☆'.repeat(Math.max(0, 5 - r.starRating));
+  readonly effectivePrice = (product: ProductDetailResponse) =>
+    effectiveUnitPrice(product.unitPrice, product.discountPercentage);
+  readonly stars = (product: ProductDetailResponse) => starsFromRating(product.avgRating);
+  readonly starString = (count: number) => '*'.repeat(count) + '-'.repeat(Math.max(0, 5 - count));
+  readonly revStars = (review: ReviewDto) =>
+    '*'.repeat(review.starRating) + '-'.repeat(Math.max(0, 5 - review.starRating));
 
   qty = 1;
+  private productId = '';
 
   readonly reviewForm = this.fb.nonNullable.group({
     orderId: ['', Validators.required],
@@ -258,8 +278,6 @@ export class ProductDetailComponent implements OnInit {
     reviewTitle: ['', [Validators.required, Validators.maxLength(120)]],
     reviewText: ['', [Validators.required, Validators.minLength(4)]]
   });
-
-  private productId = '';
 
   ngOnInit(): void {
     this.productId = this.route.snapshot.paramMap.get('id') ?? '';
@@ -276,11 +294,11 @@ export class ProductDetailComponent implements OnInit {
     this.loading.set(true);
     this.error.set(false);
     this.products.getById(this.productId).subscribe({
-      next: (p) => {
-        this.product.set(p);
+      next: (product) => {
+        this.product.set(product);
         this.imgIdx.set(0);
-        this.loading.set(false);
         this.qty = 1;
+        this.loading.set(false);
       },
       error: () => {
         this.loading.set(false);
@@ -294,14 +312,15 @@ export class ProductDetailComponent implements OnInit {
     this.reviews
       .list({ productId: this.productId, page: this.reviewPage(), size: 8, sort: 'createdAt,desc' })
       .subscribe({
-        next: (res) => {
+        next: (response) => {
+          this.reviewItems.set(response.items);
+          this.reviewTotalPages.set(response.totalPages);
           this.reviewsLoading.set(false);
-          this.reviewItems.set(res.items);
-          this.reviewTotalPages.set(res.totalPages);
         },
         error: () => {
-          this.reviewsLoading.set(false);
           this.reviewItems.set([]);
+          this.reviewTotalPages.set(0);
+          this.reviewsLoading.set(false);
         }
       });
   }
@@ -312,64 +331,115 @@ export class ProductDetailComponent implements OnInit {
       return;
     }
     this.orders.list({ page: 0, size: 40, sort: 'orderDate,desc' }).subscribe({
-      next: (res) => this.orderChoices.set(res.items),
+      next: (response) => this.orderChoices.set(response.items),
       error: () => this.orderChoices.set([])
     });
   }
 
-  setImg(i: number): void {
-    this.imgIdx.set(i);
+  setImg(index: number): void {
+    this.imgIdx.set(index);
   }
 
-  selectedImage(p: ProductDetailResponse): string | null {
-    if (!p.imageUrls.length) {
+  selectedImage(product: ProductDetailResponse): string | null {
+    if (!product.imageUrls.length) {
       return null;
     }
-    return p.imageUrls[this.imgIdx()] ?? p.imageUrls[0] ?? null;
+    return product.imageUrls[this.imgIdx()] ?? product.imageUrls[0] ?? null;
   }
 
-  showDiscount(p: ProductDetailResponse): boolean {
-    return parseFloat(p.discountPercentage || '0') > 0;
+  showDiscount(product: ProductDetailResponse): boolean {
+    return parseFloat(product.discountPercentage || '0') > 0;
   }
 
   addToCart(): void {
-    const p = this.product();
-    if (!p || !p.active || p.stockQuantity <= 0) return;
+    const product = this.product();
+    if (!product || !product.active || product.stockQuantity <= 0) {
+      return;
+    }
     if (!this.authStore.isLoggedIn()) {
       this.redirectToLogin();
       return;
     }
-    const q = Math.min(Math.max(1, this.qty), p.stockQuantity);
-    this.cart.addItem({ productId: p.id, quantity: q }).subscribe({
+    const quantity = Math.min(Math.max(1, this.qty), product.stockQuantity);
+    this.cart.addItem({ productId: product.id, quantity }).subscribe({
       next: () => this.toast.showInfo('Sepete eklendi'),
-      error: () => {}
+      error: () => this.toast.showError('Sepete eklenemedi')
     });
   }
 
   addToWishlist(): void {
-    const p = this.product();
-    if (!p) return;
+    const product = this.product();
+    if (!product) {
+      return;
+    }
     if (!this.authStore.isLoggedIn()) {
       this.redirectToLogin();
       return;
     }
-    this.wishlist.addToWishlist(p.id).subscribe({
+    this.wishlist.addToWishlist(product.id).subscribe({
       next: () => this.toast.showInfo('Favorilere eklendi'),
       error: () => this.toast.showError('Favorilere eklenemedi')
     });
   }
 
-  onReviewPage(p: number): void {
-    this.reviewPage.set(p);
+  onReviewPage(page: number): void {
+    this.reviewPage.set(page);
     this.loadReviews();
   }
 
-  shortDate(s: string | null | undefined): string {
-    return (s ?? '').slice(0, 10);
+  shortDate(value: string | null | undefined): string {
+    return (value ?? '').slice(0, 10);
   }
 
   isLoggedIn(): boolean {
     return this.authStore.isLoggedIn();
+  }
+
+  canManageReview(review: ReviewDto): boolean {
+    const currentUserId = this.authStore.currentUser()?.id;
+    return !!currentUserId && currentUserId === review.userId;
+  }
+
+  startEditReview(review: ReviewDto): void {
+    this.reviews.getById(review.id).subscribe({
+      next: (freshReview) => {
+        this.editingReviewId.set(freshReview.id);
+        this.reviewForm.reset({
+          orderId: freshReview.orderId,
+          starRating: freshReview.starRating,
+          reviewTitle: freshReview.reviewTitle,
+          reviewText: freshReview.reviewText
+        });
+      },
+      error: () => this.toast.showError('Yorum detayi yuklenemedi')
+    });
+  }
+
+  cancelEditReview(): void {
+    this.editingReviewId.set(null);
+    this.reviewForm.reset({ orderId: '', starRating: 5, reviewTitle: '', reviewText: '' });
+  }
+
+  deleteReview(review: ReviewDto): void {
+    if (!this.canManageReview(review) || this.deletingReviewId()) {
+      return;
+    }
+    this.deletingReviewId.set(review.id);
+    this.reviews.delete(review.id).subscribe({
+      next: () => {
+        this.deletingReviewId.set(null);
+        if (this.editingReviewId() === review.id) {
+          this.cancelEditReview();
+        }
+        this.toast.showInfo('Yorum silindi');
+        this.loadReviews();
+        this.loadProduct();
+      },
+      error: () => {
+        this.deletingReviewId.set(null);
+        this.toast.showError('Yorum silinemedi');
+      }
+    });
   }
 
   submitReview(): void {
@@ -381,34 +451,57 @@ export class ProductDetailComponent implements OnInit {
       this.reviewForm.markAllAsTouched();
       return;
     }
-    const v = this.reviewForm.getRawValue();
-    this.orders.getById(v.orderId).subscribe({
+
+    const value = this.reviewForm.getRawValue();
+    const editingReviewId = this.editingReviewId();
+
+    if (editingReviewId) {
+      this.reviews
+        .update(editingReviewId, {
+          starRating: value.starRating,
+          reviewTitle: value.reviewTitle.trim(),
+          reviewText: value.reviewText.trim()
+        })
+        .subscribe({
+          next: () => {
+            this.toast.showInfo('Yorum guncellendi');
+            this.cancelEditReview();
+            this.reviewPage.set(0);
+            this.loadReviews();
+            this.loadProduct();
+          },
+          error: () => this.toast.showError('Yorum guncellenemedi')
+        });
+      return;
+    }
+
+    this.orders.getById(value.orderId).subscribe({
       next: (detail) => {
-        const hasProduct = detail.items.some((i) => i.productId === this.productId);
+        const hasProduct = detail.items.some((item) => item.productId === this.productId);
         if (!hasProduct) {
-          this.toast.showError('Bu siparişte bu ürün yok.');
+          this.toast.showError('Bu sipariste bu urun yok.');
           return;
         }
         this.reviews
           .create({
-            orderId: v.orderId,
+            orderId: value.orderId,
             productId: this.productId,
-            starRating: v.starRating,
-            reviewTitle: v.reviewTitle.trim(),
-            reviewText: v.reviewText.trim()
+            starRating: value.starRating,
+            reviewTitle: value.reviewTitle.trim(),
+            reviewText: value.reviewText.trim()
           })
           .subscribe({
             next: () => {
-              this.toast.showInfo('Yorum gönderildi');
-              this.reviewForm.reset({ orderId: v.orderId, starRating: 5, reviewTitle: '', reviewText: '' });
+              this.toast.showInfo('Yorum gonderildi');
+              this.reviewForm.reset({ orderId: '', starRating: 5, reviewTitle: '', reviewText: '' });
               this.reviewPage.set(0);
               this.loadReviews();
               this.loadProduct();
             },
-            error: () => {}
+            error: () => this.toast.showError('Yorum gonderilemedi')
           });
       },
-      error: () => this.toast.showError('Sipariş doğrulanamadı.')
+      error: () => this.toast.showError('Siparis dogrulanamadi.')
     });
   }
 

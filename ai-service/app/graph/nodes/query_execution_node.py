@@ -118,6 +118,37 @@ async def query_execution_node(state: AgentState) -> Dict[str, Any]:
             step_status="completed",
         )
 
+        # Detect suspect zero-row results: aggregation queries with a WHERE filter
+        # should almost never return 0 rows — likely a filter value mismatch.
+        # Only trigger on the first attempt (iteration_count == 0) to avoid loops.
+        if (
+            response.row_count == 0
+            and state.iteration_count == 0
+            and _is_suspect_zero_rows(sql)
+        ):
+            log.warning(
+                "Aggregation query returned 0 rows — suspect filter mismatch",
+                step_name="QUERY_EXECUTION",
+                step_status="failed",
+            )
+            execution_steps.append({
+                "name": "QUERY_EXECUTION",
+                "status": "completed",
+                "message": "Returned 0 rows",
+            })
+            return {
+                "query_result": result,
+                "row_count": 0,
+                "query_error": (
+                    "ZERO_ROWS_SUSPECT: Query returned 0 rows. "
+                    "Likely cause: WHERE clause uses wrong filter values "
+                    "(e.g., wrong enum casing like 'MALE' instead of 'Male', or wrong date format). "
+                    "Fix the filter values and retry."
+                ),
+                "last_error": "ZERO_ROWS_SUSPECT",
+                "execution_steps": execution_steps,
+            }
+
         execution_steps.append({
             "name": "QUERY_EXECUTION",
             "status": "completed",
@@ -151,6 +182,22 @@ async def query_execution_node(state: AgentState) -> Dict[str, Any]:
 
 def _rows_to_dicts(columns: list[str], rows: list[list]) -> list[dict]:
     return [dict(zip(columns, row)) for row in rows]
+
+
+def _is_suspect_zero_rows(sql: str) -> bool:
+    """Return True if a zero-row result is likely a filter mismatch rather than legitimate empty data.
+
+    Heuristic: GROUP BY aggregation queries that also have a WHERE clause
+    almost never return 0 rows from a populated table. Zero rows in this
+    case almost always means wrong enum casing or invalid filter values.
+    """
+    sql_lower = sql.lower()
+    has_group_by = "group by" in sql_lower
+    has_aggregate = any(
+        f"{fn}(" in sql_lower for fn in ("count", "sum", "avg", "min", "max")
+    )
+    has_where = "where" in sql_lower
+    return has_group_by and has_aggregate and has_where
 
 
 def _parse_current_date(current_date: str) -> date:

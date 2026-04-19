@@ -107,4 +107,8 @@ export class AdminService {
     if (query?.action) h = h.set('action', query.action);
     return this.http.get<ApiPageResponse<AuditLogResponse>>(this.auditBase, { params: h });
   }
+
+  getAuditLog(auditLogId: string): Observable<AuditLogResponse> {
+    return this.http.get<AuditLogResponse>(`${this.auditBase}/${auditLogId}`);
+  }
 }

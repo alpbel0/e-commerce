@@ -1,18 +1,19 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { AdminService } from '../../../core/api/admin.service';
 import { StoreService } from '../../../core/api/store.service';
 import type { StoreSummaryResponse } from '../../../core/models/store.models';
+import { ToastService } from '../../../core/notify/toast.service';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { ToastService } from '../../../core/notify/toast.service';
 
 @Component({
   selector: 'app-admin-store-list',
   standalone: true,
-  imports: [FormsModule, LoadingSpinnerComponent, ErrorStateComponent, PaginationComponent],
+  imports: [FormsModule, RouterLink, LoadingSpinnerComponent, ErrorStateComponent, PaginationComponent],
   templateUrl: './store-list.component.html',
   styles: [
     `
@@ -76,10 +77,10 @@ export class AdminStoreListComponent implements OnInit {
         status: this.statusFilter || undefined
       })
       .subscribe({
-        next: (res) => {
+        next: (response) => {
           this.loading.set(false);
-          this.items.set(res.items);
-          this.totalPages.set(res.totalPages);
+          this.items.set(response.items);
+          this.totalPages.set(response.totalPages);
         },
         error: () => {
           this.loading.set(false);
@@ -93,18 +94,18 @@ export class AdminStoreListComponent implements OnInit {
     this.load();
   }
 
-  onPage(p: number): void {
-    this.page.set(p);
+  onPage(page: number): void {
+    this.page.set(page);
     this.load();
   }
 
-  changeStatus(s: StoreSummaryResponse, ev: Event): void {
-    const status = (ev.target as HTMLSelectElement).value;
-    if (status === s.status) return;
-    this.admin.updateStoreStatus(s.id, { status }).subscribe({
+  changeStatus(store: StoreSummaryResponse, event: Event): void {
+    const status = (event.target as HTMLSelectElement).value;
+    if (status === store.status) return;
+    this.admin.updateStoreStatus(store.id, { status }).subscribe({
       next: (detail) => {
-        this.items.update((list) => list.map((x) => (x.id === detail.id ? { ...x, status: detail.status } : x)));
-        this.toast.showInfo('Mağaza durumu güncellendi');
+        this.items.update((list) => list.map((item) => (item.id === detail.id ? { ...item, status: detail.status } : item)));
+        this.toast.showInfo('Magaza durumu guncellendi');
       },
       error: () => {}
     });

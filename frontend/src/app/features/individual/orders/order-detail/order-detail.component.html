@@ -1,4 +1,4 @@
-<a routerLink="/app/orders" class="back">← Siparislere don</a>
+<a routerLink="/app/orders" class="back"><- Siparislere don</a>
 
 @if (loading()) {
   <app-loading-spinner />
@@ -11,6 +11,15 @@
       <span [class]="badgeClass(o.status)">{{ o.status }}</span>
       <span>Odeme: {{ o.paymentStatus }} · {{ o.paymentMethod }}</span>
     </div>
+
+    @if (canCancelOrder(o.status)) {
+      <p>
+        <button type="button" class="cancel-button" (click)="cancelOrder()" [disabled]="cancelling()">
+          {{ cancelling() ? 'Iptal ediliyor...' : 'Siparisi iptal et' }}
+        </button>
+      </p>
+    }
+
     <p>
       {{ o.shippingAddressLine1 }}@if (o.shippingAddressLine2) {, {{ o.shippingAddressLine2 }} }<br />
       {{ o.shippingCity }} {{ o.shippingPostalCode }} · {{ o.shippingCountry }}<br />
@@ -25,6 +34,8 @@
         <div>Tahmini: {{ shortDate(sh.estimatedDeliveryDate) }}</div>
         <div style="margin-top:8px">
           <a [routerLink]="['/app/orders', o.orderId, 'shipment']">Ayrintili takip</a>
+          <span style="margin: 0 6px">·</span>
+          <a [routerLink]="['/app/shipments', sh.shipmentId]">Shipment detayi</a>
         </div>
       </div>
     }

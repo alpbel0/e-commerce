@@ -8,3 +8,11 @@ export interface CouponResponse {
   validUntil: string | null;
   createdAt: string;
 }
+
+export interface UpdateCouponRequest {
+  storeId?: string;
+  code?: string;
+  discountPercentage?: string;
+  validUntil?: string | null;
+  active?: boolean;
+}

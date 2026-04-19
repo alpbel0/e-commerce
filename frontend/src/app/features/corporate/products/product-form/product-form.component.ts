@@ -5,8 +5,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CategoryService } from '../../../../core/api/category.service';
 import { ProductService } from '../../../../core/api/product.service';
 import { CorporateContextService } from '../../../../core/corporate/corporate-context.service';
-import { ToastService } from '../../../../core/notify/toast.service';
 import type { CategoryResponse } from '../../../../core/models/category.models';
+import { ToastService } from '../../../../core/notify/toast.service';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 
@@ -81,6 +81,11 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
       .check input {
         width: auto;
       }
+      .button-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
       button {
         padding: 0.5rem 1rem;
         border-radius: 8px;
@@ -89,6 +94,9 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
         color: #fff;
         cursor: pointer;
         margin-top: 8px;
+      }
+      button.secondary {
+        background: #0f766e;
       }
     `
   ]
@@ -104,6 +112,7 @@ export class ProductFormComponent implements OnInit {
 
   readonly loading = signal(false);
   readonly saving = signal(false);
+  readonly imageSaving = signal(false);
   readonly error = signal(false);
   readonly categories = signal<CategoryResponse[]>([]);
   readonly editMode = signal(false);
@@ -122,6 +131,10 @@ export class ProductFormComponent implements OnInit {
     imageUrlsText: [''],
     tagsText: [''],
     active: [true]
+  });
+
+  readonly imageForm = this.fb.nonNullable.group({
+    imageUrlsText: ['']
   });
 
   ngOnInit(): void {
@@ -154,27 +167,28 @@ export class ProductFormComponent implements OnInit {
     this.loading.set(true);
     this.error.set(false);
     this.products.getById(id).subscribe({
-      next: (p) => {
+      next: (product) => {
         this.loading.set(false);
         const sid = this.ctx.selectedStoreId();
-        if (sid && p.storeId !== sid) {
+        if (sid && product.storeId !== sid) {
           this.error.set(true);
           return;
         }
         this.form.patchValue({
-          sku: p.sku,
-          title: p.title,
-          description: p.description ?? '',
-          brand: p.brand ?? '',
-          categoryId: p.categoryId,
-          unitPrice: p.unitPrice,
-          discountPercentage: p.discountPercentage ?? '0',
-          costOfProduct: p.costOfProduct ?? '',
-          stockQuantity: p.stockQuantity,
-          imageUrlsText: (p.imageUrls ?? []).join('\n'),
-          tagsText: (p.tags ?? []).join(', '),
-          active: p.active
+          sku: product.sku,
+          title: product.title,
+          description: product.description ?? '',
+          brand: product.brand ?? '',
+          categoryId: product.categoryId,
+          unitPrice: product.unitPrice,
+          discountPercentage: product.discountPercentage ?? '0',
+          costOfProduct: product.costOfProduct ?? '',
+          stockQuantity: product.stockQuantity,
+          imageUrlsText: (product.imageUrls ?? []).join('\n'),
+          tagsText: (product.tags ?? []).join(', '),
+          active: product.active
         });
+        this.imageForm.reset({ imageUrlsText: '' });
       },
       error: () => {
         this.loading.set(false);
@@ -211,42 +225,46 @@ export class ProductFormComponent implements OnInit {
   submit(): void {
     const sid = this.ctx.selectedStoreId();
     if (!sid) {
-      this.toast.showError('Mağaza seçin.');
+      this.toast.showError('Magaza secin.');
       return;
     }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
-    const v = this.form.getRawValue();
-    const discount = v.discountPercentage.trim() || '0';
-    const costRaw = v.costOfProduct.trim();
+
+    const value = this.form.getRawValue();
+    const discount = value.discountPercentage.trim() || '0';
+    const costRaw = value.costOfProduct.trim();
     const cost = costRaw === '' ? null : costRaw;
 
     this.saving.set(true);
 
     if (this.editMode() && this.productId) {
       this.products
-        .update(this.productId, {
-          categoryId: v.categoryId,
-          title: v.title.trim(),
-          description: v.description.trim() || null,
-          brand: v.brand.trim() || null,
-          imageUrls: this.parseUrls(v.imageUrlsText),
-          unitPrice: v.unitPrice.trim(),
+        .patch(this.productId, {
+          categoryId: value.categoryId,
+          title: value.title.trim(),
+          description: value.description.trim() || null,
+          brand: value.brand.trim() || null,
+          imageUrls: this.parseUrls(value.imageUrlsText),
+          unitPrice: value.unitPrice.trim(),
           discountPercentage: discount,
           costOfProduct: cost,
-          stockQuantity: Math.floor(Number(v.stockQuantity)),
-          tags: this.parseTags(v.tagsText),
-          active: v.active
+          stockQuantity: Math.floor(Number(value.stockQuantity)),
+          tags: this.parseTags(value.tagsText),
+          active: value.active
         })
         .subscribe({
           next: () => {
             this.saving.set(false);
-            this.toast.showInfo('Ürün güncellendi');
+            this.toast.showInfo('Urun guncellendi');
             void this.router.navigateByUrl('/corporate/products');
           },
-          error: () => this.saving.set(false)
+          error: () => {
+            this.saving.set(false);
+            this.toast.showError('Urun guncellenemedi');
+          }
         });
       return;
     }
@@ -254,25 +272,55 @@ export class ProductFormComponent implements OnInit {
     this.products
       .create({
         storeId: sid,
-        categoryId: v.categoryId,
-        sku: v.sku.trim(),
-        title: v.title.trim(),
-        description: v.description.trim() || null,
-        brand: v.brand.trim() || null,
-        imageUrls: this.parseUrls(v.imageUrlsText),
-        unitPrice: v.unitPrice.trim(),
+        categoryId: value.categoryId,
+        sku: value.sku.trim(),
+        title: value.title.trim(),
+        description: value.description.trim() || null,
+        brand: value.brand.trim() || null,
+        imageUrls: this.parseUrls(value.imageUrlsText),
+        unitPrice: value.unitPrice.trim(),
         discountPercentage: discount,
         costOfProduct: cost,
-        stockQuantity: Math.floor(Number(v.stockQuantity)),
-        tags: this.parseTags(v.tagsText)
+        stockQuantity: Math.floor(Number(value.stockQuantity)),
+        tags: this.parseTags(value.tagsText)
       })
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.toast.showInfo('Ürün oluşturuldu');
+          this.toast.showInfo('Urun olusturuldu');
           void this.router.navigateByUrl('/corporate/products');
         },
-        error: () => this.saving.set(false)
+        error: () => {
+          this.saving.set(false);
+          this.toast.showError('Urun olusturulamadi');
+        }
       });
+  }
+
+  addImages(): void {
+    if (!this.productId || !this.editMode()) {
+      return;
+    }
+    const imageUrls = this.parseUrls(this.imageForm.controls.imageUrlsText.value);
+    if (!imageUrls?.length) {
+      this.toast.showError('En az bir gorsel URL girin.');
+      return;
+    }
+
+    this.imageSaving.set(true);
+    this.products.addImages(this.productId, { imageUrls }).subscribe({
+      next: (product) => {
+        this.imageSaving.set(false);
+        this.form.patchValue({
+          imageUrlsText: (product.imageUrls ?? []).join('\n')
+        });
+        this.imageForm.reset({ imageUrlsText: '' });
+        this.toast.showInfo('Gorseller eklendi');
+      },
+      error: () => {
+        this.imageSaving.set(false);
+        this.toast.showError('Gorseller eklenemedi');
+      }
+    });
   }
 }

@@ -1,44 +1,75 @@
-<h2>Mağaza ayarları</h2>
-<p class="meta">Seçili mağaza için iletişim ve vitrin bilgileri. Durum (açık/kapalı) yalnızca hesabınıza izin verildiğinde değişir.</p>
+<h2>Magaza ayarlari</h2>
+<p class="meta">Secili magaza icin iletisim ve vitrin bilgileri. Durum degisikligi yalnizca izin verildiginde yapilir.</p>
+
+<div class="section">
+  <h3>Yeni magaza olustur</h3>
+  <form [formGroup]="createForm" (ngSubmit)="createStore()">
+    <div class="field">
+      <label for="newStoreName">Magaza adi</label>
+      <input id="newStoreName" formControlName="name" />
+    </div>
+    <div class="field">
+      <label for="newStoreDescription">Aciklama</label>
+      <textarea id="newStoreDescription" formControlName="description"></textarea>
+    </div>
+    <div class="field">
+      <label for="newStoreEmail">Iletisim e-postasi</label>
+      <input id="newStoreEmail" type="email" formControlName="contactEmail" />
+    </div>
+    <div class="field">
+      <label for="newStorePhone">Telefon</label>
+      <input id="newStorePhone" formControlName="contactPhone" />
+    </div>
+    <div class="field">
+      <label for="newStoreAddress">Adres</label>
+      <textarea id="newStoreAddress" formControlName="address"></textarea>
+    </div>
+    <button type="submit" class="secondary" [disabled]="creating() || createForm.invalid">
+      {{ creating() ? 'Olusturuluyor...' : 'Yeni magaza olustur' }}
+    </button>
+  </form>
+</div>
 
 @if (!ctx.selectedStoreId()) {
-  <app-empty-state title="Mağaza seçin" message="Üst menüden bir mağaza seçin." />
+  <app-empty-state title="Magaza secin" message="Ust menuden bir magaza secin veya yeni magaza olusturun." />
 } @else if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Mağaza bilgisi yüklenemedi." (retry)="retry()" />
+  <app-error-state message="Magaza bilgisi yuklenemedi." (retry)="retry()" />
 } @else {
-  @if (statusLocked()) {
-    <p class="warn">Bu mağaza askıya alınmış; durumu buradan açamazsınız. Diğer alanları güncelleyebilirsiniz.</p>
-  }
-  <form [formGroup]="form" (ngSubmit)="save()">
-    <div class="field">
-      <label for="sn">Mağaza adı</label>
-      <input id="sn" formControlName="name" />
-    </div>
-    <div class="field">
-      <label for="sd">Açıklama</label>
-      <textarea id="sd" formControlName="description"></textarea>
-    </div>
-    <div class="field">
-      <label for="em">İletişim e-postası</label>
-      <input id="em" type="email" formControlName="contactEmail" />
-    </div>
-    <div class="field">
-      <label for="ph">Telefon</label>
-      <input id="ph" formControlName="contactPhone" />
-    </div>
-    <div class="field">
-      <label for="st">Mağaza durumu</label>
-      @if (statusLocked()) {
-        <p class="ro" id="st">Askıda (yönetici onayı gerekir)</p>
-      } @else {
-        <select id="st" formControlName="status">
-          <option value="OPEN">Açık</option>
-          <option value="CLOSED">Kapalı</option>
-        </select>
-      }
-    </div>
-    <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor…' : 'Kaydet' }}</button>
-  </form>
+  <div class="section">
+    @if (statusLocked()) {
+      <p class="warn">Bu magaza askiya alinmis. Durumu buradan acamazsiniz; diger alanlari guncelleyebilirsiniz.</p>
+    }
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <div class="field">
+        <label for="sn">Magaza adi</label>
+        <input id="sn" formControlName="name" />
+      </div>
+      <div class="field">
+        <label for="sd">Aciklama</label>
+        <textarea id="sd" formControlName="description"></textarea>
+      </div>
+      <div class="field">
+        <label for="em">Iletisim e-postasi</label>
+        <input id="em" type="email" formControlName="contactEmail" />
+      </div>
+      <div class="field">
+        <label for="ph">Telefon</label>
+        <input id="ph" formControlName="contactPhone" />
+      </div>
+      <div class="field">
+        <label for="st">Magaza durumu</label>
+        @if (statusLocked()) {
+          <p id="st">Askida (yonetici onayi gerekir)</p>
+        } @else {
+          <select id="st" formControlName="status">
+            <option value="OPEN">Acik</option>
+            <option value="CLOSED">Kapali</option>
+          </select>
+        }
+      </div>
+      <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor...' : 'Kaydet' }}</button>
+    </form>
+  </div>
 }

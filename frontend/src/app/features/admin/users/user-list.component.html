@@ -1,11 +1,11 @@
-<h2>Kullanıcılar</h2>
+<h2>Kullanicilar</h2>
 
 <div class="toolbar">
-  <button type="button" class="primary" (click)="scrollToCreate()">Yeni kullanıcı</button>
+  <button type="button" class="primary" (click)="scrollToCreate()">Yeni kullanici</button>
 </div>
 
 <section #createPanel class="create">
-  <h3 style="margin: 0 0 12px; font-size: 1rem">Kullanıcı oluştur</h3>
+  <h3 style="margin: 0 0 12px; font-size: 1rem">Kullanici olustur</h3>
   <form [formGroup]="createForm" (ngSubmit)="createUser()">
     <div class="row">
       <div>
@@ -13,7 +13,7 @@
         <input id="cu-email" type="email" autocomplete="off" formControlName="email" />
       </div>
       <div>
-        <label for="cu-password">Şifre</label>
+        <label for="cu-password">Sifre</label>
         <input id="cu-password" type="password" autocomplete="new-password" formControlName="password" />
       </div>
     </div>
@@ -31,14 +31,14 @@
       <div>
         <label for="cu-role">Rol</label>
         <select id="cu-role" formControlName="role">
-          @for (r of roles; track r) {
-            <option [value]="r">{{ r }}</option>
+          @for (role of roles; track role) {
+            <option [value]="role">{{ role }}</option>
           }
         </select>
       </div>
       @if (createForm.controls.role.value === 'CORPORATE') {
         <div>
-          <label for="cu-store">Mağaza adı</label>
+          <label for="cu-store">Magaza adi</label>
           <input id="cu-store" type="text" formControlName="storeName" autocomplete="off" />
         </div>
       }
@@ -48,7 +48,7 @@
       <span>Hesap aktif</span>
     </label>
     <button type="submit" class="primary" [disabled]="savingCreate()">
-      {{ savingCreate() ? 'Kaydediliyor…' : 'Oluştur' }}
+      {{ savingCreate() ? 'Kaydediliyor...' : 'Olustur' }}
     </button>
   </form>
 </section>
@@ -61,16 +61,16 @@
   <label>
     Rol
     <select [(ngModel)]="roleFilter">
-      <option value="">Tümü</option>
-      @for (r of roles; track r) {
-        <option [value]="r">{{ r }}</option>
+      <option value="">Tumu</option>
+      @for (role of roles; track role) {
+        <option [value]="role">{{ role }}</option>
       }
     </select>
   </label>
   <label>
     Aktif
     <select [(ngModel)]="activeFilter">
-      <option value="all">Tümü</option>
+      <option value="all">Tumu</option>
       <option value="true">Aktif</option>
       <option value="false">Pasif</option>
     </select>
@@ -81,7 +81,7 @@
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
+  <app-error-state message="Liste yuklenemedi." (retry)="load()" />
 } @else {
   <table>
     <thead>
@@ -94,31 +94,48 @@
       </tr>
     </thead>
     <tbody>
-      @for (u of items(); track u.id) {
+      @for (user of items(); track user.id) {
         <tr>
-          <td>{{ u.email }}</td>
-          <td>{{ u.firstName }} {{ u.lastName }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.firstName }} {{ user.lastName }}</td>
           <td>
-            <select
-              [ngModel]="u.activeRole"
-              (ngModelChange)="changeRole(u, $event)"
-              [disabled]="isSelf(u)"
-            >
-              @for (r of roles; track r) {
-                <option [value]="r">{{ r }}</option>
+            <select [ngModel]="user.activeRole" (ngModelChange)="changeRole(user, $event)" [disabled]="isSelf(user)">
+              @for (role of roles; track role) {
+                <option [value]="role">{{ role }}</option>
               }
             </select>
           </td>
-          <td>{{ u.active ? 'Evet' : 'Hayır' }}</td>
+          <td>{{ user.active ? 'Evet' : 'Hayir' }}</td>
           <td class="cell-actions">
-            <button type="button" (click)="toggleActive(u)" [disabled]="isSelf(u)">
-              {{ u.active ? 'Pasifleştir' : 'Aktifleştir' }}
+            <button type="button" (click)="toggleActive(user)" [disabled]="isSelf(user)">
+              {{ user.active ? 'Pasiflestir' : 'Aktiflestir' }}
             </button>
-            @if (u.active && !isSelf(u)) {
-              <button type="button" class="warn" (click)="askDeactivate(u)">Hesabı kapat</button>
+            @if (user.activeRole === 'CORPORATE') {
+              <button type="button" (click)="toggleOwnedStores(user)">
+                {{ ownerStores()[user.id] ? 'Magazalari gizle' : 'Magazalari gor' }}
+              </button>
+            }
+            @if (user.active && !isSelf(user)) {
+              <button type="button" class="warn" (click)="askDeactivate(user)">Hesabi kapat</button>
             }
           </td>
         </tr>
+        @if (ownerStores()[user.id]; as stores) {
+          <tr class="owned-stores">
+            <td colspan="5">
+              <strong>Magazalar</strong>
+              @if (stores.length === 0) {
+                <div>Kayitli magaza yok.</div>
+              } @else {
+                <ul>
+                  @for (store of stores; track store.id) {
+                    <li>{{ store.name }} - {{ store.status }} - {{ store.contactEmail }}</li>
+                  }
+                </ul>
+              }
+            </td>
+          </tr>
+        }
       }
     </tbody>
   </table>
@@ -127,14 +144,10 @@
 
 <app-confirm-dialog
   [open]="deleteOpen()"
-  title="Hesabı kapat"
-  [message]="
-    deleteTarget()
-      ? deleteTarget()!.email + ' kullanıcısı kalıcı olarak silinmez; hesap ve kurumsal mağazalar pasifleştirilir.'
-      : ''
-  "
+  title="Hesabi kapat"
+  [message]="deleteTarget() ? deleteTarget()!.email + ' kullanicisi pasiflestirilecek.' : ''"
   confirmLabel="Kapat"
-  cancelLabel="Vazgeç"
+  cancelLabel="Vazgec"
   (confirm)="confirmDeactivate()"
   (cancel)="cancelDeactivate()"
 />

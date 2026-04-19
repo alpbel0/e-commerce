@@ -218,13 +218,14 @@ class SQLValidator:
         return None
 
     def _has_select_star(self, sql_lower: str, query: SQLQuery) -> bool:
-        """Check if query uses SELECT *."""
-        return (
-            '*' in query.columns or
-            'select *' in sql_lower or
-            'select  *' in sql_lower or
-            re.search(r"\b[a-zA-Z_][a-zA-Z0-9_]*\s*\.\s*\*", sql_lower) is not None
-        )
+        """Check if query uses SELECT *. COUNT(*) and similar aggregate functions are allowed."""
+        # Bare SELECT * (not inside a function call)
+        if re.search(r'\bselect\s+\*', sql_lower):
+            return True
+        # table.* wildcard
+        if re.search(r"\b[a-zA-Z_][a-zA-Z0-9_]*\s*\.\s*\*", sql_lower):
+            return True
+        return False
 
     def _has_comments(self, sql_lower: str) -> bool:
         """Reject SQL comments before execution."""

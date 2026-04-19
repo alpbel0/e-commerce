@@ -1,4 +1,4 @@
-<a [routerLink]="orderLink()" class="back">← Siparise don</a>
+<a [routerLink]="backLink()" class="back"><- Siparise don</a>
 
 @if (loading()) {
   <app-loading-spinner />
@@ -24,6 +24,10 @@
           <div>{{ shipmentData.carrierName || '-' }}</div>
         </div>
         <div class="item">
+          <strong>Mod</strong>
+          <div>{{ shipmentData.modeOfShipment || '-' }}</div>
+        </div>
+        <div class="item">
           <strong>Tahmini Teslim</strong>
           <div>{{ shortDate(shipmentData.estimatedDeliveryDate) }}</div>
         </div>
@@ -33,7 +37,7 @@
         </div>
         <div class="item">
           <strong>Teslim Tarihi</strong>
-          <div>{{ shortDate(shipmentData.deliveredAt) }}</div>
+          <div>{{ shortDate(shipmentData.deliveredAt || shipmentData.actualDeliveryDate) }}</div>
         </div>
       </div>
     </div>

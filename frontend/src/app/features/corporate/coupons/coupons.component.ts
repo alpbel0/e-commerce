@@ -76,6 +76,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
         cursor: pointer;
         font-size: 0.9rem;
         font-weight: 500;
+        margin-right: 8px;
       }
       .btn-primary:disabled {
         opacity: 0.5;
@@ -155,6 +156,7 @@ export class CouponsComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly saving = signal(false);
+  readonly editingCouponId = signal<string | null>(null);
   private readonly currentStoreId = signal<string | null>(null);
 
   form = this.fb.group({
@@ -197,7 +199,7 @@ export class CouponsComponent implements OnInit {
     if (this.form.invalid || this.saving()) return;
     const storeId = this.selectedStoreId();
     if (!storeId) {
-      this.toast.showError('Kupon oluÅŸturmak iÃ§in maÄŸaza seÃ§in.');
+      this.toast.showError('Kupon olusturmak icin magaza secin.');
       return;
     }
 
@@ -212,24 +214,55 @@ export class CouponsComponent implements OnInit {
       active: active ?? true
     };
 
-    this.corporateApi.createCoupon(body).subscribe({
-      next: (newCoupon) => {
+    const editingId = this.editingCouponId();
+    const request$ = editingId
+      ? this.corporateApi.updateCoupon(editingId, body)
+      : this.corporateApi.createCoupon(body);
+
+    request$.subscribe({
+      next: (savedCoupon) => {
         this.saving.set(false);
-        this.coupons.update((c) => [newCoupon, ...c]);
-        this.form.reset({ code: '', discountPercentage: '', validUntil: '', active: true });
-        this.toast.showInfo('Kupon oluşturuldu');
+        if (editingId) {
+          this.coupons.update((coupons) => coupons.map((coupon) => (coupon.id === editingId ? savedCoupon : coupon)));
+          this.toast.showInfo('Kupon guncellendi');
+        } else {
+          this.coupons.update((coupons) => [savedCoupon, ...coupons]);
+          this.toast.showInfo('Kupon olusturuldu');
+        }
+        this.resetForm();
       },
       error: () => {
         this.saving.set(false);
-        this.toast.showError('Kupon oluşturulamadı');
+        this.toast.showError(editingId ? 'Kupon guncellenemedi' : 'Kupon olusturulamadi');
       }
     });
+  }
+
+  startEdit(coupon: CouponResponse): void {
+    this.corporateApi.getCoupon(coupon.id).subscribe({
+      next: (detail) => {
+        this.editingCouponId.set(detail.id);
+        this.form.reset({
+          code: detail.code,
+          discountPercentage: String(detail.discountPercentage),
+          validUntil: detail.validUntil ? detail.validUntil.slice(0, 10) : '',
+          active: detail.active
+        });
+      },
+      error: () => {
+        this.toast.showError('Kupon detayi yuklenemedi');
+      }
+    });
+  }
+
+  cancelEdit(): void {
+    this.resetForm();
   }
 
   deleteCoupon(id: string): void {
     this.corporateApi.deleteCoupon(id).subscribe({
       next: () => {
-        this.coupons.update((c) => c.filter((coupon) => coupon.id !== id));
+        this.coupons.update((coupons) => coupons.filter((coupon) => coupon.id !== id));
         this.toast.showInfo('Kupon silindi');
       },
       error: () => {
@@ -252,5 +285,10 @@ export class CouponsComponent implements OnInit {
   private selectedStoreId(): string | undefined {
     const storeId = this.corporateContext.selectedStoreId();
     return storeId && UUID_PATTERN.test(storeId) ? storeId : undefined;
+  }
+
+  private resetForm(): void {
+    this.editingCouponId.set(null);
+    this.form.reset({ code: '', discountPercentage: '', validUntil: '', active: true });
   }
 }

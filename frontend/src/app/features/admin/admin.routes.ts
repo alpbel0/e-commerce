@@ -19,6 +19,11 @@ export const adminRoutes: Routes = [
     title: 'Magazalar'
   },
   {
+    path: 'stores/:id',
+    loadComponent: () => import('./stores/store-detail.component').then((m) => m.AdminStoreDetailComponent),
+    title: 'Magaza Detay'
+  },
+  {
     path: 'orders',
     loadComponent: () =>
       import('../corporate/orders/corporate-order-list.component').then((m) => m.CorporateOrderListComponent),
@@ -37,10 +42,22 @@ export const adminRoutes: Routes = [
     title: 'Kategoriler'
   },
   {
+    path: 'categories/:id',
+    loadComponent: () =>
+      import('./categories/category-detail.component').then((m) => m.AdminCategoryDetailComponent),
+    title: 'Kategori Detay'
+  },
+  {
     path: 'audit-logs',
     loadComponent: () =>
       import('./audit-logs/audit-log-list.component').then((m) => m.AdminAuditLogListComponent),
     title: 'Audit'
+  },
+  {
+    path: 'audit-logs/:id',
+    loadComponent: () =>
+      import('./audit-logs/audit-log-detail.component').then((m) => m.AdminAuditLogDetailComponent),
+    title: 'Audit Detay'
   },
   {
     path: 'analytics',

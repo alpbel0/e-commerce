@@ -67,4 +67,8 @@ export class OrderService {
   getShipment(orderId: string): Observable<ShipmentSummaryResponse> {
     return this.http.get<ShipmentSummaryResponse>(`${this.base}/${orderId}/shipment`);
   }
+
+  cancelOrder(orderId: string): Observable<OrderDetailResponse> {
+    return this.http.post<OrderDetailResponse>(`${this.base}/${orderId}/cancel`, {});
+  }
 }

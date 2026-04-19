@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { OrderService } from '../../../../core/api/order.service';
+import { ShipmentService } from '../../../../core/api/shipment.service';
 import type { ShipmentSummaryResponse } from '../../../../core/models/shipment.models';
 import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../../shared/components/error-state/error-state.component';
@@ -46,28 +47,47 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
 export class ShipmentTrackingComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly orders = inject(OrderService);
+  private readonly shipments = inject(ShipmentService);
 
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly shipment = signal<ShipmentSummaryResponse | null>(null);
-  readonly orderLink = signal<string[]>(['/app/orders']);
+  readonly backLink = signal<string[]>(['/app/orders']);
 
   private orderId = '';
+  private shipmentId = '';
 
   ngOnInit(): void {
     this.orderId = this.route.snapshot.paramMap.get('id') ?? '';
-    this.orderLink.set(['/app/orders', this.orderId]);
+    this.shipmentId = this.route.snapshot.paramMap.get('shipmentId') ?? '';
+    this.backLink.set(this.orderId ? ['/app/orders', this.orderId] : ['/app/orders']);
     this.load();
   }
 
   load(): void {
+    this.loading.set(true);
+    this.error.set(false);
+
+    if (this.shipmentId) {
+      this.shipments.getById(this.shipmentId).subscribe({
+        next: (shipment) => {
+          this.loading.set(false);
+          this.shipment.set(shipment);
+        },
+        error: () => {
+          this.loading.set(false);
+          this.error.set(true);
+        }
+      });
+      return;
+    }
+
     if (!this.orderId) {
       this.loading.set(false);
       this.error.set(true);
       return;
     }
-    this.loading.set(true);
-    this.error.set(false);
+
     this.orders.getShipment(this.orderId).subscribe({
       next: (shipment) => {
         this.loading.set(false);

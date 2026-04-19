@@ -23,15 +23,15 @@
       </tr>
     </thead>
     <tbody>
-      @for (a of items(); track a.id) {
+      @for (item of items(); track item.id) {
         <tr>
-          <td>{{ shortAt(a.createdAt) }}</td>
-          <td>{{ a.action }}</td>
-          <td>{{ a.entityType ?? '-' }}</td>
-          <td>{{ a.entityId ?? '-' }}</td>
-          <td>{{ a.userId ?? '-' }}</td>
-          <td>{{ a.actorUserEmail ?? '-' }}</td>
-          <td class="details">{{ a.details }}</td>
+          <td>{{ shortAt(item.createdAt) }}</td>
+          <td><a [routerLink]="['/admin/audit-logs', item.id]" style="color:#2563eb;text-decoration:none">{{ item.action }}</a></td>
+          <td>{{ item.entityType ?? '-' }}</td>
+          <td>{{ item.entityId ?? '-' }}</td>
+          <td>{{ item.userId ?? '-' }}</td>
+          <td>{{ item.actorUserEmail ?? '-' }}</td>
+          <td class="details">{{ item.details }}</td>
         </tr>
       }
     </tbody>

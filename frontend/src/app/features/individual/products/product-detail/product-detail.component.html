@@ -1,4 +1,4 @@
-<a routerLink="/app/products" class="back">← Urunlere don</a>
+<a routerLink="/app/products" class="back"><- Urunlere don</a>
 
 @if (loading()) {
   <app-loading-spinner />
@@ -14,11 +14,7 @@
             <div class="thumbs">
               @for (u of p.imageUrls; track $index) {
                 <button type="button" (click)="setImg($index)">
-                  <img
-                    [src]="u"
-                    [alt]="p.title + ' gorsel ' + ($index + 1)"
-                    [class.active]="imgIdx() === $index"
-                  />
+                  <img [src]="u" [alt]="p.title + ' gorsel ' + ($index + 1)" [class.active]="imgIdx() === $index" />
                 </button>
               }
             </div>
@@ -30,7 +26,7 @@
 
       <div>
         <h1>{{ p.title }}</h1>
-        <div class="sub">{{ p.brand }} · {{ p.storeName }} · {{ p.categoryName }}</div>
+        <div class="sub">{{ p.brand || '-' }} · {{ p.storeName }} · {{ p.categoryName }}</div>
         <div class="price-row">
           @if (showDiscount(p)) {
             <span class="old">{{ formatMoney(p.unitPrice, p.currency) }}</span>
@@ -52,14 +48,8 @@
         <div class="qty-row">
           <label for="qty">Adet</label>
           <input id="qty" type="number" min="1" [max]="p.stockQuantity" [(ngModel)]="qty" />
-          <button type="button" [disabled]="!p.active || p.stockQuantity <= 0" (click)="addToCart()">
-            Sepete ekle
-          </button>
-          <button type="button" class="wishlist-btn" (click)="addToWishlist()" title="Favorilere ekle">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-          </button>
+          <button type="button" [disabled]="!p.active || p.stockQuantity <= 0" (click)="addToCart()">Sepete ekle</button>
+          <button type="button" class="wishlist-btn" (click)="addToWishlist()">Favori</button>
         </div>
       </div>
     </div>
@@ -74,6 +64,23 @@
             <div>{{ revStars(r) }} <strong>{{ r.reviewTitle }}</strong></div>
             <div class="who">{{ r.userEmail }} · {{ shortDate(r.createdAt) }}</div>
             <p>{{ r.reviewText }}</p>
+            @if (r.responses?.length) {
+              @for (response of r.responses; track response.id) {
+                <div class="review-response">
+                  <strong>Magaza yaniti</strong>
+                  <div class="who">{{ response.responderEmail }} · {{ shortDate(response.createdAt) }}</div>
+                  <div>{{ response.responseText }}</div>
+                </div>
+              }
+            }
+            @if (canManageReview(r)) {
+              <div class="review-actions">
+                <button type="button" (click)="startEditReview(r)">Duzenle</button>
+                <button type="button" class="warn" [disabled]="deletingReviewId() === r.id" (click)="deleteReview(r)">
+                  {{ deletingReviewId() === r.id ? 'Siliniyor...' : 'Sil' }}
+                </button>
+              </div>
+            }
           </article>
         }
         @if (reviewItems().length === 0) {
@@ -88,31 +95,36 @@
       }
 
       @if (isLoggedIn()) {
-      <div class="review-form" [formGroup]="reviewForm">
-        <h3>Yorum yaz</h3>
-        <div class="field">
-          <label for="oid">Siparis</label>
-          <select id="oid" formControlName="orderId">
-            <option value="">Siparis secin</option>
-            @for (o of orderChoices(); track o.orderId) {
-              <option [value]="o.orderId">{{ o.incrementId }} — {{ shortDate(o.orderDate) }}</option>
+        <div class="review-form" [formGroup]="reviewForm">
+          <h3>{{ editingReviewId() ? 'Yorumu duzenle' : 'Yorum yaz' }}</h3>
+          <div class="field">
+            <label for="oid">Siparis</label>
+            <select id="oid" formControlName="orderId" [disabled]="!!editingReviewId()">
+              <option value="">Siparis secin</option>
+              @for (o of orderChoices(); track o.orderId) {
+                <option [value]="o.orderId">{{ o.incrementId }} - {{ shortDate(o.orderDate) }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="sr">Puan (1-5)</label>
+            <input id="sr" type="number" min="1" max="5" formControlName="starRating" />
+          </div>
+          <div class="field">
+            <label for="rt">Baslik</label>
+            <input id="rt" formControlName="reviewTitle" />
+          </div>
+          <div class="field">
+            <label for="rtx">Yorum</label>
+            <textarea id="rtx" formControlName="reviewText"></textarea>
+          </div>
+          <div class="review-actions">
+            <button type="button" (click)="submitReview()">{{ editingReviewId() ? 'Guncelle' : 'Gonder' }}</button>
+            @if (editingReviewId()) {
+              <button type="button" class="secondary" (click)="cancelEditReview()">Vazgec</button>
             }
-          </select>
+          </div>
         </div>
-        <div class="field">
-          <label for="sr">Puan (1-5)</label>
-          <input id="sr" type="number" min="1" max="5" formControlName="starRating" />
-        </div>
-        <div class="field">
-          <label for="rt">Baslik</label>
-          <input id="rt" formControlName="reviewTitle" />
-        </div>
-        <div class="field">
-          <label for="rtx">Yorum</label>
-          <textarea id="rtx" formControlName="reviewText"></textarea>
-        </div>
-        <button type="button" (click)="submitReview()">Gonder</button>
-      </div>
       } @else {
         <p style="color: #64748b">Yorum yazmak icin giris yapmalisiniz.</p>
       }

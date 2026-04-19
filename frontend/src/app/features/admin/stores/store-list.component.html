@@ -1,12 +1,12 @@
-<h2>Mağazalar</h2>
+<h2>Magazalar</h2>
 
 <div class="filters">
   <label>
     Durum
     <select [(ngModel)]="statusFilter" (change)="onFilterChange()">
-      <option value="">Tümü</option>
-      @for (st of statusOptions; track st) {
-        <option [value]="st">{{ st }}</option>
+      <option value="">Tumu</option>
+      @for (status of statusOptions; track status) {
+        <option [value]="status">{{ status }}</option>
       }
     </select>
   </label>
@@ -15,7 +15,7 @@
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
+  <app-error-state message="Liste yuklenemedi." (retry)="load()" />
 } @else {
   <table>
     <thead>
@@ -23,21 +23,21 @@
         <th>Ad</th>
         <th>E-posta</th>
         <th>Durum</th>
-        <th>Ürün</th>
+        <th>Urun</th>
         <th>Yeni durum</th>
       </tr>
     </thead>
     <tbody>
-      @for (s of items(); track s.id) {
+      @for (store of items(); track store.id) {
         <tr>
-          <td>{{ s.name }}</td>
-          <td>{{ s.contactEmail }}</td>
-          <td>{{ s.status }}</td>
-          <td>{{ s.productCount ?? '—' }}</td>
+          <td><a [routerLink]="['/admin/stores', store.id]" style="color:#2563eb;text-decoration:none">{{ store.name }}</a></td>
+          <td>{{ store.contactEmail }}</td>
+          <td>{{ store.status }}</td>
+          <td>{{ store.productCount ?? '-' }}</td>
           <td>
-            <select class="sm" [value]="s.status" (change)="changeStatus(s, $event)">
-              @for (st of statusOptions; track st) {
-                <option [value]="st">{{ st }}</option>
+            <select class="sm" [value]="store.status" (change)="changeStatus(store, $event)">
+              @for (status of statusOptions; track status) {
+                <option [value]="status">{{ status }}</option>
               }
             </select>
           </td>

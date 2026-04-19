@@ -114,7 +114,8 @@ import { formatMoney } from '../../../../shared/util/money';
       .return-row input.reason {
         width: 180px;
       }
-      .return-row button {
+      .return-row button,
+      .cancel-button {
         padding: 0.3rem 0.6rem;
         border-radius: 8px;
         border: none;
@@ -134,6 +135,7 @@ export class OrderDetailComponent implements OnInit {
   readonly order = signal<OrderDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
+  readonly cancelling = signal(false);
 
   readonly returnQty = signal<Record<string, number>>({});
   readonly returnReason = signal<Record<string, string>>({});
@@ -156,8 +158,8 @@ export class OrderDetailComponent implements OnInit {
     this.loading.set(true);
     this.error.set(false);
     this.orders.getById(this.orderId).subscribe({
-      next: (o) => {
-        this.order.set(o);
+      next: (order) => {
+        this.order.set(order);
         this.loading.set(false);
       },
       error: () => {
@@ -167,64 +169,89 @@ export class OrderDetailComponent implements OnInit {
     });
   }
 
-  badgeClass(s: string): string {
-    const k = (s ?? '').toUpperCase();
+  badgeClass(status: string): string {
+    const normalized = (status ?? '').toUpperCase();
     const known = new Set(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']);
-    const cls = known.has(k) ? k : 'PENDING';
-    return 'badge st-' + cls;
+    const css = known.has(normalized) ? normalized : 'PENDING';
+    return 'badge st-' + css;
   }
 
-  returnBadgeClass(rs: string | null | undefined): string {
-    const k = (rs ?? 'NONE').toUpperCase();
-    if (k === 'REQUESTED') return 'badge rb-REQUESTED';
-    if (k === 'RETURNED') return 'badge rb-RETURNED';
-    if (k === 'REJECTED') return 'badge rb-REJECTED';
+  returnBadgeClass(returnStatus: string | null | undefined): string {
+    const normalized = (returnStatus ?? 'NONE').toUpperCase();
+    if (normalized === 'REQUESTED') return 'badge rb-REQUESTED';
+    if (normalized === 'RETURNED') return 'badge rb-RETURNED';
+    if (normalized === 'REJECTED') return 'badge rb-REJECTED';
     return 'badge rb-NONE';
   }
 
-  returnLabel(rs: string | null | undefined): string {
-    const k = (rs ?? 'NONE').toUpperCase();
-    if (k === 'REQUESTED') return 'İade talebi';
-    if (k === 'RETURNED') return 'Onaylandı';
-    if (k === 'REJECTED') return 'Reddedildi';
-    return '—';
+  returnLabel(returnStatus: string | null | undefined): string {
+    const normalized = (returnStatus ?? 'NONE').toUpperCase();
+    if (normalized === 'REQUESTED') return 'Iade talebi';
+    if (normalized === 'RETURNED') return 'Onaylandi';
+    if (normalized === 'REJECTED') return 'Reddedildi';
+    return '-';
+  }
+
+  canCancelOrder(status: string): boolean {
+    const normalized = (status ?? '').toUpperCase();
+    return normalized === 'PENDING' || normalized === 'PROCESSING';
   }
 
   canRequestReturn(item: OrderItemResponse, orderStatus: string): boolean {
     if (orderStatus !== 'DELIVERED') return false;
-    const rs = (item.returnStatus ?? 'NONE').toUpperCase();
-    return rs === 'NONE';
+    const returnStatus = (item.returnStatus ?? 'NONE').toUpperCase();
+    return returnStatus === 'NONE';
   }
 
-  setQty(itemId: string, v: number): void {
-    this.returnQty.set({ ...this.returnQty(), [itemId]: v });
+  setQty(itemId: string, value: number): void {
+    this.returnQty.set({ ...this.returnQty(), [itemId]: value });
   }
 
-  setReason(itemId: string, v: string): void {
-    this.returnReason.set({ ...this.returnReason(), [itemId]: v });
+  setReason(itemId: string, value: string): void {
+    this.returnReason.set({ ...this.returnReason(), [itemId]: value });
   }
 
   submitReturn(item: OrderItemResponse): void {
     const qty = this.returnQty()[item.orderItemId] ?? 1;
     const reason = (this.returnReason()[item.orderItemId] ?? '').trim();
     if (!reason) {
-      this.toast.showError('İade nedeni girin.');
+      this.toast.showError('Iade nedeni girin.');
       return;
     }
     if (qty < 1 || qty > item.quantity) {
-      this.toast.showError('Geçersiz adet.');
+      this.toast.showError('Gecersiz adet.');
       return;
     }
     this.orders.requestReturn(item.orderItemId, { returnedQuantity: qty, reason }).subscribe({
       next: () => {
-        this.toast.showInfo('İade talebi oluşturuldu');
+        this.toast.showInfo('Iade talebi olusturuldu');
         this.load();
       },
       error: () => {}
     });
   }
 
-  shortDate(s: string | null | undefined): string {
-    return (s ?? '').slice(0, 10);
+  cancelOrder(): void {
+    const currentOrder = this.order();
+    if (!currentOrder || this.cancelling() || !this.canCancelOrder(currentOrder.status)) {
+      return;
+    }
+
+    this.cancelling.set(true);
+    this.orders.cancelOrder(currentOrder.orderId).subscribe({
+      next: (updated) => {
+        this.cancelling.set(false);
+        this.order.set(updated);
+        this.toast.showInfo('Siparis iptal edildi');
+      },
+      error: () => {
+        this.cancelling.set(false);
+        this.toast.showError('Siparis iptal edilemedi');
+      }
+    });
+  }
+
+  shortDate(value: string | null | undefined): string {
+    return (value ?? '').slice(0, 10);
   }
 }
