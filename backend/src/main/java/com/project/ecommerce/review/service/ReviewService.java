@@ -19,6 +19,7 @@ import com.project.ecommerce.review.dto.ReviewResponseDto;
 import com.project.ecommerce.review.dto.UpdateReviewRequest;
 import com.project.ecommerce.review.repository.ReviewRepository;
 import com.project.ecommerce.review.repository.ReviewResponseRepository;
+import com.project.ecommerce.store.domain.Store;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -266,6 +267,17 @@ public class ReviewService {
             ? BigDecimal.ZERO
             : BigDecimal.valueOf(averageRating).setScale(2, RoundingMode.HALF_UP);
         product.setAvgRating(reviewCount == 0 ? null : roundedAverage);
+        refreshStoreReviewMetrics(product.getStore());
+    }
+
+    private void refreshStoreReviewMetrics(Store store) {
+        var stats = reviewRepository.calculateStatsByStoreId(store.getId());
+        long reviewCount = stats == null ? 0 : stats.getReviewCount();
+        Double averageRating = stats == null ? null : stats.getAverageRating();
+        BigDecimal roundedAverage = averageRating == null
+            ? BigDecimal.ZERO
+            : BigDecimal.valueOf(averageRating).setScale(2, RoundingMode.HALF_UP);
+        store.setRating(reviewCount == 0 ? null : roundedAverage);
     }
 
     private boolean deactivateActiveResponses(Review review) {

@@ -1,0 +1,23 @@
+Fix this SQL query:
+
+Original SQL:
+{original_sql}
+
+Error message:
+{error_message}
+
+Structured validator details:
+{error_details}
+
+Schema context:
+{schema_context}
+
+Original question: {question}
+
+Role and scope:
+{role_scope}
+
+Recent conversation:
+{conversation_memory}
+
+Respond with JSON only.

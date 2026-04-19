@@ -49,6 +49,12 @@ export const adminRoutes: Routes = [
     title: 'Analizler'
   },
   {
+    path: 'chat',
+    loadComponent: () =>
+      import('../chat/chat-home.component').then((m) => m.ChatHomeComponent),
+    title: 'AI Chat'
+  },
+  {
     path: 'settings',
     loadComponent: () =>
       import('./settings/system-settings.component').then((m) => m.SystemSettingsComponent),

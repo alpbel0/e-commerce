@@ -67,7 +67,7 @@ export class IndividualLayoutComponent implements OnInit {
     { label: 'Siparişlerim', routerLink: '/app/orders',               icon: 'heroShoppingBag' },
     { label: 'Favorilerim',  routerLink: '/app/wishlist',              icon: 'heroHeart' },
     { label: 'Profilim',     routerLink: '/app/profile',              icon: 'heroUser' },
-    { label: 'AI Chat',      routerLink: '/chat',                      icon: 'heroChatBubbleLeftEllipsis' }
+    { label: 'AI Chat',      routerLink: '/app/chat',                  icon: 'heroChatBubbleLeftEllipsis' }
   ];
 
   ngOnInit(): void {

@@ -1,0 +1,15 @@
+{language_instruction}
+
+Query description: {sql_summary}
+Number of rows returned: {row_count}
+
+{date_range_note}
+{limit_note}
+{currency_note}
+
+Data:
+{result_data}
+
+{chart_note}
+
+Provide a clear, concise explanation of what this data shows.

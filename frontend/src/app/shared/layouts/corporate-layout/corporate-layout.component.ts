@@ -57,6 +57,7 @@ export class CorporateLayoutComponent implements OnInit {
     { label: 'Kuponlar',        routerLink: '/corporate/coupons',                       icon: 'heroTag' },
     { label: 'Mağaza Ayarları', routerLink: '/corporate/store-settings',               icon: 'heroBuildingStorefront' },
     { label: 'Analizler',       routerLink: '/corporate/analytics',                     icon: 'heroChartBar' },
+    { label: 'AI Chat',         routerLink: '/corporate/chat',                          icon: 'heroChatBubbleLeftEllipsis' },
     { label: 'Değerlendirmeler',routerLink: '/corporate/reviews',                       icon: 'heroStar' },
     { label: 'Müşteri Analizi', routerLink: '/corporate/customers',                     icon: 'heroUserGroup' },
     { label: 'Gelir Raporu',    routerLink: '/corporate/revenue-drilldown',             icon: 'heroCurrencyDollar' }

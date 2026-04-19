@@ -505,6 +505,7 @@ public class OrderService {
 
         String previousStatus = order.getStatus();
         order.setStatus(nextStatus);
+        orderRepository.saveAndFlush(order);
         auditLogService.log(
             currentUserService.requireCurrentAppUser(),
             "ORDER_STATUS_UPDATED",

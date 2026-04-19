@@ -71,6 +71,12 @@ export const corporateRoutes: Routes = [
     title: 'Analizler'
   },
   {
+    path: 'chat',
+    loadComponent: () =>
+      import('../chat/chat-home.component').then((m) => m.ChatHomeComponent),
+    title: 'AI Chat'
+  },
+  {
     path: 'customers',
     loadComponent: () =>
       import('./customers/customer-insights.component').then((m) => m.CustomerInsightsComponent),

@@ -165,7 +165,8 @@ export class CorporateOrderListComponent {
   }
 
   onOrderStatusChange(order: OrderSummaryResponse, ev: Event): void {
-    const status = (ev.target as HTMLSelectElement).value;
+    const select = ev.target as HTMLSelectElement;
+    const status = select.value;
     if (!status || status === order.status) {
       return;
     }
@@ -187,12 +188,37 @@ export class CorporateOrderListComponent {
         );
         this.removeSavingOrder(order.orderId);
       },
-      error: () => this.removeSavingOrder(order.orderId)
+      error: () => {
+        select.value = order.status;
+        this.removeSavingOrder(order.orderId);
+      }
     });
   }
 
   isOrderSaving(orderId: string): boolean {
     return this.savingOrderIds().has(orderId);
+  }
+
+  statusOptionsFor(status: string): readonly string[] {
+    const normalized = (status ?? '').toUpperCase();
+    switch (normalized) {
+      case 'PENDING':
+        return ['PENDING', 'PROCESSING', 'CANCELLED'];
+      case 'PROCESSING':
+        return ['PROCESSING', 'SHIPPED', 'CANCELLED'];
+      case 'SHIPPED':
+        return ['SHIPPED', 'DELIVERED'];
+      case 'DELIVERED':
+        return ['DELIVERED'];
+      case 'CANCELLED':
+        return ['CANCELLED'];
+      default:
+        return [normalized || 'PENDING'];
+    }
+  }
+
+  isStatusLocked(status: string): boolean {
+    return this.statusOptionsFor(status).length <= 1;
   }
 
   setDisplayCurrency(value: string): void {

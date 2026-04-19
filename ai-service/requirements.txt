@@ -4,3 +4,5 @@ pydantic==2.11.5
 pydantic-settings==2.8.1
 langgraph==0.3.34
 chainlit==2.5.5
+httpx==0.28.1
+cachetools>=5.3.0

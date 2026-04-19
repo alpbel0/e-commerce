@@ -32,6 +32,16 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
         """)
     ReviewStats calculateStatsByProductId(UUID productId);
 
+    @Query("""
+        select
+            count(r) as reviewCount,
+            avg(r.starRating) as averageRating
+        from Review r
+        where r.product.store.id = :storeId
+          and r.active = true
+        """)
+    ReviewStats calculateStatsByStoreId(UUID storeId);
+
     interface ReviewStats {
         long getReviewCount();
         Double getAverageRating();

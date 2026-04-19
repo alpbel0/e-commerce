@@ -43,6 +43,7 @@ export class AdminLayoutComponent {
     { label: 'Kategoriler',    routerLink: '/admin/categories',              icon: 'heroTag' },
     { label: 'Audit Loglar',   routerLink: '/admin/audit-logs',              icon: 'heroClipboardDocumentList' },
     { label: 'Analizler',      routerLink: '/admin/analytics',               icon: 'heroArrowTrendingUp' },
+    { label: 'AI Chat',        routerLink: '/admin/chat',                    icon: 'heroChatBubbleLeftEllipsis' },
     { label: 'Sistem Ayarları',routerLink: '/admin/settings',                icon: 'heroCog6Tooth' }
   ];
 }

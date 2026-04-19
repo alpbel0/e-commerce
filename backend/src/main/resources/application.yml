@@ -8,6 +8,15 @@ server:
   port: 8080
 
 app:
+  chatbot:
+    ai-service-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
+    ai-service-key: ${AI_SERVICE_KEY:change-me-in-production}
+    connection-timeout-seconds: ${CHATBOT_CONNECTION_TIMEOUT:30}
+    read-timeout-seconds: ${CHATBOT_READ_TIMEOUT:60}
+    query-timeout-seconds: ${CHATBOT_QUERY_TIMEOUT_SECONDS:10}
+    rate-limit:
+      requests-per-minute: ${CHATBOT_RATE_LIMIT_RPM:60}
+      burst-size: ${CHATBOT_RATE_LIMIT_BURST:10}
   security:
     jwt:
       secret: ${JWT_SECRET:VGhpc0lzQURlbW9TZWNyZXRLZXlGb3JMb2NhbERldk9ubHlfQ2hhbmdlTWVCZWZvcmVQcm9k}

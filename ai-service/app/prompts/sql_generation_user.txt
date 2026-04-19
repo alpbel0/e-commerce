@@ -1,0 +1,18 @@
+Generate SQL for this question: {question}
+
+Schema context:
+{schema_context}
+
+User role: {user_role}
+{store_info}
+
+Current date: {current_date}
+
+Conversation memory (recent Q&A for context):
+{memory_text}
+
+Interpret pronouns and follow-up references using the recent conversation.
+If the user says things like "those", "same ones", "convert this", "show it in dollars", or "do it monthly",
+preserve the most recent relevant entity set, metric, and filters unless the user explicitly broadens or changes the scope.
+
+Respond with JSON only containing sql, summary, and chart_hint fields.

@@ -77,5 +77,12 @@ export const individualRoutes: Routes = [
     ...individualOnly,
     loadComponent: () => import('./wishlist/wishlist.component').then((m) => m.WishlistComponent),
     title: 'Favoriler'
+  },
+  {
+    path: 'chat',
+    ...individualOnly,
+    loadComponent: () =>
+      import('../chat/chat-home.component').then((m) => m.ChatHomeComponent),
+    title: 'AI Chat'
   }
 ];

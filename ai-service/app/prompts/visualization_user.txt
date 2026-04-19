@@ -1,0 +1,10 @@
+{language_instruction}
+
+Create a visualization for this query result.
+
+Suggested chart type: {chart_hint}
+
+Data:
+{result_data}
+
+Respond with JSON only.

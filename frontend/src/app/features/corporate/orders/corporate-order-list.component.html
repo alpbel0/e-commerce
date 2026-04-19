@@ -55,10 +55,10 @@
                 class="status-select"
                 [class]="badgeClass(o.status) + ' status-select'"
                 [value]="o.status"
-                [disabled]="isOrderSaving(o.orderId)"
+                [disabled]="isOrderSaving(o.orderId) || isStatusLocked(o.status)"
                 (change)="onOrderStatusChange(o, $event)"
               >
-                @for (s of statusOptions; track s) {
+                @for (s of statusOptionsFor(o.status); track s) {
                   <option [value]="s">{{ s }}</option>
                 }
               </select>

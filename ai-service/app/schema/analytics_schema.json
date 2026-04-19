@@ -1,0 +1,279 @@
+{
+  "schemaVersion": "1.1.0",
+  "tables": [
+    {
+      "tableName": "stores",
+      "description": "Store information. Corporate users can only query their own stores.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "name", "dataType": "VARCHAR(255)", "description": "Store name", "isSensitive": false, "isPII": false},
+        {"name": "description", "dataType": "TEXT", "description": "Store description", "isSensitive": false, "isPII": false},
+        {"name": "logo_url", "dataType": "VARCHAR(500)", "description": "Store logo URL", "isSensitive": false, "isPII": false},
+        {"name": "total_sales", "dataType": "DECIMAL(12,2)", "description": "Total revenue", "isSensitive": false, "isPII": false},
+        {"name": "product_count", "dataType": "INTEGER", "description": "Number of products", "isSensitive": false, "isPII": false},
+        {"name": "rating", "dataType": "DECIMAL(3,2)", "description": "Stored store rating snapshot; for analytics compute ratings from reviews via products", "isSensitive": false, "isPII": false},
+        {"name": "status", "dataType": "VARCHAR(50)", "description": "PENDING/OPEN/CLOSED/SUSPENDED", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "products",
+      "description": "Product catalog. Each product belongs to a store.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "store_id", "dataType": "UUID", "description": "FK to stores.id", "isSensitive": false, "isPII": false},
+        {"name": "category_id", "dataType": "UUID", "description": "FK to categories.id", "isSensitive": false, "isPII": false},
+        {"name": "sku", "dataType": "VARCHAR(100)", "description": "Stock keeping unit", "isSensitive": false, "isPII": false},
+        {"name": "title", "dataType": "VARCHAR(255)", "description": "Product title", "isSensitive": false, "isPII": false},
+        {"name": "description", "dataType": "TEXT", "description": "Product description", "isSensitive": false, "isPII": false},
+        {"name": "brand", "dataType": "VARCHAR(100)", "description": "Brand name", "isSensitive": false, "isPII": false},
+        {"name": "currency", "dataType": "VARCHAR(3)", "description": "Product currency code (USD/TRY/EUR)", "isSensitive": false, "isPII": false},
+        {"name": "unit_price", "dataType": "DECIMAL(10,2)", "description": "Unit price in the product currency", "isSensitive": false, "isPII": false},
+        {"name": "discount_percentage", "dataType": "DECIMAL(5,2)", "description": "Discount percentage (0-100)", "isSensitive": false, "isPII": false},
+        {"name": "stock_quantity", "dataType": "INTEGER", "description": "Available stock", "isSensitive": false, "isPII": false},
+        {"name": "avg_rating", "dataType": "DECIMAL(3,2)", "description": "Stored product rating snapshot; for analytics ranking compute AVG(reviews.star_rating)", "isSensitive": false, "isPII": false},
+        {"name": "review_count", "dataType": "INTEGER", "description": "Stored review count snapshot; for analytics ranking compute COUNT(reviews.id)", "isSensitive": false, "isPII": false},
+        {"name": "total_sales", "dataType": "INTEGER", "description": "Total units sold", "isSensitive": false, "isPII": false},
+        {"name": "is_active", "dataType": "BOOLEAN", "description": "Whether product is active", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "categories",
+      "description": "Category hierarchy. Supports parent-child relationships.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "name", "dataType": "VARCHAR(255)", "description": "Category name", "isSensitive": false, "isPII": false},
+        {"name": "slug", "dataType": "VARCHAR(255)", "description": "URL-friendly name", "isSensitive": false, "isPII": false},
+        {"name": "description", "dataType": "TEXT", "description": "Category description", "isSensitive": false, "isPII": false},
+        {"name": "icon_url", "dataType": "VARCHAR(500)", "description": "Icon URL", "isSensitive": false, "isPII": false},
+        {"name": "display_order", "dataType": "INTEGER", "description": "Display order", "isSensitive": false, "isPII": false},
+        {"name": "parent_id", "dataType": "UUID", "description": "FK to parent category.id", "isSensitive": false, "isPII": false},
+        {"name": "level", "dataType": "INTEGER", "description": "Hierarchy level (0=root)", "isSensitive": false, "isPII": false},
+        {"name": "is_active", "dataType": "BOOLEAN", "description": "Whether category is active", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "orders",
+      "description": "Orders. Each order belongs to a user and a store.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "user_id", "dataType": "UUID", "description": "FK to users.id", "isSensitive": false, "isPII": false},
+        {"name": "store_id", "dataType": "UUID", "description": "FK to stores.id", "isSensitive": false, "isPII": false},
+        {"name": "increment_id", "dataType": "VARCHAR(100)", "description": "Human-readable order number", "isSensitive": false, "isPII": false},
+        {"name": "order_date", "dataType": "TIMESTAMP", "description": "Order date", "isSensitive": false, "isPII": false},
+        {"name": "status", "dataType": "VARCHAR(50)", "description": "PENDING/CONFIRMED/PROCESSING/SHIPPED/DELIVERED/CANCELLED/RETURNED", "isSensitive": false, "isPII": false},
+        {"name": "payment_status", "dataType": "VARCHAR(50)", "description": "PENDING/PAID/FAILED/REFUNDED", "isSensitive": false, "isPII": false},
+        {"name": "payment_method", "dataType": "VARCHAR(100)", "description": "Payment method code", "isSensitive": false, "isPII": false},
+        {"name": "subtotal", "dataType": "DECIMAL(12,2)", "description": "Items subtotal", "isSensitive": false, "isPII": false},
+        {"name": "discount_amount", "dataType": "DECIMAL(12,2)", "description": "Discount applied", "isSensitive": false, "isPII": false},
+        {"name": "shipping_fee", "dataType": "DECIMAL(10,2)", "description": "Shipping fee", "isSensitive": false, "isPII": false},
+        {"name": "tax_amount", "dataType": "DECIMAL(10,2)", "description": "Tax amount", "isSensitive": false, "isPII": false},
+        {"name": "grand_total", "dataType": "DECIMAL(12,2)", "description": "Final total amount", "isSensitive": false, "isPII": false},
+        {"name": "currency", "dataType": "VARCHAR(3)", "description": "Currency code (USD/TRY/EUR)", "isSensitive": false, "isPII": false},
+        {"name": "coupon_code", "dataType": "VARCHAR(50)", "description": "Applied coupon code", "isSensitive": false, "isPII": false},
+        {"name": "notes", "dataType": "TEXT", "description": "Order notes", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "order_items",
+      "description": "Order line items. Each item belongs to an order and a product.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "order_id", "dataType": "UUID", "description": "FK to orders.id", "isSensitive": false, "isPII": false},
+        {"name": "product_id", "dataType": "UUID", "description": "FK to products.id", "isSensitive": false, "isPII": false},
+        {"name": "quantity", "dataType": "INTEGER", "description": "Quantity ordered", "isSensitive": false, "isPII": false},
+        {"name": "unit_price_at_purchase", "dataType": "DECIMAL(10,2)", "description": "Price at purchase time", "isSensitive": false, "isPII": false},
+        {"name": "discount_applied", "dataType": "DECIMAL(5,2)", "description": "Discount applied", "isSensitive": false, "isPII": false},
+        {"name": "subtotal", "dataType": "DECIMAL(10,2)", "description": "Line item total", "isSensitive": false, "isPII": false},
+        {"name": "return_status", "dataType": "VARCHAR(50)", "description": "NONE/REQUESTED/APPROVED/REJECTED/COMPLETED", "isSensitive": false, "isPII": false},
+        {"name": "return_reason", "dataType": "TEXT", "description": "Reason for return", "isSensitive": false, "isPII": false},
+        {"name": "returned_quantity", "dataType": "INTEGER", "description": "Quantity returned", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "shipments",
+      "description": "Shipment/delivery information. One per order.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "order_id", "dataType": "UUID", "description": "FK to orders.id (UNIQUE)", "isSensitive": false, "isPII": false},
+        {"name": "tracking_number", "dataType": "VARCHAR(100)", "description": "Carrier tracking number", "isSensitive": false, "isPII": false},
+        {"name": "mode_of_shipment", "dataType": "VARCHAR(50)", "description": "Shipping mode", "isSensitive": false, "isPII": false},
+        {"name": "carrier_name", "dataType": "VARCHAR(100)", "description": "Carrier name (FedEx, UPS, etc.)", "isSensitive": false, "isPII": false},
+        {"name": "estimated_delivery_date", "dataType": "DATE", "description": "Estimated delivery date", "isSensitive": false, "isPII": false},
+        {"name": "actual_delivery_date", "dataType": "DATE", "description": "Actual delivery date", "isSensitive": false, "isPII": false},
+        {"name": "status", "dataType": "VARCHAR(50)", "description": "PENDING/PICKED/IN_TRANSIT/OUT_FOR_DELIVERY/DELIVERED/FAILED/RETURNED", "isSensitive": false, "isPII": false},
+        {"name": "shipped_at", "dataType": "TIMESTAMP", "description": "Shipped timestamp", "isSensitive": false, "isPII": false},
+        {"name": "delivered_at", "dataType": "TIMESTAMP", "description": "Delivered timestamp", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "reviews",
+      "description": "Product reviews. Users rate products 1-5 stars.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "user_id", "dataType": "UUID", "description": "FK to users.id", "isSensitive": false, "isPII": false},
+        {"name": "product_id", "dataType": "UUID", "description": "FK to products.id", "isSensitive": false, "isPII": false},
+        {"name": "order_id", "dataType": "UUID", "description": "FK to orders.id (optional)", "isSensitive": false, "isPII": false},
+        {"name": "star_rating", "dataType": "INTEGER", "description": "Rating 1-5", "isSensitive": false, "isPII": false},
+        {"name": "review_title", "dataType": "VARCHAR(255)", "description": "Review headline", "isSensitive": false, "isPII": false},
+        {"name": "review_text", "dataType": "TEXT", "description": "Full review text", "isSensitive": false, "isPII": false},
+        {"name": "verified_purchase", "dataType": "BOOLEAN", "description": "Verified purchase flag", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "customer_profiles",
+      "description": "Customer demographic and behavioral data. For aggregate analysis only - no PII.",
+      "columns": [
+        {"name": "user_id", "dataType": "UUID", "description": "FK to users.id (PRIMARY KEY)", "isSensitive": false, "isPII": false},
+        {"name": "gender", "dataType": "VARCHAR(20)", "description": "MALE/FEMALE/OTHER", "isSensitive": false, "isPII": false},
+        {"name": "age", "dataType": "INTEGER", "description": "Customer age", "isSensitive": false, "isPII": false},
+        {"name": "city", "dataType": "VARCHAR(100)", "description": "City name", "isSensitive": false, "isPII": false},
+        {"name": "membership_type", "dataType": "VARCHAR(50)", "description": "Observed values in current dataset: Bronze/Silver/Gold", "isSensitive": false, "isPII": false},
+        {"name": "total_spend", "dataType": "DECIMAL(12,2)", "description": "Lifetime spend", "isSensitive": false, "isPII": false},
+        {"name": "prior_purchases", "dataType": "INTEGER", "description": "Previous order count", "isSensitive": false, "isPII": false},
+        {"name": "satisfaction_level", "dataType": "INTEGER", "description": "Satisfaction score 1-10", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "currency_rates",
+      "description": "Exchange rates. Base currency is USD.",
+      "columns": [
+        {"name": "id", "dataType": "SERIAL", "description": "Primary key (integer)", "isSensitive": false, "isPII": false},
+        {"name": "base_currency", "dataType": "VARCHAR(3)", "description": "Base currency code (USD)", "isSensitive": false, "isPII": false},
+        {"name": "target_currency", "dataType": "VARCHAR(3)", "description": "Target currency code", "isSensitive": false, "isPII": false},
+        {"name": "rate", "dataType": "DECIMAL(18,6)", "description": "Exchange rate (1 base = X target)", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "payments",
+      "description": "Payment records. One per order.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "order_id", "dataType": "UUID", "description": "FK to orders.id (UNIQUE)", "isSensitive": false, "isPII": false},
+        {"name": "payment_method_id", "dataType": "UUID", "description": "FK to payment_methods.id", "isSensitive": false, "isPII": false},
+        {"name": "provider", "dataType": "VARCHAR(50)", "description": "Payment provider (STRIPE)", "isSensitive": false, "isPII": false},
+        {"name": "status", "dataType": "VARCHAR(50)", "description": "PENDING/REQUIRES_ACTION/SUCCEEDED/FAILED/REFUNDED/PARTIALLY_REFUNDED", "isSensitive": false, "isPII": false},
+        {"name": "amount", "dataType": "DECIMAL(12,2)", "description": "Payment amount", "isSensitive": false, "isPII": false},
+        {"name": "currency", "dataType": "VARCHAR(3)", "description": "Currency code", "isSensitive": false, "isPII": false},
+        {"name": "failure_message", "dataType": "TEXT", "description": "Failure message if failed", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    },
+    {
+      "tableName": "payment_methods",
+      "description": "Available payment methods.",
+      "columns": [
+        {"name": "id", "dataType": "UUID", "description": "Primary key", "isSensitive": false, "isPII": false},
+        {"name": "code", "dataType": "VARCHAR(50)", "description": "Method code (STRIPE_CARD, CREDIT_CARD, etc.)", "isSensitive": false, "isPII": false},
+        {"name": "name", "dataType": "VARCHAR(100)", "description": "Display name", "isSensitive": false, "isPII": false},
+        {"name": "is_active", "dataType": "BOOLEAN", "description": "Whether method is active", "isSensitive": false, "isPII": false},
+        {"name": "created_at", "dataType": "TIMESTAMP", "description": "Creation timestamp", "isSensitive": false, "isPII": false},
+        {"name": "updated_at", "dataType": "TIMESTAMP", "description": "Last update timestamp", "isSensitive": false, "isPII": false}
+      ],
+      "isAccessible": true
+    }
+  ],
+  "relationships": [
+    {"fromTable": "products", "fromColumn": "store_id", "toTable": "stores", "toColumn": "id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "products", "fromColumn": "category_id", "toTable": "categories", "toColumn": "id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "orders", "fromColumn": "store_id", "toTable": "stores", "toColumn": "id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "orders", "fromColumn": "user_id", "toTable": "customer_profiles", "toColumn": "user_id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "order_items", "fromColumn": "order_id", "toTable": "orders", "toColumn": "id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "order_items", "fromColumn": "product_id", "toTable": "products", "toColumn": "id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "shipments", "fromColumn": "order_id", "toTable": "orders", "toColumn": "id", "relationshipType": "ONE_TO_ONE"},
+    {"fromTable": "reviews", "fromColumn": "product_id", "toTable": "products", "toColumn": "id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "reviews", "fromColumn": "user_id", "toTable": "customer_profiles", "toColumn": "user_id", "relationshipType": "MANY_TO_ONE"},
+    {"fromTable": "payments", "fromColumn": "order_id", "toTable": "orders", "toColumn": "id", "relationshipType": "ONE_TO_ONE"},
+    {"fromTable": "payments", "fromColumn": "payment_method_id", "toTable": "payment_methods", "toColumn": "id", "relationshipType": "MANY_TO_ONE"}
+  ],
+  "roleRules": {
+    "adminAccessibleTables": ["stores", "products", "categories", "orders", "order_items", "shipments", "reviews", "customer_profiles", "currency_rates", "payments", "payment_methods"],
+    "corporateAccessibleTables": ["stores", "products", "categories", "orders", "order_items", "shipments", "reviews", "customer_profiles", "currency_rates", "payments", "payment_methods"],
+    "individualAccessibleTables": ["orders", "order_items", "shipments", "reviews", "customer_profiles", "products", "categories"],
+    "sensitiveColumns": ["password", "password_hash", "email", "contact_email", "phone", "contact_phone", "address", "token", "refresh_token", "secret", "reset_token", "owner_id", "customer_email", "customer_phone", "shipping_address_line1", "shipping_address_line2", "shipping_city", "shipping_state", "shipping_postal_code", "shipping_country"],
+    "piiColumns": ["email", "contact_email", "phone", "contact_phone", "address", "customer_email", "customer_phone", "shipping_address_line1", "shipping_address_line2", "shipping_city", "shipping_state", "shipping_postal_code", "shipping_country"]
+  },
+  "tableMetadata": {
+    "reviews": {
+      "joinBehavior": "fanout",
+      "duplicatesParentTables": ["products"]
+    },
+    "order_items": {
+      "joinBehavior": "fanout",
+      "duplicatesParentTables": ["orders", "products"]
+    }
+  },
+  "columnPolicies": {
+    "stores.total_sales": {
+      "semantic_type": "snapshot_metric",
+      "aggregation_safe": false
+    },
+    "stores.rating": {
+      "semantic_type": "derived_metric",
+      "aggregation_safe": false
+    },
+    "products.avg_rating": {
+      "semantic_type": "derived_metric",
+      "aggregation_safe": false
+    },
+    "products.review_count": {
+      "semantic_type": "derived_metric",
+      "aggregation_safe": false
+    },
+    "products.total_sales": {
+      "semantic_type": "snapshot_metric",
+      "aggregation_safe": false
+    },
+    "orders.grand_total": {
+      "semantic_type": "additive_metric",
+      "aggregation_safe": true
+    },
+    "order_items.quantity": {
+      "semantic_type": "additive_metric",
+      "aggregation_safe": true
+    },
+    "order_items.subtotal": {
+      "semantic_type": "additive_metric",
+      "aggregation_safe": true
+    },
+    "reviews.star_rating": {
+      "semantic_type": "ratio_metric",
+      "aggregation_safe": false
+    },
+    "payments.amount": {
+      "semantic_type": "additive_metric",
+      "aggregation_safe": true
+    },
+    "customer_profiles.total_spend": {
+      "semantic_type": "snapshot_metric",
+      "aggregation_safe": false
+    }
+  }
+}

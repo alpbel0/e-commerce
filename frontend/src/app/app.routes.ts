@@ -41,13 +41,6 @@ export const appRoutes: Routes = [
     loadChildren: () => import('./features/admin/admin.routes').then((m) => m.adminRoutes)
   },
 
-  {
-    path: 'chat',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/chat/chat-home.component').then((m) => m.ChatHomeComponent),
-    title: 'Chat'
-  },
-
   { path: 'unauthorized', component: UnauthorizedComponent, title: 'Yetkisiz' },
   { path: '**', redirectTo: 'auth/login' }
 ];
