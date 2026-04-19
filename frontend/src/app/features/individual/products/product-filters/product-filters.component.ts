@@ -19,31 +19,90 @@ export interface ProductFilterValues {
   templateUrl: './product-filters.component.html',
   styles: [
     `
-      .row {
+      .filter-bar {
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
         gap: 12px;
-        align-items: flex-end;
-        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
       }
-      .field {
+
+      /* Search */
+      .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+      }
+      .search-icon {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+      .search-input {
+        padding-left: 36px !important;
+        height: 40px;
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        background: var(--clr-slate-50);
+        transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
+      }
+      .search-input:focus {
+        border-color: var(--clr-primary-500);
+        box-shadow: 0 0 0 3px rgba(14,165,233,.15);
+        background: #fff;
+      }
+
+      /* Selects */
+      .selects-group {
         display: flex;
-        flex-direction: column;
-        gap: 4px;
+        gap: 10px;
+        flex-wrap: wrap;
       }
-      .field label {
-        font-size: 0.75rem;
-        color: #64748b;
+      .select-wrap {
+        position: relative;
       }
-      select,
-      input {
-        padding: 0.45rem 0.6rem;
-        border-radius: 8px;
-        border: 1px solid #cbd5e1;
-        min-width: 160px;
+      .select-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
       }
-      .q {
-        min-width: 220px;
+      .select-wrap select {
+        height: 40px;
+        padding: 0 12px 0 30px;
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md);
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: var(--clr-slate-50);
+        min-width: 150px;
+        width: auto;
+        cursor: pointer;
+        transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
+        appearance: auto;
+      }
+      .select-wrap select:focus {
+        border-color: var(--clr-primary-500);
+        box-shadow: 0 0 0 3px rgba(14,165,233,.15);
+        background: #fff;
+      }
+
+      @media (max-width: 640px) {
+        .filter-bar { flex-direction: column; align-items: stretch; }
+        .selects-group { flex-direction: column; }
+        .select-wrap select { width: 100%; }
       }
     `
   ]

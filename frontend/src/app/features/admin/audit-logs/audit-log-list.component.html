@@ -1,40 +1,41 @@
-<h2>Audit log</h2>
+<h1 class="page-title">Audit Logs</h1>
 
-<div class="filters">
-  <input type="search" [(ngModel)]="actionFilter" placeholder="Aksiyon (orn. ORDER_STATUS)" (keyup.enter)="applyAction()" />
-  <button type="button" (click)="applyAction()">Filtrele</button>
+<div class="search-bar">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input type="search" [(ngModel)]="actionFilter" placeholder="Aksiyon filtresi (örn. ORDER_STATUS_CHANGED)…" (keyup.enter)="applyAction()" />
+  <button type="button" class="btn-search" (click)="applyAction()">Filtrele</button>
 </div>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Kayitlar yuklenemedi." (retry)="load()" />
+  <app-error-state message="Kayıtlar yüklenemedi." (retry)="load()" />
 } @else {
-  <table>
-    <thead>
-      <tr>
-        <th>Zaman</th>
-        <th>Aksiyon</th>
-        <th>Entity</th>
-        <th>Entity ID</th>
-        <th>User ID</th>
-        <th>Kullanici</th>
-        <th>Detay</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (item of items(); track item.id) {
+  <div class="table-card">
+    <table class="ec-table">
+      <thead>
         <tr>
-          <td>{{ shortAt(item.createdAt) }}</td>
-          <td><a [routerLink]="['/admin/audit-logs', item.id]" style="color:#2563eb;text-decoration:none">{{ item.action }}</a></td>
-          <td>{{ item.entityType ?? '-' }}</td>
-          <td>{{ item.entityId ?? '-' }}</td>
-          <td>{{ item.userId ?? '-' }}</td>
-          <td>{{ item.actorUserEmail ?? '-' }}</td>
-          <td class="details">{{ item.details }}</td>
+          <th>Zaman</th>
+          <th>Aksiyon</th>
+          <th>Entity</th>
+          <th>Entity ID</th>
+          <th>Kullanıcı</th>
+          <th>Detay</th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+          <tr>
+            <td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted)">{{ shortAt(item.createdAt) }}</td>
+            <td><a class="action-link" [routerLink]="['/admin/audit-logs', item.id]">{{ item.action }}</a></td>
+            <td style="font-size:.78rem;color:var(--text-secondary)">{{ item.entityType ?? '-' }}</td>
+            <td style="font-family:monospace;font-size:.72rem;color:var(--text-muted)">{{ (item.entityId ?? '-') | slice:0:12 }}…</td>
+            <td style="font-size:.78rem">{{ item.actorUserEmail ?? '-' }}</td>
+            <td class="details">{{ item.details }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
 }

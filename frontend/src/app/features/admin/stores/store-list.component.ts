@@ -17,33 +17,38 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
   templateUrl: './store-list.component.html',
   styles: [
     `
-      h2 {
-        margin: 0 0 1rem;
+      .page-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; margin-bottom: 20px; }
+
+      .toolbar {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        background: #fff; border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg); padding: 12px 16px;
+        margin-bottom: 16px; box-shadow: var(--shadow-sm);
       }
-      .filters {
-        margin-bottom: 1rem;
+      .toolbar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+      .toolbar select {
+        height: 34px; padding: 0 10px;
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md); font-size: 0.82rem; min-width: 130px;
       }
-      .filters select {
-        padding: 0.35rem 0.5rem;
-        border-radius: 8px;
-        border: 1px solid #cbd5e1;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 8px 6px;
-        border-bottom: 1px solid #e2e8f0;
-      }
+
+      .table-card { background: #fff; border: 1px solid var(--border-default); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sm); }
+
+      .store-link { color: var(--clr-primary-600); text-decoration: none; font-weight: 600; }
+      .store-link:hover { text-decoration: underline; }
+
+      .status-badge { display: inline-block; padding: 2px 10px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+      .s-OPEN      { background: #dcfce7; color: #166534; }
+      .s-CLOSED    { background: #f1f5f9; color: #475569; }
+      .s-SUSPENDED { background: #fee2e2; color: #991b1b; }
+
       select.sm {
-        padding: 0.25rem 0.35rem;
-        border-radius: 6px;
-        font-size: 0.8rem;
+        height: 30px; padding: 0 8px;
+        border-radius: var(--radius-sm); border: 1.5px solid var(--border-default);
+        background: #fff; font-size: 0.75rem; font-weight: 600;
+        transition: border-color var(--trans-fast);
       }
+      select.sm:focus { border-color: var(--clr-primary-500); outline: none; }
     `
   ]
 })

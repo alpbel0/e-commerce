@@ -28,64 +28,77 @@ import { ProductStockEditComponent } from './product-stock-edit.component';
   templateUrl: './product-management-list.component.html',
   styles: [
     `
-      .head {
+      .page-header {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 1rem;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
       }
-      h2 {
-        margin: 0;
-      }
-      .new {
-        padding: 0.45rem 0.9rem;
-        border-radius: 8px;
-        background: #2563eb;
+      .page-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+      .btn-new {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 18px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        background: var(--clr-primary-600);
         color: #fff;
         text-decoration: none;
-        font-size: 0.9rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(2,132,199,.3);
+        transition: background var(--trans-fast), box-shadow var(--trans-fast);
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.88rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 8px 6px;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      .muted {
-        color: #64748b;
-      }
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .actions a,
-      .actions button {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 6px;
-        border: 1px solid #cbd5e1;
+      .btn-new:hover { background: var(--clr-primary-700); color: #fff; }
+
+      .table-card {
         background: #fff;
-        cursor: pointer;
-        color: #2563eb;
-        text-decoration: none;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
       }
-      .actions button.danger {
-        color: #b91c1c;
-        border-color: #fecaca;
+
+      .muted { color: var(--text-muted); font-family: monospace; font-size: 0.8rem; }
+
+      .status-pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: var(--radius-full);
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
       }
-      .badge-off {
-        color: #b91c1c;
-        font-size: 0.72rem;
+      .status-pill--on  { background: #dcfce7; color: #166534; }
+      .status-pill--off { background: #fee2e2; color: #991b1b; }
+
+      .row-actions { display: flex; gap: 6px; }
+      .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 30px;
+        padding: 0 10px;
+        border-radius: var(--radius-sm);
+        border: 1.5px solid var(--border-default);
+        background: #fff;
+        font-size: 0.75rem;
         font-weight: 600;
+        color: var(--clr-primary-600);
+        text-decoration: none;
+        cursor: pointer;
+        transition: all var(--trans-fast);
+        white-space: nowrap;
       }
+      .btn-action:hover { border-color: var(--clr-primary-300, #7dd3fc); background: var(--clr-primary-50); }
+      .btn-action--stock { color: var(--clr-slate-700); }
+      .btn-action--stock:hover { border-color: var(--clr-slate-400); background: var(--clr-slate-50); }
+      .btn-action--danger { color: var(--clr-danger-600); border-color: #fecaca; }
+      .btn-action--danger:hover { background: #fef2f2; border-color: #fca5a5; }
     `
   ]
 })

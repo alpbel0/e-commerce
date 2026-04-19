@@ -14,62 +14,78 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
   templateUrl: './profile.component.html',
   styles: [
     `
-      h2 {
-        margin: 0 0 1rem;
+      .page-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; margin-bottom: 24px; }
+
+      .profile-card {
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        padding: 28px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 20px;
+        max-width: 600px;
       }
-      section {
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid #e2e8f0;
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-default);
       }
-      h3 {
-        margin: 0 0 12px;
-        font-size: 1.05rem;
+      .card-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px; height: 40px;
+        background: var(--clr-primary-50);
+        border-radius: var(--radius-md);
+        color: var(--clr-primary-600);
+        flex-shrink: 0;
       }
-      .field {
-        margin-bottom: 12px;
-        max-width: 420px;
+      .card-title { font-size: 1rem; font-weight: 700; margin: 0; }
+      .card-subtitle { font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0; }
+
+      .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      @media (max-width: 480px) { .field-grid { grid-template-columns: 1fr; } }
+
+      .field { display: flex; flex-direction: column; gap: 5px; }
+      .field-full { grid-column: 1 / -1; }
+      label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+      input, textarea {
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
       }
-      label {
-        display: block;
-        font-size: 0.8rem;
-        color: #475569;
-        margin-bottom: 4px;
+      input:focus, textarea:focus {
+        border-color: var(--clr-primary-500);
+        box-shadow: 0 0 0 3px rgba(14,165,233,.15);
       }
-      input,
-      textarea {
-        width: 100%;
-        padding: 0.45rem 0.55rem;
-        border-radius: 8px;
-        border: 1px solid #cbd5e1;
-        box-sizing: border-box;
-      }
-      textarea {
-        min-height: 72px;
-        resize: vertical;
-      }
-      button {
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
+      textarea { min-height: 80px; resize: vertical; }
+
+      .save-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.6rem 1.4rem;
+        border-radius: var(--radius-md);
         border: none;
-        background: #0f172a;
+        background: var(--clr-primary-600);
         color: #fff;
+        font-size: 0.875rem;
+        font-weight: 700;
         cursor: pointer;
-        margin-top: 4px;
+        margin-top: 16px;
+        transition: background var(--trans-fast), box-shadow var(--trans-fast);
       }
-      button.secondary {
-        background: #334155;
-      }
-      .err {
-        color: #b91c1c;
-        font-size: 0.85rem;
-        margin-top: 6px;
-      }
-      .meta {
-        font-size: 0.85rem;
-        color: #64748b;
-        margin-bottom: 8px;
-      }
+      .save-btn:hover:not(:disabled) { background: var(--clr-primary-700); box-shadow: 0 4px 12px rgba(2,132,199,.3); }
+      .save-btn:disabled { opacity: .55; cursor: not-allowed; }
+      .save-btn.secondary { background: var(--clr-slate-700); }
+      .save-btn.secondary:hover:not(:disabled) { background: var(--clr-slate-900); box-shadow: none; }
+
+      .err { color: var(--clr-danger-500); font-size: 0.8rem; margin-top: 4px; }
     `
   ]
 })

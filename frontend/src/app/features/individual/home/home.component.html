@@ -1,4 +1,35 @@
-<h2>Öne Çıkan Ürünler</h2>
+<!-- Hero -->
+<section class="hero">
+  <div class="hero__content">
+    <div class="hero__badge">Yeni Sezon</div>
+    <h1 class="hero__title">Keşfet, Beğen,<br/>Sepete Ekle</h1>
+    <p class="hero__sub">Binlerce ürün, yüzlerce mağaza, tek platform.</p>
+    <div class="hero__actions">
+      <a class="hero__cta" routerLink="/app/products">
+        Alışverişe Başla
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+      </a>
+      <a class="hero__cta-ghost" routerLink="/app/orders">Siparişlerim</a>
+    </div>
+  </div>
+  <div class="hero__visual" aria-hidden="true">
+    <div class="hero__blob"></div>
+    <svg class="hero__icon" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <path d="M16 10a4 4 0 0 1-8 0"/>
+    </svg>
+  </div>
+</section>
+
+<!-- Featured products -->
+<div class="section-header">
+  <h2 class="section-title">Öne Çıkan Ürünler</h2>
+  <a class="section-link" routerLink="/app/products">
+    Tümünü gör
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+</div>
 
 @if (loading()) {
   <app-loading-spinner />
@@ -14,24 +45,26 @@
           @if (hasImage(p)) {
             <img [src]="p.primaryImageUrl!" [alt]="imageAlt(p)" loading="lazy" />
           } @else {
-            <span class="cover-empty">Görsel yok</span>
+            <div class="cover-empty">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".3">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="m21 15-5-5L5 21"/>
+              </svg>
+            </div>
+          }
+          @if (showDiscount(p)) {
+            <span class="discount-pill">%{{ discountPct(p) }}</span>
           }
         </a>
         <div class="content">
-          <h3>
-            <a class="title" [routerLink]="['/app/products', p.id]">{{ p.title }}</a>
-          </h3>
           <div class="meta">{{ p.storeName }} · {{ p.categoryName }}</div>
+          <h3><a class="title" [routerLink]="['/app/products', p.id]">{{ p.title }}</a></h3>
+          <div class="stars">{{ starString(stars(p)) }} <span class="rc">({{ p.reviewCount }})</span></div>
           <div class="price-row">
-            @if (showDiscount(p)) {
-              <span class="old">{{ formatMoney(p.unitPrice, p.currency) }}</span>
-            }
             <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2), p.currency) }}</span>
+            @if (showDiscount(p)) { <span class="old">{{ formatMoney(p.unitPrice, p.currency) }}</span> }
           </div>
-          <div class="stars">{{ starString(stars(p)) }} ({{ p.reviewCount }})</div>
-          <div class="actions">
-            <a class="detail" [routerLink]="['/app/products', p.id]">Detay</a>
-          </div>
+          <a class="btn-detail" [routerLink]="['/app/products', p.id]">İncele</a>
         </div>
       </article>
     }

@@ -18,131 +18,145 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
   templateUrl: './coupons.component.html',
   styles: [
     `
-      h2 {
-        margin: 0 0 1rem;
-      }
       .page-header {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
+        gap: 12px;
+        margin-bottom: 24px;
         flex-wrap: wrap;
-        gap: 1rem;
       }
+      .page-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+
+      /* Form card */
       .form-card {
         background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 20px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
         margin-bottom: 24px;
       }
-      .form-card h3 {
-        margin: 0 0 1rem;
-        font-size: 1.1rem;
+      .form-card__header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-default);
+        background: var(--clr-slate-50);
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
+      .form-card__icon {
+        width: 32px; height: 32px;
+        background: var(--clr-primary-50);
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--clr-primary-600);
+      }
+      .form-card__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
+      .form-card__body { padding: 20px; }
+
       .form-row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: 14px;
+        margin-bottom: 16px;
       }
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .form-group label {
-        font-size: 0.85rem;
-        color: #475569;
-        font-weight: 500;
-      }
+      .form-group { display: flex; flex-direction: column; gap: 5px; }
+      .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
       .form-group input {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        font-size: 0.9rem;
+        height: 40px;
+        padding: 0 12px;
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
       }
       .form-group input:focus {
+        border-color: var(--clr-primary-500);
+        box-shadow: 0 0 0 3px rgba(14,165,233,.15);
         outline: none;
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       }
+      .btn-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .btn-primary {
-        padding: 0.5rem 1rem;
-        background: #2563eb;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 38px;
+        padding: 0 16px;
+        background: var(--clr-primary-600);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        font-weight: 700;
         cursor: pointer;
-        font-size: 0.9rem;
-        font-weight: 500;
-        margin-right: 8px;
+        transition: background var(--trans-fast), box-shadow var(--trans-fast);
       }
-      .btn-primary:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+      .btn-primary:hover:not(:disabled) { background: var(--clr-primary-700); box-shadow: 0 4px 10px rgba(2,132,199,.25); }
+      .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+      .btn-cancel {
+        display: inline-flex;
+        align-items: center;
+        height: 38px;
+        padding: 0 14px;
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--trans-fast);
       }
+      .btn-cancel:hover { border-color: var(--clr-slate-400); background: var(--clr-slate-50); }
+
+      /* Table card */
       .table-card {
         background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
         overflow: hidden;
+        box-shadow: var(--shadow-sm);
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9rem;
-      }
-      th {
-        background: #f8fafc;
-        text-align: left;
-        padding: 12px 16px;
-        font-weight: 600;
-        color: #475569;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      td {
-        padding: 12px 16px;
-        border-bottom: 1px solid #f1f5f9;
-      }
-      tr:last-child td {
-        border-bottom: none;
-      }
+
       .status {
         display: inline-flex;
-        padding: 0.25rem 0.5rem;
-        border-radius: 9999px;
+        padding: 2px 10px;
+        border-radius: var(--radius-full);
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+      .status.active  { background: #dcfce7; color: #166534; }
+      .status.inactive { background: #fee2e2; color: #991b1b; }
+
+      .discount-badge {
+        background: var(--clr-primary-50);
+        color: var(--clr-primary-700);
+        padding: 2px 10px;
+        border-radius: var(--radius-full);
+        font-weight: 700;
+        font-size: 0.8rem;
+        border: 1px solid var(--clr-primary-200, #bae6fd);
+      }
+
+      .row-actions { display: flex; gap: 6px; }
+      .btn-action {
+        height: 30px;
+        padding: 0 10px;
+        border-radius: var(--radius-sm);
+        border: 1.5px solid var(--border-default);
+        background: #fff;
         font-size: 0.75rem;
         font-weight: 600;
-      }
-      .status.active {
-        background: #dcfce7;
-        color: #166534;
-      }
-      .status.inactive {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .btn-delete {
-        padding: 0.3rem 0.65rem;
-        background: #fee2e2;
-        color: #991b1b;
-        border: none;
-        border-radius: 6px;
         cursor: pointer;
-        font-size: 0.8rem;
+        transition: all var(--trans-fast);
       }
-      .btn-delete:hover {
-        background: #fecaca;
-      }
-      .discount-badge {
-        background: #eff6ff;
-        color: #1d4ed8;
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 0.85rem;
-      }
+      .btn-action--edit { color: var(--clr-primary-600); }
+      .btn-action--edit:hover { border-color: var(--clr-primary-300, #7dd3fc); background: var(--clr-primary-50); }
+      .btn-action--danger { color: var(--clr-danger-600); border-color: #fecaca; }
+      .btn-action--danger:hover { background: #fef2f2; border-color: #fca5a5; }
     `
   ]
 })

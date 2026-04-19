@@ -1,4 +1,7 @@
-<h2>Favorilerim</h2>
+<div class="page-header">
+  <h1 class="page-title">Favorilerim</h1>
+  @if (items().length > 0) { <span class="page-count">{{ items().length }} ürün</span> }
+</div>
 
 @if (loading()) {
   <app-loading-spinner />

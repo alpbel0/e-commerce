@@ -1,146 +1,159 @@
-<h2>Kullanicilar</h2>
-
-<div class="toolbar">
-  <button type="button" class="primary" (click)="scrollToCreate()">Yeni kullanici</button>
+<div class="page-header">
+  <h1 class="page-title">Kullanıcılar</h1>
+  <button type="button" class="btn-new" (click)="scrollToCreate()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Yeni Kullanıcı
+  </button>
 </div>
 
-<section #createPanel class="create">
-  <h3 style="margin: 0 0 12px; font-size: 1rem">Kullanici olustur</h3>
-  <form [formGroup]="createForm" (ngSubmit)="createUser()">
-    <div class="row">
-      <div>
-        <label for="cu-email">E-posta</label>
-        <input id="cu-email" type="email" autocomplete="off" formControlName="email" />
-      </div>
-      <div>
-        <label for="cu-password">Sifre</label>
-        <input id="cu-password" type="password" autocomplete="new-password" formControlName="password" />
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <label for="cu-fn">Ad</label>
-        <input id="cu-fn" type="text" formControlName="firstName" />
-      </div>
-      <div>
-        <label for="cu-ln">Soyad</label>
-        <input id="cu-ln" type="text" formControlName="lastName" />
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <label for="cu-role">Rol</label>
-        <select id="cu-role" formControlName="role">
-          @for (role of roles; track role) {
-            <option [value]="role">{{ role }}</option>
-          }
-        </select>
-      </div>
-      @if (createForm.controls.role.value === 'CORPORATE') {
-        <div>
-          <label for="cu-store">Magaza adi</label>
-          <input id="cu-store" type="text" formControlName="storeName" autocomplete="off" />
-        </div>
-      }
-    </div>
-    <label class="check">
-      <input type="checkbox" formControlName="active" />
-      <span>Hesap aktif</span>
+<!-- Filters toolbar -->
+<div class="toolbar">
+  <div class="filters">
+    <label>
+      Arama
+      <input type="search" [(ngModel)]="q" (keyup.enter)="applyFilters()" placeholder="E-posta veya ad…" />
     </label>
-    <button type="submit" class="primary" [disabled]="savingCreate()">
-      {{ savingCreate() ? 'Kaydediliyor...' : 'Olustur' }}
-    </button>
-  </form>
-</section>
-
-<div class="filters">
-  <label>
-    Arama
-    <input type="search" [(ngModel)]="q" (keyup.enter)="applyFilters()" />
-  </label>
-  <label>
-    Rol
-    <select [(ngModel)]="roleFilter">
-      <option value="">Tumu</option>
-      @for (role of roles; track role) {
-        <option [value]="role">{{ role }}</option>
-      }
-    </select>
-  </label>
-  <label>
-    Aktif
-    <select [(ngModel)]="activeFilter">
-      <option value="all">Tumu</option>
-      <option value="true">Aktif</option>
-      <option value="false">Pasif</option>
-    </select>
-  </label>
-  <button type="button" (click)="applyFilters()">Filtrele</button>
+    <label>
+      Rol
+      <select [(ngModel)]="roleFilter">
+        <option value="">Tümü</option>
+        @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
+      </select>
+    </label>
+    <label>
+      Aktif
+      <select [(ngModel)]="activeFilter">
+        <option value="all">Tümü</option>
+        <option value="true">Aktif</option>
+        <option value="false">Pasif</option>
+      </select>
+    </label>
+  </div>
+  <button type="button" class="btn-filter" (click)="applyFilters()">Filtrele</button>
 </div>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Liste yuklenemedi." (retry)="load()" />
+  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
 } @else {
-  <table>
-    <thead>
-      <tr>
-        <th>E-posta</th>
-        <th>Ad</th>
-        <th>Rol</th>
-        <th>Aktif</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (user of items(); track user.id) {
+  <div class="table-card">
+    <table class="ec-table">
+      <thead>
         <tr>
-          <td>{{ user.email }}</td>
-          <td>{{ user.firstName }} {{ user.lastName }}</td>
-          <td>
-            <select [ngModel]="user.activeRole" (ngModelChange)="changeRole(user, $event)" [disabled]="isSelf(user)">
-              @for (role of roles; track role) {
-                <option [value]="role">{{ role }}</option>
-              }
-            </select>
-          </td>
-          <td>{{ user.active ? 'Evet' : 'Hayir' }}</td>
-          <td class="cell-actions">
-            <button type="button" (click)="toggleActive(user)" [disabled]="isSelf(user)">
-              {{ user.active ? 'Pasiflestir' : 'Aktiflestir' }}
-            </button>
-            @if (user.activeRole === 'CORPORATE') {
-              <button type="button" (click)="toggleOwnedStores(user)">
-                {{ ownerStores()[user.id] ? 'Magazalari gizle' : 'Magazalari gor' }}
-              </button>
-            }
-            @if (user.active && !isSelf(user)) {
-              <button type="button" class="warn" (click)="askDeactivate(user)">Hesabi kapat</button>
-            }
-          </td>
+          <th>E-posta</th>
+          <th>Ad Soyad</th>
+          <th>Rol</th>
+          <th>Durum</th>
+          <th>İşlem</th>
         </tr>
-        @if (ownerStores()[user.id]; as stores) {
-          <tr class="owned-stores">
-            <td colspan="5">
-              <strong>Magazalar</strong>
-              @if (stores.length === 0) {
-                <div>Kayitli magaza yok.</div>
-              } @else {
-                <ul>
-                  @for (store of stores; track store.id) {
-                    <li>{{ store.name }} - {{ store.status }} - {{ store.contactEmail }}</li>
-                  }
-                </ul>
+      </thead>
+      <tbody>
+        @for (user of items(); track user.id) {
+          <tr>
+            <td style="font-size:.82rem">{{ user.email }}</td>
+            <td style="font-weight:600">{{ user.firstName }} {{ user.lastName }}</td>
+            <td>
+              <select class="role-select" [ngModel]="user.activeRole" (ngModelChange)="changeRole(user, $event)" [disabled]="isSelf(user)">
+                @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
+              </select>
+            </td>
+            <td>
+              <span [class]="user.active ? 'active-pill active-pill--on' : 'active-pill active-pill--off'">
+                {{ user.active ? 'Aktif' : 'Pasif' }}
+              </span>
+            </td>
+            <td class="cell-actions">
+              <button type="button" class="btn-action" (click)="toggleActive(user)" [disabled]="isSelf(user)">
+                {{ user.active ? 'Pasifleştir' : 'Aktifleştir' }}
+              </button>
+              @if (user.activeRole === 'CORPORATE') {
+                <button type="button" class="btn-action btn-action--stores" (click)="toggleOwnedStores(user)">
+                  {{ ownerStores()[user.id] ? 'Mağazaları Gizle' : 'Mağazaları Gör' }}
+                </button>
+              }
+              @if (user.active && !isSelf(user)) {
+                <button type="button" class="btn-action btn-action--danger" (click)="askDeactivate(user)">Hesabı Kapat</button>
               }
             </td>
           </tr>
+          @if (ownerStores()[user.id]; as stores) {
+            <tr class="owned-stores">
+              <td colspan="5">
+                <strong style="font-size:.78rem;color:var(--text-muted)">MAĞAZALAR</strong>
+                @if (stores.length === 0) {
+                  <div style="font-size:.82rem;color:var(--text-muted);margin-top:4px">Kayıtlı mağaza yok.</div>
+                } @else {
+                  <ul>
+                    @for (store of stores; track store.id) {
+                      <li>{{ store.name }} — {{ store.status }} — {{ store.contactEmail }}</li>
+                    }
+                  </ul>
+                }
+              </td>
+            </tr>
+          }
         }
-      }
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
   <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
 }
+
+<!-- Create panel (scrolled to) -->
+<section #createPanel class="create" style="margin-top:24px">
+  <div class="create__header">
+    <span class="create__icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </span>
+    Yeni Kullanıcı Oluştur
+  </div>
+  <div class="create__body">
+    <form [formGroup]="createForm" (ngSubmit)="createUser()">
+      <div class="row">
+        <div class="field">
+          <label for="cu-email">E-posta</label>
+          <input id="cu-email" type="email" autocomplete="off" formControlName="email" placeholder="kullanici@ornek.com" />
+        </div>
+        <div class="field">
+          <label for="cu-password">Şifre</label>
+          <input id="cu-password" type="password" autocomplete="new-password" formControlName="password" placeholder="••••••••" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="cu-fn">Ad</label>
+          <input id="cu-fn" type="text" formControlName="firstName" placeholder="Ad" />
+        </div>
+        <div class="field">
+          <label for="cu-ln">Soyad</label>
+          <input id="cu-ln" type="text" formControlName="lastName" placeholder="Soyad" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="cu-role">Rol</label>
+          <select id="cu-role" formControlName="role">
+            @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
+          </select>
+        </div>
+        @if (createForm.controls.role.value === 'CORPORATE') {
+          <div class="field">
+            <label for="cu-store">Mağaza Adı</label>
+            <input id="cu-store" type="text" formControlName="storeName" autocomplete="off" placeholder="Mağaza adı…" />
+          </div>
+        }
+      </div>
+      <label class="check">
+        <input type="checkbox" formControlName="active" />
+        <span>Hesap aktif</span>
+      </label>
+      <button type="submit" class="btn-action btn-action--create" [disabled]="savingCreate()" style="height:36px;margin-top:4px">
+        {{ savingCreate() ? 'Kaydediliyor…' : 'Kullanıcı Oluştur' }}
+      </button>
+    </form>
+  </div>
+</section>
 
 <app-confirm-dialog
   [open]="deleteOpen()"

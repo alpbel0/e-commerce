@@ -1,43 +1,56 @@
-<a [routerLink]="backLink()" class="back"><- Siparise don</a>
+<a [routerLink]="backLink()" class="back">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg>
+  Siparişe Dön
+</a>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Kargo bilgisi yuklenemedi." (retry)="load()" />
+  <app-error-state message="Kargo bilgisi yüklenemedi." (retry)="load()" />
 } @else if (!shipment()) {
-  <app-empty-state title="Kargo yok" message="Bu siparis icin kargo bilgisi bulunamadi." />
+  <app-empty-state title="Kargo yok" message="Bu sipariş için kargo bilgisi bulunamadı." />
 } @else {
-  @if (shipment(); as shipmentData) {
-    <div class="card">
-      <h2>Kargo Takip</h2>
-      <div class="grid">
-        <div class="item">
-          <strong>Durum</strong>
-          <div>{{ shipmentData.status }}</div>
+  @if (shipment(); as s) {
+    <div class="tracking-card">
+      <div class="tracking-card__header">
+        <div class="tracking-card__icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="3" rx="2"/><path d="m16 8 5 5-5 5V8Z"/></svg>
         </div>
-        <div class="item">
-          <strong>Takip No</strong>
-          <div>{{ shipmentData.trackingNumber || '-' }}</div>
+        <div>
+          <h1 class="tracking-card__title">Kargo Takip</h1>
+          @if (s.trackingNumber) { <p style="margin:2px 0 0;font-size:.82rem;color:var(--text-muted)">Takip No: {{ s.trackingNumber }}</p> }
         </div>
-        <div class="item">
-          <strong>Tasiyici</strong>
-          <div>{{ shipmentData.carrierName || '-' }}</div>
-        </div>
-        <div class="item">
-          <strong>Mod</strong>
-          <div>{{ shipmentData.modeOfShipment || '-' }}</div>
-        </div>
-        <div class="item">
-          <strong>Tahmini Teslim</strong>
-          <div>{{ shortDate(shipmentData.estimatedDeliveryDate) }}</div>
-        </div>
-        <div class="item">
-          <strong>Sevk Tarihi</strong>
-          <div>{{ shortDate(shipmentData.shippedAt) }}</div>
-        </div>
-        <div class="item">
-          <strong>Teslim Tarihi</strong>
-          <div>{{ shortDate(shipmentData.deliveredAt || shipmentData.actualDeliveryDate) }}</div>
+      </div>
+      <div class="tracking-card__body">
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-item__label">Durum</div>
+            <div class="info-item__value">{{ s.status }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Takip No</div>
+            <div class="info-item__value">{{ s.trackingNumber || '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Taşıyıcı</div>
+            <div class="info-item__value">{{ s.carrierName || '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Mod</div>
+            <div class="info-item__value">{{ s.modeOfShipment || '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Tahmini Teslim</div>
+            <div class="info-item__value">{{ shortDate(s.estimatedDeliveryDate) }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Sevk Tarihi</div>
+            <div class="info-item__value">{{ shortDate(s.shippedAt) }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Teslim Tarihi</div>
+            <div class="info-item__value">{{ shortDate(s.deliveredAt || s.actualDeliveryDate) }}</div>
+          </div>
         </div>
       </div>
     </div>

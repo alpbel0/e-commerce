@@ -1,75 +1,103 @@
-<h2>Magaza ayarlari</h2>
-<p class="meta">Secili magaza icin iletisim ve vitrin bilgileri. Durum degisikligi yalnizca izin verildiginde yapilir.</p>
+<h1 class="page-title">Mağaza Ayarları</h1>
+<p class="page-sub">Seçili mağaza için iletişim ve vitrin bilgileri. Durum değişikliği yalnızca izin verildiğinde yapılır.</p>
 
-<div class="section">
-  <h3>Yeni magaza olustur</h3>
-  <form [formGroup]="createForm" (ngSubmit)="createStore()">
-    <div class="field">
-      <label for="newStoreName">Magaza adi</label>
-      <input id="newStoreName" formControlName="name" />
-    </div>
-    <div class="field">
-      <label for="newStoreDescription">Aciklama</label>
-      <textarea id="newStoreDescription" formControlName="description"></textarea>
-    </div>
-    <div class="field">
-      <label for="newStoreEmail">Iletisim e-postasi</label>
-      <input id="newStoreEmail" type="email" formControlName="contactEmail" />
-    </div>
-    <div class="field">
-      <label for="newStorePhone">Telefon</label>
-      <input id="newStorePhone" formControlName="contactPhone" />
-    </div>
-    <div class="field">
-      <label for="newStoreAddress">Adres</label>
-      <textarea id="newStoreAddress" formControlName="address"></textarea>
-    </div>
-    <button type="submit" class="secondary" [disabled]="creating() || createForm.invalid">
-      {{ creating() ? 'Olusturuluyor...' : 'Yeni magaza olustur' }}
-    </button>
-  </form>
+<!-- Create store -->
+<div class="settings-card">
+  <div class="settings-card__header">
+    <span class="settings-card__icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </span>
+    <h2 class="settings-card__title">Yeni Mağaza Oluştur</h2>
+  </div>
+  <div class="settings-card__body">
+    <form [formGroup]="createForm" (ngSubmit)="createStore()">
+      <div class="field-grid">
+        <div class="field">
+          <label for="newStoreName">Mağaza Adı</label>
+          <input id="newStoreName" formControlName="name" placeholder="Mağaza adı…" />
+        </div>
+        <div class="field">
+          <label for="newStoreEmail">İletişim E-postası</label>
+          <input id="newStoreEmail" type="email" formControlName="contactEmail" placeholder="info@…" />
+        </div>
+        <div class="field">
+          <label for="newStorePhone">Telefon</label>
+          <input id="newStorePhone" formControlName="contactPhone" placeholder="+90…" />
+        </div>
+        <div class="field">
+          <label for="newStoreDescription">Açıklama</label>
+          <input id="newStoreDescription" formControlName="description" placeholder="Kısa açıklama…" />
+        </div>
+        <div class="field field-full">
+          <label for="newStoreAddress">Adres</label>
+          <textarea id="newStoreAddress" formControlName="address" placeholder="Mağaza adresi…"></textarea>
+        </div>
+      </div>
+      <button type="submit" class="save-btn secondary" [disabled]="creating() || createForm.invalid">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        {{ creating() ? 'Oluşturuluyor…' : 'Yeni Mağaza Oluştur' }}
+      </button>
+    </form>
+  </div>
 </div>
 
 @if (!ctx.selectedStoreId()) {
-  <app-empty-state title="Magaza secin" message="Ust menuden bir magaza secin veya yeni magaza olusturun." />
+  <app-empty-state title="Mağaza seçin" message="Üst menüden bir mağaza seçin veya yeni mağaza oluşturun." />
 } @else if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Magaza bilgisi yuklenemedi." (retry)="retry()" />
+  <app-error-state message="Mağaza bilgisi yüklenemedi." (retry)="retry()" />
 } @else {
-  <div class="section">
-    @if (statusLocked()) {
-      <p class="warn">Bu magaza askiya alinmis. Durumu buradan acamazsiniz; diger alanlari guncelleyebilirsiniz.</p>
-    }
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <div class="field">
-        <label for="sn">Magaza adi</label>
-        <input id="sn" formControlName="name" />
-      </div>
-      <div class="field">
-        <label for="sd">Aciklama</label>
-        <textarea id="sd" formControlName="description"></textarea>
-      </div>
-      <div class="field">
-        <label for="em">Iletisim e-postasi</label>
-        <input id="em" type="email" formControlName="contactEmail" />
-      </div>
-      <div class="field">
-        <label for="ph">Telefon</label>
-        <input id="ph" formControlName="contactPhone" />
-      </div>
-      <div class="field">
-        <label for="st">Magaza durumu</label>
-        @if (statusLocked()) {
-          <p id="st">Askida (yonetici onayi gerekir)</p>
-        } @else {
-          <select id="st" formControlName="status">
-            <option value="OPEN">Acik</option>
-            <option value="CLOSED">Kapali</option>
-          </select>
-        }
-      </div>
-      <button type="submit" [disabled]="saving()">{{ saving() ? 'Kaydediliyor...' : 'Kaydet' }}</button>
-    </form>
+  <!-- Edit store -->
+  <div class="settings-card">
+    <div class="settings-card__header">
+      <span class="settings-card__icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </span>
+      <h2 class="settings-card__title">Mağaza Bilgilerini Düzenle</h2>
+    </div>
+    <div class="settings-card__body">
+      @if (statusLocked()) {
+        <div class="warn-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Bu mağaza askıya alınmış. Durumu buradan açamazsınız; diğer alanları güncelleyebilirsiniz.
+        </div>
+      }
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="field-grid">
+          <div class="field">
+            <label for="sn">Mağaza Adı</label>
+            <input id="sn" formControlName="name" />
+          </div>
+          <div class="field">
+            <label for="em">İletişim E-postası</label>
+            <input id="em" type="email" formControlName="contactEmail" />
+          </div>
+          <div class="field">
+            <label for="ph">Telefon</label>
+            <input id="ph" formControlName="contactPhone" />
+          </div>
+          <div class="field">
+            <label for="st">Mağaza Durumu</label>
+            @if (statusLocked()) {
+              <input id="st" value="Askıda (yönetici onayı gerekir)" disabled />
+            } @else {
+              <select id="st" formControlName="status">
+                <option value="OPEN">Açık</option>
+                <option value="CLOSED">Kapalı</option>
+              </select>
+            }
+          </div>
+          <div class="field field-full">
+            <label for="sd">Açıklama</label>
+            <textarea id="sd" formControlName="description" placeholder="Mağaza hakkında kısa açıklama…"></textarea>
+          </div>
+        </div>
+        <button type="submit" class="save-btn" [disabled]="saving()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          {{ saving() ? 'Kaydediliyor…' : 'Değişiklikleri Kaydet' }}
+        </button>
+      </form>
+    </div>
   </div>
 }

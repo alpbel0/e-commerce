@@ -1,76 +1,79 @@
-<h2>Siparisler</h2>
-<p class="hint">
-  {{ isAdminRoute() ? 'Tum siparisler sayfali olarak yuklenir.' : 'Liste secili magazaya gore sayfali olarak yuklenir.' }}
-</p>
+<div class="page-header">
+  <h1 class="page-title">Siparişler</h1>
+  <p class="hint">{{ isAdminRoute() ? 'Tüm siparişler sayfalı olarak yüklenir.' : 'Liste seçili mağazaya göre sayfalı olarak yüklenir.' }}</p>
+</div>
 
 @if (!isAdminRoute() && !ctx.selectedStoreId()) {
-  <app-empty-state title="Magaza secin" message="Ust menuden magaza secin." />
+  <app-empty-state title="Mağaza seçin" message="Üst menüden mağaza seçin." />
 } @else if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Liste yuklenemedi." (retry)="retry()" />
+  <app-error-state message="Liste yüklenemedi." (retry)="retry()" />
 } @else {
-  <div class="filters">
-    <label>
-      Durum
-      <select [value]="status()" (change)="onStatusChange($event)">
-        <option value="">Tumu</option>
-        @for (s of statusOptions; track s) {
-          <option [value]="s">{{ s }}</option>
-        }
-      </select>
-    </label>
-    <label>
-      Para birimi
-      <select [value]="selectedDisplayCurrency()" (change)="setDisplayCurrency($any($event.target).value)">
-        @for (currency of availableCurrencies(); track currency) {
-          <option [value]="currency">{{ currency }}</option>
-        }
-      </select>
-    </label>
+  <div class="toolbar">
+    <div class="filters">
+      <label>
+        Durum
+        <select [value]="status()" (change)="onStatusChange($event)">
+          <option value="">Tümü</option>
+          @for (s of statusOptions; track s) {
+            <option [value]="s">{{ s }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Para Birimi
+        <select [value]="selectedDisplayCurrency()" (change)="setDisplayCurrency($any($event.target).value)">
+          @for (currency of availableCurrencies(); track currency) {
+            <option [value]="currency">{{ currency }}</option>
+          }
+        </select>
+      </label>
+    </div>
   </div>
 
   @if (items().length === 0) {
-    <app-empty-state title="Siparis yok" message="Bu magaza icin kayit bulunamadi." />
+    <app-empty-state title="Sipariş yok" message="Bu mağaza için kayıt bulunamadı." />
   } @else {
-    <table>
-      <thead>
-        <tr>
-          <th>No</th>
-          <th>Magaza</th>
-          <th>Durum</th>
-          <th>Odeme</th>
-          <th>Tutar</th>
-          <th>Tarih</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (o of items(); track o.orderId) {
+    <div class="table-card">
+      <table class="ec-table">
+        <thead>
           <tr>
-            <td>{{ o.incrementId }}</td>
-            <td>{{ o.storeName }}</td>
-            <td>
-              <select
-                class="status-select"
-                [class]="badgeClass(o.status) + ' status-select'"
-                [value]="o.status"
-                [disabled]="isOrderSaving(o.orderId) || isStatusLocked(o.status)"
-                (change)="onOrderStatusChange(o, $event)"
-              >
-                @for (s of statusOptionsFor(o.status); track s) {
-                  <option [value]="s">{{ s }}</option>
-                }
-              </select>
-            </td>
-            <td>{{ o.paymentStatus }}</td>
-            <td>{{ formatDisplayMoney(o.grandTotal, o.currency) }}</td>
-            <td>{{ shortDate(o.orderDate) }}</td>
-            <td><a [routerLink]="detailLink(o.orderId)">Detay</a></td>
+            <th>Sipariş No</th>
+            <th>Mağaza</th>
+            <th>Durum</th>
+            <th>Ödeme</th>
+            <th style="text-align:right">Tutar</th>
+            <th>Tarih</th>
+            <th></th>
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (o of items(); track o.orderId) {
+            <tr>
+              <td style="font-weight:600;font-family:monospace;font-size:.85rem">{{ o.incrementId }}</td>
+              <td style="color:var(--text-secondary)">{{ o.storeName }}</td>
+              <td>
+                <select
+                  class="status-select"
+                  [value]="o.status"
+                  [disabled]="isOrderSaving(o.orderId) || isStatusLocked(o.status)"
+                  (change)="onOrderStatusChange(o, $event)"
+                >
+                  @for (s of statusOptionsFor(o.status); track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+              </td>
+              <td><span style="font-size:.8rem;color:var(--text-secondary)">{{ o.paymentStatus }}</span></td>
+              <td style="text-align:right;font-weight:700">{{ formatDisplayMoney(o.grandTotal, o.currency) }}</td>
+              <td style="color:var(--text-muted);font-size:.82rem">{{ shortDate(o.orderDate) }}</td>
+              <td><a [routerLink]="detailLink(o.orderId)">Detay →</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
     <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
   }
 }

@@ -1,33 +1,55 @@
-<div class="row" [formGroup]="form">
-  <div class="field">
-    <label for="pf-cat">Kategori</label>
-    <select id="pf-cat" formControlName="categoryId">
-      <option value="">Tümü</option>
-      @for (c of categories; track c.id) {
-        <option [value]="c.id">{{ c.name }}</option>
-      }
-    </select>
+<div class="filter-bar" [formGroup]="form">
+  <!-- Search -->
+  <div class="search-wrap">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input
+      id="pf-q"
+      class="search-input"
+      type="search"
+      formControlName="q"
+      placeholder="Ürün, marka ara…"
+      autocomplete="off"
+    />
   </div>
-  <div class="field">
-    <label for="pf-store">Mağaza</label>
-    <select id="pf-store" formControlName="storeId">
-      <option value="">Tümü</option>
-      @for (s of stores; track s.id) {
-        <option [value]="s.id">{{ s.name }}</option>
-      }
-    </select>
-  </div>
-  <div class="field">
-    <label for="pf-sort">Sıralama</label>
-    <select id="pf-sort" formControlName="sort">
-      <option value="createdAt,desc">Yeniler</option>
-      <option value="title,asc">İsim (A-Z)</option>
-      <option value="unitPrice,asc">Fiyat (düşük)</option>
-      <option value="unitPrice,desc">Fiyat (yüksek)</option>
-    </select>
-  </div>
-  <div class="field q">
-    <label for="pf-q">Arama</label>
-    <input id="pf-q" type="search" formControlName="q" placeholder="Ürün ara…" autocomplete="off" />
+
+  <!-- Selects group -->
+  <div class="selects-group">
+    <div class="select-wrap">
+      <svg class="select-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 6h16M7 12h10M10 18h4"/>
+      </svg>
+      <select id="pf-cat" formControlName="categoryId">
+        <option value="">Tüm Kategoriler</option>
+        @for (c of categories; track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="select-wrap">
+      <svg class="select-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      </svg>
+      <select id="pf-store" formControlName="storeId">
+        <option value="">Tüm Mağazalar</option>
+        @for (s of stores; track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="select-wrap">
+      <svg class="select-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18M7 12h10M11 18h2"/>
+      </svg>
+      <select id="pf-sort" formControlName="sort">
+        <option value="createdAt,desc">En Yeni</option>
+        <option value="title,asc">İsim (A-Z)</option>
+        <option value="unitPrice,asc">Fiyat (Düşük → Yüksek)</option>
+        <option value="unitPrice,desc">Fiyat (Yüksek → Düşük)</option>
+      </select>
+    </div>
   </div>
 </div>

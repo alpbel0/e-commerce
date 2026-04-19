@@ -7,17 +7,18 @@
   /* Font */
   --font-base: 'Inter', 'Segoe UI', system-ui, sans-serif;
 
-  /* Brand Palette */
-  --clr-primary-50:  #eef2ff;
-  --clr-primary-100: #e0e7ff;
-  --clr-primary-200: #c7d2fe;
-  --clr-primary-500: #6366f1;
-  --clr-primary-600: #4f46e5;
-  --clr-primary-700: #4338ca;
+  /* Brand Palette — SKY BLUE */
+  --clr-primary-50:  #f0f9ff;
+  --clr-primary-100: #e0f2fe;
+  --clr-primary-200: #bae6fd;
+  --clr-primary-500: #0ea5e9;
+  --clr-primary-600: #0284c7;
+  --clr-primary-700: #0369a1;
 
-  --clr-accent-400:  #34d399;
-  --clr-accent-500:  #10b981;
-  --clr-accent-600:  #059669;
+  /* Accent — Amber (fiyat/indirim vurgusu) */
+  --clr-accent-400:  #fbbf24;
+  --clr-accent-500:  #f59e0b;
+  --clr-accent-600:  #d97706;
 
   --clr-warning-400: #fb923c;
   --clr-warning-500: #f97316;
@@ -39,34 +40,35 @@
   --clr-slate-900: #0f172a;
   --clr-slate-950: #020617;
 
-  /* Surface (light) */
-  --surface-bg:     #f1f5f9;
-  --surface-card:   #ffffff;
-  --surface-input:  #ffffff;
-  --surface-nav:    #0f172a;
-  --surface-sidebar: #0f172a;
+  /* Surface */
+  --surface-bg:      #f2f6f7;
+  --surface-card:    #ffffff;
+  --surface-input:   #ffffff;
+  --surface-nav:     #ffffff;
+  --surface-sidebar: #1a2332;
 
   /* Text */
-  --text-primary:   #0f172a;
-  --text-secondary: #475569;
-  --text-muted:     #94a3b8;
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
   --text-inverse:   #f8fafc;
 
   /* Border */
-  --border-default: #e2e8f0;
-  --border-focus:   #6366f1;
+  --border-default: #e5e7eb;
+  --border-focus:   #0284c7;
 
   /* Shadow */
-  --shadow-sm:  0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.06);
-  --shadow-md:  0 4px 12px rgba(15,23,42,.10), 0 2px 6px rgba(15,23,42,.08);
-  --shadow-lg:  0 12px 32px rgba(15,23,42,.14), 0 4px 12px rgba(15,23,42,.08);
-  --shadow-xl:  0 24px 48px rgba(15,23,42,.18);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:  0 4px 16px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.06);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,.14);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
 
   /* Radius */
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
   --radius-full: 9999px;
 
   /* Transitions */
@@ -74,9 +76,10 @@
   --trans-base: 200ms ease;
   --trans-slow: 350ms ease;
 
-  /* Sidebar width */
+  /* Layout */
   --sidebar-w: 230px;
-  --navbar-h:  60px;
+  --navbar-h:  64px;
+  --topnav-h:  44px;
 }
 
 /* ---------- Reset ---------- */
@@ -115,6 +118,15 @@ body {
 a { color: var(--clr-primary-600); text-decoration: none; transition: color var(--trans-fast); }
 a:hover { color: var(--clr-primary-700); }
 
+/* ---------- Page wrapper ---------- */
+.page-wrapper {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+}
+@media (max-width: 768px) { .page-wrapper { padding: 0 16px; } }
+
 /* ---------- Headings ---------- */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
@@ -137,7 +149,7 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+  box-shadow: 0 0 0 3px rgba(14,165,233,.15);
 }
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
@@ -176,7 +188,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0.55rem 1.1rem;
+  padding: 0.55rem 1.25rem;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 600;
@@ -188,7 +200,7 @@ button {
   background: var(--clr-primary-600);
   color: #fff;
 }
-.ec-btn--primary:hover { background: var(--clr-primary-700); box-shadow: 0 4px 12px rgba(79,70,229,.35); }
+.ec-btn--primary:hover { background: var(--clr-primary-700); box-shadow: 0 4px 14px rgba(2,132,199,.35); }
 .ec-btn--ghost {
   background: transparent;
   color: var(--text-secondary);
@@ -197,6 +209,12 @@ button {
 .ec-btn--ghost:hover { background: var(--clr-slate-100); }
 .ec-btn--danger { background: var(--clr-danger-500); color: #fff; }
 .ec-btn--danger:hover { background: var(--clr-danger-600); }
+.ec-btn--outline-primary {
+  background: transparent;
+  color: var(--clr-primary-600);
+  border: 1.5px solid var(--clr-primary-600);
+}
+.ec-btn--outline-primary:hover { background: var(--clr-primary-50); }
 .ec-btn:disabled { opacity: .55; pointer-events: none; }
 
 /* ---------- Utility: table ---------- */

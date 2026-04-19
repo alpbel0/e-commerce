@@ -1,4 +1,18 @@
-<h2>Sepet</h2>
+<div class="cart-header">
+  <h1 class="page-title">Sepetim</h1>
+  <div class="currency-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <select
+      id="display-currency"
+      [value]="selectedDisplayCurrency()"
+      (change)="setDisplayCurrency($any($event.target).value)"
+    >
+      @for (currency of availableCurrencies(); track currency) {
+        <option [value]="currency">{{ currency }}</option>
+      }
+    </select>
+  </div>
+</div>
 
 @if (loading()) {
   <app-loading-spinner />
@@ -6,98 +20,116 @@
   <app-error-state message="Sepet yüklenemedi." (retry)="refresh()" />
 } @else {
   @if (cart(); as c) {
-  @if (c.totalItemCount === 0) {
-    <app-empty-state
-      title="Sepet boş"
-      message="Ürün eklemek için kataloğa göz atın."
-      actionLabel="Ürünlere git"
-      actionLink="/app/products"
-    />
-  } @else {
-    <div class="currency-row">
-      <label for="display-currency">Para birimi:</label>
-      <select
-        id="display-currency"
-        [value]="selectedDisplayCurrency()"
-        (change)="setDisplayCurrency($any($event.target).value)"
-      >
-        @for (currency of availableCurrencies(); track currency) {
-          <option [value]="currency">{{ currency }}</option>
-        }
-      </select>
-    </div>
-    @for (s of c.stores; track s.storeId) {
-      <section class="store-block">
-        <h3>{{ s.storeName }}</h3>
-        <div class="coupon-row">
-          <span>Kupon:</span>
-          @if (s.activeCoupon) {
-            <span>{{ s.activeCoupon.code }} (−%{{ s.activeCoupon.discountPercentage }})</span>
-            <button type="button" class="remove" (click)="removeCoupon(s.storeId)">Kuponu kaldır</button>
-          } @else {
-            <select
-              [value]="selectedCoupon()[s.storeId] ?? ''"
-              (change)="setCouponSelect(s.storeId, $any($event.target).value)"
-            >
-              <option value="">Seçin</option>
-              @for (coupon of couponsFor(s.storeId); track coupon.id) {
-                <option [value]="coupon.code">{{ coupon.code }}</option>
-              }
-            </select>
-            <button type="button" class="apply" (click)="applyCoupon(s.storeId)">Uygula</button>
+    @if (c.totalItemCount === 0) {
+      <app-empty-state
+        title="Sepet boş"
+        message="Ürün eklemek için kataloğa göz atın."
+        actionLabel="Ürünlere git"
+        actionLink="/app/products"
+      />
+    } @else {
+      <div class="cart-layout">
+        <!-- Left: store blocks -->
+        <div class="cart-main">
+          @for (s of c.stores; track s.storeId) {
+            <div class="store-block">
+              <div class="store-block__header">
+                <div class="store-block__icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </div>
+                <h3 class="store-block__name">{{ s.storeName }}</h3>
+                @if (s.activeCoupon) {
+                  <span class="coupon-badge">%{{ s.activeCoupon.discountPercentage }} İndirim</span>
+                }
+              </div>
+
+              <!-- Coupon row -->
+              <div class="coupon-row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><path d="M9 14 4 9l5-5m6 10 5-5-5-5"/></svg>
+                @if (s.activeCoupon) {
+                  <span class="coupon-active">{{ s.activeCoupon.code }} — −%{{ s.activeCoupon.discountPercentage }}</span>
+                  <button type="button" class="btn-coupon-remove" (click)="removeCoupon(s.storeId)">Kaldır</button>
+                } @else {
+                  <select
+                    class="coupon-select"
+                    [value]="selectedCoupon()[s.storeId] ?? ''"
+                    (change)="setCouponSelect(s.storeId, $any($event.target).value)"
+                  >
+                    <option value="">Kupon seçin…</option>
+                    @for (coupon of couponsFor(s.storeId); track coupon.id) {
+                      <option [value]="coupon.code">{{ coupon.code }}</option>
+                    }
+                  </select>
+                  <button type="button" class="btn-coupon-apply" (click)="applyCoupon(s.storeId)">Uygula</button>
+                }
+              </div>
+
+              <!-- Items -->
+              <table class="ec-table">
+                <thead>
+                  <tr>
+                    <th>Ürün</th>
+                    <th style="text-align:center">Adet</th>
+                    <th style="text-align:right">Birim</th>
+                    <th style="text-align:right">Ara Toplam</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (it of s.items; track it.itemId) {
+                    <tr>
+                      <td class="item-name">{{ it.title }}</td>
+                      <td style="text-align:center">
+                        <input
+                          class="qty-input"
+                          type="number"
+                          min="0"
+                          [value]="it.quantity"
+                          (change)="updateQty(s.storeId, it.itemId, +$any($event.target).value)"
+                        />
+                      </td>
+                      <td style="text-align:right">{{ formatDisplayMoney(it.unitPrice, it.currency) }}</td>
+                      <td style="text-align:right;font-weight:700">{{ formatDisplayMoney(it.lineSubtotal, it.currency) }}</td>
+                      <td>
+                        <button type="button" class="btn-remove-item" (click)="removeItem(it.itemId)" title="Kaldır">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+
+              <!-- Store totals -->
+              <div class="store-totals">
+                <div class="store-total-row">Ara toplam <span>{{ formatDisplayMoney(s.subtotal, s.currency) }}</span></div>
+                @if (storeHasDiscount(s)) {
+                  <div class="store-total-row store-total-row--discount">İndirim <span>−{{ formatDisplayMoney(s.discountApplied, s.currency) }}</span></div>
+                }
+                <div class="store-total-row store-total-row--grand">Mağaza toplamı <span>{{ formatDisplayMoney(s.grandTotal, s.currency) }}</span></div>
+              </div>
+            </div>
           }
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Ürün</th>
-              <th>Adet</th>
-              <th>Birim</th>
-              <th>Ara</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (it of s.items; track it.itemId) {
-              <tr>
-                <td>{{ it.title }}</td>
-                <td>
-                  <input
-                    class="qty"
-                    type="number"
-                    min="0"
-                    [value]="it.quantity"
-                    (change)="updateQty(s.storeId, it.itemId, +$any($event.target).value)"
-                  />
-                </td>
-                <td>{{ formatDisplayMoney(it.unitPrice, it.currency) }}</td>
-                <td>{{ formatDisplayMoney(it.lineSubtotal, it.currency) }}</td>
-                <td>
-                  <button type="button" class="remove" (click)="removeItem(it.itemId)">Sil</button>
-                </td>
-              </tr>
+
+        <!-- Right: summary -->
+        <aside class="cart-summary">
+          <div class="summary-card">
+            <h3 class="summary-title">Sipariş Özeti</h3>
+            <div class="summary-row summary-row--total">
+              <span>Genel Toplam</span>
+              <span>{{ formatMoney(convertedGrandTotal(), selectedDisplayCurrency()) }}</span>
+            </div>
+            @if (canCheckout()) {
+              <a class="btn-checkout" routerLink="/app/checkout">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                Ödemeye Geç
+              </a>
             }
-          </tbody>
-        </table>
-        <div class="totals">
-          <div>Ara toplam: {{ formatDisplayMoney(s.subtotal, s.currency) }}</div>
-          @if (storeHasDiscount(s)) {
-            <div>İndirim: −{{ formatDisplayMoney(s.discountApplied, s.currency) }}</div>
-          }
-          <div class="grand">Mağaza toplamı: {{ formatDisplayMoney(s.grandTotal, s.currency) }}</div>
-        </div>
-      </section>
+            <a class="btn-continue" routerLink="/app/products">Alışverişe Devam Et</a>
+          </div>
+        </aside>
+      </div>
     }
-    <p class="muted">Güncelleme: {{ c.updatedAt }}</p>
-    <div class="totals" style="margin-top: 1rem">
-      <div><strong>Genel toplam: {{ formatMoney(convertedGrandTotal(), selectedDisplayCurrency()) }}</strong></div>
-    </div>
-    <div class="actions">
-      @if (canCheckout()) {
-        <a class="checkout" routerLink="/app/checkout">Ödemeye geç</a>
-      }
-      <a routerLink="/app/products" style="align-self:center;color:#2563eb">Alışverişe devam</a>
-    </div>
-  }
   }
 }

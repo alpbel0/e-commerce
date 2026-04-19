@@ -1,7 +1,10 @@
-<div class="head">
-  <h2>Ürünlerim</h2>
+<div class="page-header">
+  <h1 class="page-title">Ürünlerim</h1>
   @if (ctx.selectedStoreId()) {
-    <a class="new" routerLink="/corporate/products/new">Yeni ürün</a>
+    <a class="btn-new" routerLink="/corporate/products/new">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Yeni Ürün
+    </a>
   }
 </div>
 
@@ -19,42 +22,53 @@
     actionLink="/corporate/products/new"
   />
 } @else {
-  <table>
-    <thead>
-      <tr>
-        <th>SKU</th>
-        <th>Başlık</th>
-        <th>Fiyat</th>
-        <th>Stok</th>
-        <th>Durum</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (p of items(); track p.id) {
+  <div class="table-card">
+    <table class="ec-table">
+      <thead>
         <tr>
-          <td class="muted">{{ p.sku }}</td>
-          <td>{{ p.title }}</td>
-          <td>{{ formatMoney(effectivePrice(p.unitPrice, p.discountPercentage), p.currency) }}</td>
-          <td>{{ p.stockQuantity }}</td>
-          <td>
-            @if (p.active) {
-              <span>Aktif</span>
-            } @else {
-              <span class="badge-off">Pasif</span>
-            }
-          </td>
-          <td>
-            <div class="actions">
-              <a [routerLink]="['/corporate/products', p.id, 'edit']">Düzenle</a>
-              <button type="button" (click)="openStock(p)">Stok</button>
-              <button type="button" class="danger" (click)="askDelete(p)">Sil</button>
-            </div>
-          </td>
+          <th>SKU</th>
+          <th>Başlık</th>
+          <th style="text-align:right">Fiyat</th>
+          <th style="text-align:center">Stok</th>
+          <th>Durum</th>
+          <th></th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (p of items(); track p.id) {
+          <tr>
+            <td class="muted">{{ p.sku }}</td>
+            <td style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.title }}</td>
+            <td style="text-align:right;font-weight:700">{{ formatMoney(effectivePrice(p.unitPrice, p.discountPercentage), p.currency) }}</td>
+            <td style="text-align:center">
+              <span style="font-size:.85rem;font-weight:600;color:var(--text-secondary)">{{ p.stockQuantity }}</span>
+            </td>
+            <td>
+              <span [class]="p.active ? 'status-pill status-pill--on' : 'status-pill status-pill--off'">
+                {{ p.active ? 'Aktif' : 'Pasif' }}
+              </span>
+            </td>
+            <td>
+              <div class="row-actions">
+                <a class="btn-action" [routerLink]="['/corporate/products', p.id, 'edit']">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Düzenle
+                </a>
+                <button type="button" class="btn-action btn-action--stock" (click)="openStock(p)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                  Stok
+                </button>
+                <button type="button" class="btn-action btn-action--danger" (click)="askDelete(p)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  Sil
+                </button>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
 }
 

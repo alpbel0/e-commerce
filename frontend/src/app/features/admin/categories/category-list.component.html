@@ -1,62 +1,77 @@
-<h2>Kategoriler</h2>
+<div class="page-header">
+  <h1 class="page-title">Kategoriler</h1>
+</div>
 
 <div class="create">
-  <h3 style="margin:0 0 8px;font-size:0.95rem">Yeni kategori</h3>
-  <form [formGroup]="createForm" (ngSubmit)="create()">
-    <div class="row">
-      <div>
-        <label>Ad</label>
-        <input formControlName="name" />
+  <div class="create__header">
+    <span class="create__icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </span>
+    Yeni Kategori Ekle
+  </div>
+  <div class="create__body">
+    <form [formGroup]="createForm" (ngSubmit)="create()">
+      <div class="row">
+        <div class="field">
+          <label>Ad</label>
+          <input formControlName="name" placeholder="Kategori adı…" />
+        </div>
+        <div class="field">
+          <label>Sıra</label>
+          <input type="number" formControlName="displayOrder" placeholder="0" />
+        </div>
       </div>
-      <div>
-        <label>Sira</label>
-        <input type="number" formControlName="displayOrder" />
+      <div class="field" style="margin-bottom:10px">
+        <label>Açıklama</label>
+        <textarea rows="2" formControlName="description" placeholder="Kısa açıklama (isteğe bağlı)…"></textarea>
       </div>
-    </div>
-    <label>Aciklama</label>
-    <textarea rows="2" formControlName="description"></textarea>
-    <div class="check">
-      <input type="checkbox" id="act" formControlName="active" />
-      <label for="act" style="margin:0">Aktif</label>
-    </div>
-    <button type="submit" [disabled]="saving()">Ekle</button>
-  </form>
+      <div class="check">
+        <input type="checkbox" id="act" formControlName="active" />
+        <label for="act" style="margin:0;cursor:pointer">Aktif</label>
+      </div>
+      <button type="submit" class="btn-add" [disabled]="saving()">
+        {{ saving() ? 'Ekleniyor…' : 'Kategori Ekle' }}
+      </button>
+    </form>
+  </div>
 </div>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Liste yuklenemedi." (retry)="load()" />
+  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
 } @else {
-  <table>
-    <thead>
-      <tr>
-        <th>Ad</th>
-        <th>Slug</th>
-        <th>Aktif</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (category of items(); track category.id) {
+  <div class="table-card">
+    <table class="ec-table">
+      <thead>
         <tr>
-          <td>
-            <a [routerLink]="['/admin/categories', category.id]" style="color:#2563eb;text-decoration:none;margin-right:8px">
-              {{ category.name }}
-            </a>
-            <input class="inline" [value]="category.name" (blur)="patchField(category, 'name', $event)" />
-          </td>
-          <td>{{ category.slug }}</td>
-          <td>
-            <input type="checkbox" [checked]="category.active" (change)="patchField(category, 'active', $event)" />
-          </td>
-          <td>
-            <button type="button" class="warn" (click)="askDelete(category)">Sil</button>
-          </td>
+          <th>Ad (düzenlenebilir)</th>
+          <th>Slug</th>
+          <th style="text-align:center">Aktif</th>
+          <th></th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (category of items(); track category.id) {
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <a class="cat-link" [routerLink]="['/admin/categories', category.id]">{{ category.name }}</a>
+                <input class="inline" style="max-width:180px" [value]="category.name" (blur)="patchField(category, 'name', $event)" />
+              </div>
+            </td>
+            <td style="font-family:monospace;font-size:.78rem;color:var(--text-muted)">{{ category.slug }}</td>
+            <td style="text-align:center">
+              <input type="checkbox" [checked]="category.active" (change)="patchField(category, 'active', $event)" style="width:16px;height:16px;accent-color:var(--clr-primary-600);cursor:pointer" />
+            </td>
+            <td>
+              <button type="button" class="btn-del" (click)="askDelete(category)">Sil</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 }
 
 <app-confirm-dialog

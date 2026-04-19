@@ -11,47 +11,112 @@ import { AuthService } from '../../../core/api/auth.service';
   templateUrl: './forgot-password.component.html',
   styles: [
     `
-      :host {
-        display: block;
-        max-width: 400px;
-        margin: 0 auto;
+      :host { display: block; }
+
+      .fp-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+        letter-spacing: -.02em;
       }
-      .field {
-        margin-bottom: 1rem;
+      .fp-subtitle {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 28px;
+        line-height: 1.6;
       }
-      label {
-        display: block;
-        font-size: 0.875rem;
-        margin-bottom: 0.25rem;
+
+      /* Field */
+      .fp-form { display: flex; flex-direction: column; gap: 18px; }
+      .field { display: flex; flex-direction: column; gap: 5px; }
+      .field__label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+      .field__input-wrap { position: relative; }
+      .field__icon {
+        position: absolute;
+        left: 12px; top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
       }
-      input {
+      .field__input-wrap input { padding-left: 38px; }
+
+      /* Submit */
+      .submit-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
         width: 100%;
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        box-sizing: border-box;
-      }
-      button {
-        width: 100%;
-        padding: 0.6rem 1rem;
+        padding: 0.7rem 1rem;
         border: none;
-        border-radius: 8px;
-        background: #2563eb;
+        border-radius: var(--radius-md);
+        background: var(--clr-primary-600);
         color: #fff;
-        font-weight: 600;
+        font-size: 0.9rem;
+        font-weight: 700;
         cursor: pointer;
+        transition: background var(--trans-fast), box-shadow var(--trans-fast), transform var(--trans-fast);
       }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
+      .submit-btn:hover:not(:disabled) {
+        background: var(--clr-primary-700);
+        box-shadow: 0 6px 18px rgba(2,132,199,.35);
+        transform: translateY(-1px);
       }
-      .ok {
-        color: #15803d;
-        margin-top: 1rem;
+      .submit-btn:disabled { opacity: .6; cursor: not-allowed; }
+      .submit-btn__spinner {
+        display: inline-block;
+        width: 16px; height: 16px;
+        border: 2px solid rgba(255,255,255,.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
       }
-      .hint {
-        margin-top: 1rem;
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* Success state */
+      .success-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        padding: 32px 24px;
+        background: var(--clr-primary-50);
+        border: 1px solid var(--clr-primary-200);
+        border-radius: var(--radius-xl);
       }
+      .success-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px; height: 56px;
+        background: var(--clr-primary-600);
+        border-radius: var(--radius-full);
+        color: #fff;
+        box-shadow: 0 4px 16px rgba(2,132,199,.35);
+      }
+      .success-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--clr-primary-700);
+      }
+      .success-text {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        max-width: 300px;
+      }
+
+      /* Footer */
+      .fp-footer {
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 24px;
+      }
+      .fp-footer__link { color: var(--clr-primary-600); font-weight: 600; }
+      .fp-footer__link:hover { text-decoration: underline; }
     `
   ]
 })

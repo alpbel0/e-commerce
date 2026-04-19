@@ -1,42 +1,42 @@
-<h2>Siparislerim</h2>
+<div class="list-header">
+  <h1 class="page-title">Siparişlerim</h1>
+  @if (filteredItems().length > 0) { <span class="page-count">{{ filteredItems().length }} sipariş</span> }
+</div>
 
 <div class="toolbar">
   <div class="filters">
     <label>
       Durum
       <select [value]="status()" (change)="onStatusChange($event)">
-        <option value="">Tumu</option>
+        <option value="">Tümü</option>
         @for (option of statusOptions; track option) {
           <option [value]="option">{{ option }}</option>
         }
       </select>
     </label>
-
     <label>
-      Odeme
+      Ödeme
       <select [value]="paymentStatus()" (change)="onPaymentStatusChange($event)">
-        <option value="">Tumu</option>
+        <option value="">Tümü</option>
         @for (option of paymentStatusOptions; track option) {
           <option [value]="option">{{ option }}</option>
         }
       </select>
     </label>
-
     <label>
-      Magaza / Siparis No
+      Mağaza / Sipariş No
       <input
         type="search"
         [ngModel]="storeQuery()"
         (ngModelChange)="onStoreQueryChange($event)"
-        placeholder="Ara"
+        placeholder="Ara…"
       />
     </label>
   </div>
-
   <div class="toolbar-actions">
     <div class="currency-picker">
       <label>
-        Para birimi
+        Para Birimi
         <select [value]="selectedDisplayCurrency()" (change)="setDisplayCurrency($any($event.target).value)">
           @for (currency of availableCurrencies(); track currency) {
             <option [value]="currency">{{ currency }}</option>
@@ -44,25 +44,28 @@
         </select>
       </label>
     </div>
-    <button type="button" class="export" (click)="exportCsv()">CSV export</button>
+    <button type="button" class="export" (click)="exportCsv()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      CSV Export
+    </button>
   </div>
 </div>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Siparisler yuklenemedi." (retry)="load()" />
+  <app-error-state message="Siparişler yüklenemedi." (retry)="load()" />
 } @else if (filteredItems().length === 0) {
-  <app-empty-state title="Siparis yok" message="Filtreye uygun siparis bulunmuyor." actionLabel="Alisverise basla" actionLink="/app/products" />
+  <app-empty-state title="Sipariş yok" message="Filtreye uygun sipariş bulunmuyor." actionLabel="Alışverişe başla" actionLink="/app/products" />
 } @else {
-  <table>
+  <table class="ec-table">
     <thead>
       <tr>
-        <th>No</th>
-        <th>Magaza</th>
+        <th>Sipariş No</th>
+        <th>Mağaza</th>
         <th>Durum</th>
-        <th>Odeme</th>
-        <th>Tutar</th>
+        <th>Ödeme</th>
+        <th style="text-align:right">Tutar</th>
         <th>Tarih</th>
         <th></th>
       </tr>
@@ -70,13 +73,13 @@
     <tbody>
       @for (order of filteredItems(); track order.orderId) {
         <tr>
-          <td>{{ order.incrementId }}</td>
+          <td style="font-weight:600;font-family:monospace">{{ order.incrementId }}</td>
           <td>{{ order.storeName }}</td>
           <td><span [class]="badgeClass(order.status)">{{ order.status }}</span></td>
-          <td>{{ order.paymentStatus }}</td>
-          <td>{{ formatDisplayMoney(order.grandTotal, order.currency) }}</td>
-          <td>{{ shortDate(order.orderDate) }}</td>
-          <td><a [routerLink]="['/app/orders', order.orderId]">Detay</a></td>
+          <td><span style="font-size:.8rem;color:var(--text-secondary)">{{ order.paymentStatus }}</span></td>
+          <td style="text-align:right;font-weight:700">{{ formatDisplayMoney(order.grandTotal, order.currency) }}</td>
+          <td style="color:var(--text-muted);font-size:.85rem">{{ shortDate(order.orderDate) }}</td>
+          <td><a [routerLink]="['/app/orders', order.orderId]">Detay →</a></td>
         </tr>
       }
     </tbody>

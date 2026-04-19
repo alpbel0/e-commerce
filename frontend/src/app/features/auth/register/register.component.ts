@@ -75,7 +75,7 @@ import type { ApiErrorResponse, RoleType } from '../../../core/models/common.mod
       border-color: var(--clr-primary-500);
       background: var(--clr-primary-50);
       color: var(--clr-primary-600);
-      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+      box-shadow: 0 0 0 3px rgba(14,165,233,.18);
     }
     .role-option__label {
       font-size: 0.85rem;
@@ -104,7 +104,7 @@ import type { ApiErrorResponse, RoleType } from '../../../core/models/common.mod
     }
     .submit-btn:hover:not(:disabled) {
       background: var(--clr-primary-700);
-      box-shadow: 0 6px 18px rgba(79,70,229,.35);
+      box-shadow: 0 6px 18px rgba(2,132,199,.35);
       transform: translateY(-1px);
     }
     .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }

@@ -1,48 +1,58 @@
 <div class="page-header">
-  <h2>Kuponlar</h2>
+  <h1 class="page-title">Kuponlar</h1>
 </div>
 
 <div class="form-card">
-  <h3>{{ editingCouponId() ? 'Kuponu duzenle' : 'Yeni kupon olustur' }}</h3>
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <div class="form-row">
-      <div class="form-group">
-        <label for="code">Kupon kodu</label>
-        <input id="code" type="text" formControlName="code" placeholder="INDIRIM10" />
+  <div class="form-card__header">
+    <span class="form-card__icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5m6 10 5-5-5-5"/></svg>
+    </span>
+    <h2 class="form-card__title">{{ editingCouponId() ? 'Kuponu Düzenle' : 'Yeni Kupon Oluştur' }}</h2>
+  </div>
+  <div class="form-card__body">
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="code">Kupon Kodu</label>
+          <input id="code" type="text" formControlName="code" placeholder="INDIRIM10" style="text-transform:uppercase" />
+        </div>
+        <div class="form-group">
+          <label for="discountPercentage">İndirim Oranı (%)</label>
+          <input id="discountPercentage" type="number" formControlName="discountPercentage" placeholder="10" min="1" max="100" />
+        </div>
+        <div class="form-group">
+          <label for="validUntil">Geçerlilik Tarihi</label>
+          <input id="validUntil" type="date" formControlName="validUntil" />
+        </div>
       </div>
-      <div class="form-group">
-        <label for="discountPercentage">Indirim orani (%)</label>
-        <input id="discountPercentage" type="number" formControlName="discountPercentage" placeholder="10" min="1" max="100" />
+      <div class="btn-row">
+        <button type="submit" class="btn-primary" [disabled]="form.invalid || saving()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          {{ saving() ? (editingCouponId() ? 'Güncelleniyor…' : 'Oluşturuluyor…') : (editingCouponId() ? 'Kuponu Güncelle' : 'Kupon Oluştur') }}
+        </button>
+        @if (editingCouponId()) {
+          <button type="button" class="btn-cancel" (click)="cancelEdit()">Vazgeç</button>
+        }
       </div>
-      <div class="form-group">
-        <label for="validUntil">Gecerlilik tarihi</label>
-        <input id="validUntil" type="date" formControlName="validUntil" />
-      </div>
-    </div>
-    <button type="submit" class="btn-primary" [disabled]="form.invalid || saving()">
-      {{ saving() ? (editingCouponId() ? 'Guncelleniyor...' : 'Olusturuluyor...') : (editingCouponId() ? 'Kuponu guncelle' : 'Kupon olustur') }}
-    </button>
-    @if (editingCouponId()) {
-      <button type="button" class="btn-delete" (click)="cancelEdit()">Vazgec</button>
-    }
-  </form>
+    </form>
+  </div>
 </div>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Kuponlar yuklenemedi." (retry)="load()" />
+  <app-error-state message="Kuponlar yüklenemedi." (retry)="load()" />
 } @else if (coupons().length === 0) {
-  <app-empty-state title="Kupon bulunamadi" message="Henuz kupon olusturulmamis." />
+  <app-empty-state title="Kupon bulunamadı" message="Henüz kupon oluşturulmamış." />
 } @else {
   <div class="table-card">
-    <table>
+    <table class="ec-table">
       <thead>
         <tr>
-          <th>Magaza</th>
+          <th>Mağaza</th>
           <th>Kod</th>
-          <th>Indirim</th>
-          <th>Gecerlilik</th>
+          <th>İndirim</th>
+          <th>Geçerlilik</th>
           <th>Durum</th>
           <th></th>
         </tr>
@@ -50,20 +60,22 @@
       <tbody>
         @for (c of coupons(); track c.id) {
           <tr>
-            <td>{{ c.storeName }}</td>
-            <td><strong>{{ c.code }}</strong></td>
+            <td style="color:var(--text-secondary)">{{ c.storeName }}</td>
+            <td><strong style="font-family:monospace;letter-spacing:.06em">{{ c.code }}</strong></td>
             <td><span class="discount-badge">%{{ c.discountPercentage }}</span></td>
-            <td>{{ formatDate(c.validUntil) }}</td>
+            <td style="color:var(--text-muted);font-size:.85rem">{{ formatDate(c.validUntil) }}</td>
             <td>
               @if (c.active && !isExpired(c.validUntil)) {
                 <span class="status active">Aktif</span>
               } @else {
-                <span class="status inactive">Inaktif</span>
+                <span class="status inactive">İnaktif</span>
               }
             </td>
             <td>
-              <button type="button" class="btn-primary" (click)="startEdit(c)">Duzenle</button>
-              <button type="button" class="btn-delete" (click)="deleteCoupon(c.id)">Sil</button>
+              <div class="row-actions">
+                <button type="button" class="btn-action btn-action--edit" (click)="startEdit(c)">Düzenle</button>
+                <button type="button" class="btn-action btn-action--danger" (click)="deleteCoupon(c.id)">Sil</button>
+              </div>
             </td>
           </tr>
         }

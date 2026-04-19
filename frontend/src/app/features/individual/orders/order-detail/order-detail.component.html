@@ -1,100 +1,139 @@
-<a routerLink="/app/orders" class="back"><- Siparislere don</a>
+<a routerLink="/app/orders" class="back">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg>
+  Siparişlere Dön
+</a>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Siparis yuklenemedi." (retry)="load()" />
+  <app-error-state message="Sipariş yüklenemedi." (retry)="load()" />
 } @else {
   @if (order(); as o) {
-    <h2>Siparis {{ o.incrementId }}</h2>
-    <div class="meta">
-      <span [class]="badgeClass(o.status)">{{ o.status }}</span>
-      <span>Odeme: {{ o.paymentStatus }} · {{ o.paymentMethod }}</span>
+    <!-- Header -->
+    <div class="order-header">
+      <div>
+        <h1 class="order-id">Sipariş <span>#{{ o.incrementId }}</span></h1>
+        <div class="badge-row">
+          <span [class]="badgeClass(o.status)">{{ o.status }}</span>
+          <span class="pay-text">Ödeme: {{ o.paymentStatus }} · {{ o.paymentMethod }}</span>
+        </div>
+      </div>
+      @if (canCancelOrder(o.status)) {
+        <button type="button" class="cancel-button" (click)="cancelOrder()" [disabled]="cancelling()">
+          {{ cancelling() ? 'İptal ediliyor…' : 'Siparişi İptal Et' }}
+        </button>
+      }
     </div>
 
-    @if (canCancelOrder(o.status)) {
-      <p>
-        <button type="button" class="cancel-button" (click)="cancelOrder()" [disabled]="cancelling()">
-          {{ cancelling() ? 'Iptal ediliyor...' : 'Siparisi iptal et' }}
-        </button>
-      </p>
-    }
+    <!-- Info cards -->
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card__title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          Teslimat Adresi
+        </div>
+        <p>{{ o.shippingAddressLine1 }}@if (o.shippingAddressLine2) {, {{ o.shippingAddressLine2 }} }</p>
+        <p>{{ o.shippingCity }}@if (o.shippingPostalCode) { {{ o.shippingPostalCode }} } · {{ o.shippingCountry }}</p>
+        @if (o.customerPhone) { <p>📞 {{ o.customerPhone }}</p> }
+      </div>
+      <div class="info-card">
+        <div class="info-card__title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          Ödeme Bilgisi
+        </div>
+        <p><strong>Yöntem:</strong> {{ o.paymentMethod }}</p>
+        <p><strong>Durum:</strong> {{ o.paymentStatus }}</p>
+      </div>
+    </div>
 
-    <p>
-      {{ o.shippingAddressLine1 }}@if (o.shippingAddressLine2) {, {{ o.shippingAddressLine2 }} }<br />
-      {{ o.shippingCity }} {{ o.shippingPostalCode }} · {{ o.shippingCountry }}<br />
-      Tel: {{ o.customerPhone || '-' }}
-    </p>
-
+    <!-- Shipment -->
     @if (o.shipment; as sh) {
       <div class="ship">
-        <h3>Kargo</h3>
-        <div>Durum: {{ sh.status }} · {{ sh.carrierName || 'Kargo' }}</div>
-        <div>Takip: {{ sh.trackingNumber || '-' }}</div>
-        <div>Tahmini: {{ shortDate(sh.estimatedDeliveryDate) }}</div>
-        <div style="margin-top:8px">
-          <a [routerLink]="['/app/orders', o.orderId, 'shipment']">Ayrintili takip</a>
-          <span style="margin: 0 6px">·</span>
-          <a [routerLink]="['/app/shipments', sh.shipmentId]">Shipment detayi</a>
+        <div class="ship__title">
+          <span class="ship__title-text">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="3" rx="2"/><path d="m16 8 5 5-5 5V8Z"/></svg>
+            Kargo
+          </span>
+          <div class="ship__links">
+            <a [routerLink]="['/app/orders', o.orderId, 'shipment']">Ayrıntılı Takip</a>
+            <span style="color:var(--border-default)">·</span>
+            <a [routerLink]="['/app/shipments', sh.shipmentId]">Kargo Detayı</a>
+          </div>
+        </div>
+        <div class="ship-grid">
+          <div class="ship-item"><strong>Durum</strong><span>{{ sh.status }}</span></div>
+          <div class="ship-item"><strong>Takip No</strong><span>{{ sh.trackingNumber || '-' }}</span></div>
+          <div class="ship-item"><strong>Taşıyıcı</strong><span>{{ sh.carrierName || '-' }}</span></div>
+          <div class="ship-item"><strong>Tahmini Teslim</strong><span>{{ shortDate(sh.estimatedDeliveryDate) }}</span></div>
         </div>
       </div>
     }
 
-    <table>
-      <thead>
-        <tr>
-          <th>Urun</th>
-          <th>Adet</th>
-          <th>Birim</th>
-          <th>Ara</th>
-          <th>Iade</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (it of o.items; track it.orderItemId) {
+    <!-- Items table -->
+    <div class="items-card">
+      <div class="items-card__header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/></svg>
+        Ürünler
+      </div>
+      <table class="ec-table">
+        <thead>
           <tr>
-            <td>{{ it.title }}</td>
-            <td>{{ it.quantity }}</td>
-            <td>{{ formatMoney(it.unitPriceAtPurchase) }}</td>
-            <td>{{ formatMoney(it.subtotal) }}</td>
-            <td>
-              <span [class]="returnBadgeClass(it.returnStatus)">{{ returnLabel(it.returnStatus) }}</span>
-              @if (it.returnReason) {
-                <div style="font-size:0.75rem;color:#64748b">{{ it.returnReason }}</div>
-              }
-            </td>
-            <td>
-              <div style="display:flex;flex-wrap:wrap;gap:8px">
-                <a [routerLink]="['/app/products', it.productId]">Urunu gor</a>
-                @if (o.status === 'DELIVERED') {
-                  <a [routerLink]="['/app/products', it.productId]">Yorum yap</a>
-                }
-              </div>
-              @if (canRequestReturn(it, o.status)) {
-                <div class="return-row">
-                  <input
-                    type="number"
-                    min="1"
-                    [max]="it.quantity"
-                    [value]="returnQty()[it.orderItemId] ?? 1"
-                    (change)="setQty(it.orderItemId, +$any($event.target).value)"
-                  />
-                  <input
-                    class="reason"
-                    placeholder="Neden"
-                    [value]="returnReason()[it.orderItemId] ?? ''"
-                    (input)="setReason(it.orderItemId, $any($event.target).value)"
-                  />
-                  <button type="button" (click)="submitReturn(it)">Iade talebi</button>
-                </div>
-              }
-            </td>
+            <th>Ürün</th>
+            <th style="text-align:center">Adet</th>
+            <th style="text-align:right">Birim</th>
+            <th style="text-align:right">Ara Toplam</th>
+            <th>İade</th>
+            <th>İşlem</th>
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (it of o.items; track it.orderItemId) {
+            <tr>
+              <td style="font-weight:600">{{ it.title }}</td>
+              <td style="text-align:center">{{ it.quantity }}</td>
+              <td style="text-align:right">{{ formatMoney(it.unitPriceAtPurchase) }}</td>
+              <td style="text-align:right;font-weight:700">{{ formatMoney(it.subtotal) }}</td>
+              <td>
+                <span [class]="returnBadgeClass(it.returnStatus)">{{ returnLabel(it.returnStatus) }}</span>
+                @if (it.returnReason) {
+                  <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px">{{ it.returnReason }}</div>
+                }
+              </td>
+              <td>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                  <a [routerLink]="['/app/products', it.productId]">Ürünü Gör</a>
+                  @if (o.status === 'DELIVERED') {
+                    <a [routerLink]="['/app/products', it.productId]">Yorum Yap</a>
+                  }
+                </div>
+                @if (canRequestReturn(it, o.status)) {
+                  <div class="return-row">
+                    <input
+                      class="qty"
+                      type="number" min="1" [max]="it.quantity"
+                      [value]="returnQty()[it.orderItemId] ?? 1"
+                      (change)="setQty(it.orderItemId, +$any($event.target).value)"
+                    />
+                    <input
+                      class="reason"
+                      placeholder="İade nedeni…"
+                      [value]="returnReason()[it.orderItemId] ?? ''"
+                      (input)="setReason(it.orderItemId, $any($event.target).value)"
+                    />
+                    <button type="button" (click)="submitReturn(it)">İade Talebi</button>
+                  </div>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
 
-    <p><strong>Toplam:</strong> {{ formatMoney(o.grandTotal) }} {{ o.currency }}</p>
+    <!-- Total -->
+    <div class="total-card">
+      <span style="color:var(--text-muted);margin-right:16px">Sipariş Toplamı</span>
+      <span class="total-value">{{ formatMoney(o.grandTotal) }} {{ o.currency }}</span>
+    </div>
   }
 }

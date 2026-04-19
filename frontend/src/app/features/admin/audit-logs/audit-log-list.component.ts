@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
@@ -11,39 +12,48 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 @Component({
   selector: 'app-admin-audit-log-list',
   standalone: true,
-  imports: [FormsModule, RouterLink, LoadingSpinnerComponent, ErrorStateComponent, PaginationComponent],
+  imports: [FormsModule, RouterLink, SlicePipe, LoadingSpinnerComponent, ErrorStateComponent, PaginationComponent],
   templateUrl: './audit-log-list.component.html',
   styles: [
     `
-      h2 {
-        margin: 0 0 1rem;
+      .page-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; margin-bottom: 20px; }
+
+      .search-bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow-sm);
       }
-      .filters {
-        margin-bottom: 1rem;
+      .search-bar svg { color: var(--text-muted); flex-shrink: 0; }
+      .search-bar input {
+        flex: 1;
+        border: none; outline: none;
+        font-size: 0.875rem;
+        background: transparent;
+        color: var(--text-primary);
       }
-      .filters input {
-        padding: 0.35rem 0.5rem;
-        border-radius: 8px;
-        border: 1px solid #cbd5e1;
-        margin-right: 8px;
+      .search-bar input::placeholder { color: var(--text-muted); }
+      .btn-search {
+        height: 32px; padding: 0 14px;
+        border-radius: var(--radius-md);
+        border: none; background: var(--clr-primary-600); color: #fff;
+        font-size: 0.8rem; font-weight: 700; cursor: pointer;
+        white-space: nowrap;
+        transition: background var(--trans-fast);
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.8rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 6px 4px;
-        border-bottom: 1px solid #e2e8f0;
-        vertical-align: top;
-      }
-      .details {
-        max-width: 360px;
-        word-break: break-word;
-        color: #475569;
-      }
+      .btn-search:hover { background: var(--clr-primary-700); }
+
+      .table-card { background: #fff; border: 1px solid var(--border-default); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sm); }
+
+      .action-link { color: var(--clr-primary-600); text-decoration: none; font-weight: 600; font-family: monospace; font-size: .78rem; }
+      .action-link:hover { text-decoration: underline; }
+
+      .details { max-width: 320px; word-break: break-word; font-size: .75rem; color: var(--text-muted); }
     `
   ]
 })

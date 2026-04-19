@@ -15,32 +15,66 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
   templateUrl: './shipment-tracking.component.html',
   styles: [
     `
-      .card {
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px;
-        background: #fff;
-      }
       .back {
-        display: inline-block;
-        margin-bottom: 1rem;
-        color: #2563eb;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 20px;
+        color: var(--text-secondary);
         text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: color var(--trans-fast);
       }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      .back:hover { color: var(--clr-primary-600); }
+
+      .tracking-card {
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+      .tracking-card__header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-default);
+        background: var(--clr-slate-50);
+        display: flex;
+        align-items: center;
         gap: 12px;
       }
-      .item {
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 12px;
-        background: #f8fafc;
+      .tracking-card__icon {
+        width: 40px; height: 40px;
+        background: var(--clr-primary-50);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--clr-primary-600);
       }
-      h2 {
-        margin: 0 0 1rem;
+      .tracking-card__title { font-size: 1.1rem; font-weight: 800; margin: 0; }
+      .tracking-card__body { padding: 24px; }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
       }
+      .info-item {
+        background: var(--clr-slate-50);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        padding: 14px 16px;
+      }
+      .info-item__label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .info-item__value { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
     `
   ]
 })

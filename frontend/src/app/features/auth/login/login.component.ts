@@ -47,32 +47,33 @@ import { AuthStore } from '../../../core/auth/auth.store';
       justify-content: space-between;
       gap: 12px;
       padding: 12px 14px;
-      border: 1px solid #c7d2fe;
+      border: 1px solid var(--clr-primary-200);
       border-radius: var(--radius-md);
-      background: #eef2ff;
+      background: var(--clr-primary-50);
       margin-bottom: 18px;
     }
     .demo-login__title {
       font-size: 0.82rem;
       font-weight: 700;
-      color: #3730a3;
+      color: var(--clr-primary-600);
       margin-bottom: 2px;
     }
     .demo-login__meta {
       font-size: 0.78rem;
-      color: #475569;
+      color: var(--text-secondary);
       line-height: 1.4;
     }
     .demo-login__btn {
       flex-shrink: 0;
       border: none;
       border-radius: var(--radius-md);
-      padding: 0.45rem 0.7rem;
+      padding: 0.45rem 0.8rem;
       background: var(--clr-primary-600);
       color: #fff;
       font-size: 0.8rem;
       font-weight: 700;
       cursor: pointer;
+      transition: background var(--trans-fast);
     }
     .demo-login__btn:hover {
       background: var(--clr-primary-700);
@@ -140,7 +141,7 @@ import { AuthStore } from '../../../core/auth/auth.store';
     }
     .submit-btn:hover:not(:disabled) {
       background: var(--clr-primary-700);
-      box-shadow: 0 6px 18px rgba(79,70,229,.35);
+      box-shadow: 0 6px 18px rgba(2,132,199,.35);
       transform: translateY(-1px);
     }
     .submit-btn:active:not(:disabled) { transform: translateY(0); }

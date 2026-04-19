@@ -1,5 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  AfterViewChecked,
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { AuthStore } from '../../core/auth/auth.store';
@@ -23,409 +33,671 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
   imports: [CommonModule, FormsModule, ChatPlotlyComponent],
   styles: [
     `
-      .chat-page {
-        max-width: 960px;
+      /* ── Layout ─────────────────────────────────── */
+      :host { display: flex; flex-direction: column; height: 100%; }
+
+      .chat-shell {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - var(--navbar-h, 60px) - var(--topnav-h, 48px));
+        max-width: 900px;
         margin: 0 auto;
-        padding: 24px;
+        width: 100%;
+        padding: 0 24px;
       }
-      .messages {
+
+      /* ── Top bar ─────────────────────────────────── */
+      .chat-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 0 12px;
+        border-bottom: 1px solid var(--border-default);
+        flex-shrink: 0;
+      }
+      .chat-topbar__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .chat-topbar__avatar {
+        width: 44px; height: 44px;
+        background: linear-gradient(135deg, var(--clr-primary-500), var(--clr-primary-700));
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(2,132,199,.35);
+      }
+      .chat-topbar__title { font-size: 1rem; font-weight: 800; letter-spacing: -.02em; }
+      .chat-topbar__sub { font-size: 0.72rem; color: var(--text-muted); }
+      .btn-new-chat {
+        display: inline-flex; align-items: center; gap: 6px;
+        height: 34px; padding: 0 14px;
+        border-radius: var(--radius-md);
+        border: 1.5px solid var(--border-default);
+        background: #fff; color: var(--text-secondary);
+        font-size: 0.8rem; font-weight: 700; cursor: pointer;
+        transition: all var(--trans-fast);
+      }
+      .btn-new-chat:hover { border-color: var(--clr-primary-300, #7dd3fc); color: var(--clr-primary-600); background: var(--clr-primary-50); }
+      .btn-new-chat:disabled { opacity: .45; cursor: not-allowed; }
+
+      /* ── Messages area ───────────────────────────── */
+      .messages-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 28px 0 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        scroll-behavior: smooth;
+      }
+      .messages-area::-webkit-scrollbar { width: 5px; }
+      .messages-area::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+
+      /* ── Empty state ─────────────────────────────── */
+      .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 0;
+        text-align: center;
+        gap: 20px;
+      }
+      .empty-state__icon {
+        width: 64px; height: 64px;
+        background: linear-gradient(135deg, var(--clr-primary-500), var(--clr-primary-700));
+        border-radius: 20px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 8px 24px rgba(2,132,199,.3);
+        color: #fff;
+        animation: pulse-glow 3s ease-in-out infinite;
+      }
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 8px 24px rgba(2,132,199,.3); }
+        50% { box-shadow: 0 8px 32px rgba(2,132,199,.55); }
+      }
+      .empty-state__title { font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; }
+      .empty-state__sub { font-size: 0.875rem; color: var(--text-muted); max-width: 400px; line-height: 1.6; }
+      .prompts-grid {
         display: grid;
-        gap: 16px;
-        margin: 20px 0;
-        min-height: 120px;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+        max-width: 560px;
       }
-      .message {
-        border: 1px solid #d7dde8;
-        border-radius: 8px;
-        padding: 14px;
+      @media (max-width: 520px) { .prompts-grid { grid-template-columns: 1fr; } }
+      .prompt-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
         background: #fff;
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        text-align: left;
+        cursor: pointer;
+        transition: all var(--trans-fast);
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+        font-weight: 500;
       }
-      .message.user {
-        background: #eef6ff;
+      .prompt-card:hover { border-color: var(--clr-primary-400, #38bdf8); background: var(--clr-primary-50); color: var(--clr-primary-700); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+      .prompt-card:disabled { opacity: .5; cursor: not-allowed; }
+      .prompt-card__icon { flex-shrink: 0; opacity: .5; margin-top: 1px; }
+
+      /* ── Message bubbles ─────────────────────────── */
+      .msg-row {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
       }
-      .answer-text {
-        margin: 6px 0 0;
-        line-height: 1.6;
+      .msg-row--user {
+        flex-direction: row-reverse;
       }
-      .answer-text p {
-        margin: 0 0 8px;
+      .msg-avatar {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.85rem; font-weight: 800;
       }
-      .answer-text h3 {
-        margin: 2px 0 8px;
-        font-size: 16px;
-        line-height: 1.35;
+      .msg-avatar--ai {
+        background: linear-gradient(135deg, var(--clr-primary-500), var(--clr-primary-700));
+        color: #fff;
+        box-shadow: 0 2px 10px rgba(2,132,199,.35);
       }
-      .answer-text strong {
-        font-weight: 700;
+      .msg-avatar--user {
+        background: var(--clr-slate-200, #e2e8f0);
+        color: var(--text-secondary);
       }
-      .answer-text ul {
-        margin: 8px 0 8px 18px;
-        padding: 0;
+      .msg-bubble {
+        max-width: min(76%, 680px);
+        border-radius: 18px;
+        padding: 16px 20px;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        position: relative;
       }
-      .answer-text li {
-        margin: 4px 0;
+      .msg-bubble--user {
+        background: var(--clr-primary-600);
+        color: #fff;
+        border-radius: 18px 4px 18px 18px;
       }
-      .message.loading-msg {
-        min-height: 120px;
-        opacity: 0.92;
+      .msg-bubble--ai {
+        background: #fff;
+        border: 1px solid var(--border-default);
+        box-shadow: var(--shadow-sm);
+        border-radius: 4px 18px 18px 18px;
       }
-      .skeleton-line {
-        height: 12px;
-        background: linear-gradient(90deg, #e2e8f0, #f1f5f9, #e2e8f0);
-        background-size: 200% 100%;
-        animation: sk 1.2s ease-in-out infinite;
-        border-radius: 4px;
-        margin-top: 10px;
-        max-width: 92%;
+
+      /* answer text */
+      .answer-text p { margin: 0 0 8px; }
+      .answer-text p:last-child { margin: 0; }
+      .answer-text h3 { font-size: 0.95rem; font-weight: 700; margin: 10px 0 6px; }
+      .answer-text strong { font-weight: 700; }
+      .answer-text ul { margin: 6px 0 8px 18px; padding: 0; }
+      .answer-text li { margin: 3px 0; }
+
+      /* error badge */
+      .error-box {
+        display: flex; align-items: flex-start; gap: 8px;
+        margin-top: 10px; padding: 10px 12px;
+        background: #fef2f2; border: 1px solid #fecaca;
+        border-radius: var(--radius-md); font-size: 0.8rem; color: #991b1b;
       }
-      .skeleton-line.short {
-        max-width: 55%;
+      .error-box__code { font-weight: 700; margin-bottom: 2px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; }
+
+      /* execution steps */
+      .steps-section { margin-top: 12px; }
+      .steps-header {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: .06em;
+        margin-bottom: 8px; cursor: pointer; user-select: none;
       }
-      @keyframes sk {
-        0% {
-          background-position: 200% 0;
-        }
-        100% {
-          background-position: -200% 0;
-        }
-      }
-      .steps {
-        margin-top: 12px;
-        display: grid;
-        gap: 8px;
-        font-size: 13px;
-      }
-      .step-row {
+      .steps-header svg { transition: transform var(--trans-fast); }
+      .steps-header.open svg { transform: rotate(180deg); }
+      .steps-pipeline {
         display: flex;
         flex-wrap: wrap;
-        align-items: baseline;
+        gap: 4px;
+        align-items: center;
+      }
+      .step-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 10px;
+        border-radius: var(--radius-full);
+        font-size: 0.68rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em;
+        white-space: nowrap;
+      }
+      .step-pill__dot { width: 5px; height: 5px; border-radius: 50%; }
+      .step-completed { background: #dcfce7; color: #166534; }
+      .step-completed .step-pill__dot { background: #166534; }
+      .step-running   { background: #dbeafe; color: #1e40af; }
+      .step-running .step-pill__dot { background: #1e40af; animation: blink .8s step-end infinite; }
+      .step-pending   { background: #f1f5f9; color: #475569; }
+      .step-pending .step-pill__dot { background: #94a3b8; }
+      .step-failed    { background: #fee2e2; color: #991b1b; }
+      .step-failed .step-pill__dot { background: #991b1b; }
+      .step-skipped   { background: #f3f4f6; color: #6b7280; }
+      .step-skipped .step-pill__dot { background: #9ca3af; }
+      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+      /* table */
+      .table-card {
+        margin-top: 14px;
+        overflow: auto;
+        max-height: 340px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+      }
+      table.result {
+        width: 100%; border-collapse: collapse; font-size: 0.8rem;
+      }
+      table.result th {
+        position: sticky; top: 0; z-index: 1;
+        background: var(--clr-slate-50);
+        padding: 8px 12px; text-align: left;
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .05em; color: var(--text-muted);
+        border-bottom: 1px solid var(--border-default);
+        white-space: nowrap;
+      }
+      table.result td {
+        padding: 8px 12px; border-bottom: 1px solid var(--border-default);
+        vertical-align: top; color: var(--text-secondary);
+      }
+      table.result tr:last-child td { border-bottom: none; }
+      table.result tr:hover td { background: var(--clr-primary-50); }
+      table.result th.col-metric, table.result td.col-metric,
+      table.result th.col-currency, table.result td.col-currency { white-space: nowrap; }
+      table.result th.col-id, table.result td.col-id { min-width: 160px; word-break: break-word; }
+      table.result th.col-title, table.result td.col-title,
+      table.result th.col-store, table.result td.col-store { min-width: 160px; }
+
+      /* chart */
+      .chart-card {
+        margin-top: 14px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+      .chart-card__header {
+        padding: 8px 12px; background: var(--clr-slate-50);
+        border-bottom: 1px solid var(--border-default);
+        font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: .06em;
+      }
+      .chart-card__body { padding: 4px; }
+      .chart-notes { margin: 0; padding: 8px 12px 10px 24px; font-size: 0.78rem; color: var(--text-muted); }
+      .chart-notes li { margin: 3px 0; }
+
+      /* technical details */
+      .tech-details {
+        margin-top: 12px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        font-size: 0.78rem;
+      }
+      .tech-details summary {
+        cursor: pointer; list-style: none;
+        padding: 8px 12px;
+        background: var(--clr-slate-50);
+        font-weight: 700; color: var(--text-muted);
+        display: flex; align-items: center; gap: 6px;
+        font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em;
+        user-select: none;
+      }
+      .tech-details[open] summary { border-bottom: 1px solid var(--border-default); }
+      .tech-details__body { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+      .tech-stat { display: flex; gap: 16px; flex-wrap: wrap; }
+      .tech-stat span { color: var(--text-muted); }
+      .tech-stat strong { color: var(--text-secondary); }
+      .sql-block {
+        background: #0f172a; color: #94d2f8;
+        border-radius: var(--radius-md);
+        padding: 12px 14px; overflow: auto;
+        font-size: 0.72rem; line-height: 1.6; font-family: monospace;
+        max-height: 200px; margin-top: 4px;
+      }
+      .sql-block code { color: inherit; font-family: inherit; }
+
+      /* skeleton / loading */
+      .loading-row { padding: 4px 0 8px; }
+      .skeleton {
+        height: 15px; border-radius: 8px; background-size: 400% 100%;
+        background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+        animation: shimmer 1.4s ease-in-out infinite;
+        margin-bottom: 12px;
+      }
+      .skeleton--sm { max-width: 50%; }
+      .skeleton--md { max-width: 72%; }
+      .skeleton--lg { max-width: 90%; }
+      @keyframes shimmer {
+        0%   { background-position: 400% 0; }
+        100% { background-position: -400% 0; }
+      }
+      .typing-dots { display: flex; gap: 5px; margin: 0 0 14px; }
+      .typing-dots span {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--clr-primary-400, #38bdf8);
+        animation: bounce 1.2s ease-in-out infinite;
+      }
+      .typing-dots span:nth-child(2) { animation-delay: .2s; }
+      .typing-dots span:nth-child(3) { animation-delay: .4s; }
+      @keyframes bounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-7px); }
+      }
+
+      /* Yükleme satırı: avatar + balon önizlemesi daha büyük */
+      .msg-row--loading {
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .msg-row--loading .msg-avatar {
+        width: 52px;
+        height: 52px;
+      }
+      .msg-row--loading .msg-bubble.loading-row {
+        padding: 20px 24px;
+        min-width: min(280px, 82vw);
+      }
+      .msg-row--loading .typing-dots {
         gap: 8px;
-        color: #334155;
+        margin-bottom: 18px;
       }
-      .step-name {
-        font-weight: 600;
-        min-width: 140px;
+      .msg-row--loading .typing-dots span {
+        width: 11px;
+        height: 11px;
       }
-      .step-badge {
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
+      .msg-row--loading .skeleton {
+        height: 18px;
+        border-radius: 10px;
+        margin-bottom: 14px;
       }
-      .step-completed {
-        background: #dcfce7;
-        color: #166534;
+
+      /* retry */
+      .btn-retry {
+        display: inline-flex; align-items: center; gap: 6px;
+        height: 30px; padding: 0 12px; margin-top: 10px;
+        border-radius: var(--radius-md); border: 1.5px solid var(--border-default);
+        background: #fff; color: var(--text-secondary);
+        font-size: 0.78rem; font-weight: 600; cursor: pointer;
+        transition: all var(--trans-fast);
       }
-      .step-running {
-        background: #dbeafe;
-        color: #1e40af;
-      }
-      .step-pending {
-        background: #f1f5f9;
-        color: #475569;
-      }
-      .step-failed {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .step-skipped {
-        background: #f3f4f6;
-        color: #6b7280;
+      .btn-retry:hover { border-color: var(--clr-primary-300, #7dd3fc); color: var(--clr-primary-600); background: var(--clr-primary-50); }
+
+      /* ── Composer ────────────────────────────────── */
+      .composer-wrap {
+        padding: 16px 0 24px;
+        flex-shrink: 0;
+        border-top: 1px solid var(--border-default);
       }
       .composer {
         display: flex;
-        gap: 10px;
-        align-items: flex-start;
-      }
-      textarea {
-        flex: 1;
-        min-height: 88px;
-        resize: vertical;
-        padding: 10px;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        font: inherit;
-      }
-      button.primary {
-        border: 0;
-        border-radius: 8px;
-        padding: 10px 16px;
-        background: #0f766e;
-        color: #fff;
-        cursor: pointer;
-      }
-      button.primary:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-      button.ghost {
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 8px 12px;
+        align-items: flex-end;
+        gap: 12px;
         background: #fff;
+        border: 2px solid var(--border-default);
+        border-radius: 20px;
+        padding: 16px 18px;
+        box-shadow: 0 4px 20px rgba(0,0,0,.08);
+        transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
+      }
+      .composer:focus-within {
+        border-color: var(--clr-primary-400, #38bdf8);
+        box-shadow: 0 0 0 4px rgba(14,165,233,.13), 0 4px 20px rgba(0,0,0,.08);
+      }
+      .composer textarea {
+        flex: 1;
+        border: none; outline: none; resize: none;
+        font: inherit; font-size: 1rem; background: transparent;
+        line-height: 1.6; color: var(--text-primary);
+        overflow-y: auto;
+        padding: 2px 0;
+        display: block;
+      }
+      .composer textarea::placeholder { color: var(--text-muted); font-size: 0.95rem; }
+      .btn-send {
+        width: 44px; height: 44px; flex-shrink: 0;
+        border-radius: 12px; border: none;
+        background: var(--clr-primary-600); color: #fff;
+        display: flex; align-items: center; justify-content: center;
         cursor: pointer;
-        font-size: 13px;
+        transition: background var(--trans-fast), transform var(--trans-fast), box-shadow var(--trans-fast);
+        box-shadow: 0 3px 10px rgba(2,132,199,.4);
       }
-      .table-wrap {
-        margin-top: 12px;
-        overflow: auto;
-        max-height: 360px;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-      }
-      table.result {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-      }
-      table.result th,
-      table.result td {
-        border-bottom: 1px solid #e2e8f0;
-        padding: 8px 10px;
-        text-align: left;
-        vertical-align: top;
-      }
-      table.result th {
-        position: sticky;
-        top: 0;
-        background: #f8fafc;
-        z-index: 1;
-      }
-      table.result th.col-metric,
-      table.result td.col-metric,
-      table.result th.col-currency,
-      table.result td.col-currency {
-        white-space: nowrap;
-      }
-      table.result th.col-id,
-      table.result td.col-id {
-        min-width: 180px;
-        word-break: break-word;
-      }
-      table.result th.col-title,
-      table.result td.col-title,
-      table.result th.col-store,
-      table.result td.col-store {
-        min-width: 170px;
-      }
-      table.result th.col-brand,
-      table.result td.col-brand {
-        min-width: 120px;
-      }
-      table.result th.col-metric,
-      table.result td.col-metric {
-        min-width: 110px;
-      }
-      table.result th.col-currency,
-      table.result td.col-currency {
-        min-width: 90px;
-      }
-      details.tech {
-        margin-top: 12px;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 8px 12px;
-        background: #fafafa;
-      }
-      details.tech summary {
-        cursor: pointer;
-        font-weight: 600;
-        color: #334155;
-      }
-      .samples {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin: 12px 0 8px;
-      }
-      .samples button {
-        text-align: left;
-      }
-      .retry-row {
-        margin-top: 10px;
-      }
-      .chart-block {
-        margin-top: 14px;
-      }
-      .chart-notes {
-        margin: 8px 0 0;
-        padding-left: 18px;
-        color: #475569;
-        font-size: 13px;
-      }
-      .chart-notes li {
-        margin: 4px 0;
-      }
-      .sql-block {
-        margin-top: 8px;
-        padding: 10px;
-        background: #0f172a;
-        color: #e2e8f0;
-        border-radius: 6px;
-        overflow: auto;
-        font-size: 12px;
-      }
-      .muted {
-        font-size: 13px;
-        color: #64748b;
-        margin-top: 8px;
-      }
-      .error-code {
-        font-size: 12px;
-        color: #64748b;
-        margin-top: 6px;
-      }
+      .btn-send:hover:not(:disabled) { background: var(--clr-primary-700); transform: scale(1.06); }
+      .btn-send:disabled { background: var(--clr-slate-300, #cbd5e1); box-shadow: none; cursor: not-allowed; transform: none; }
+      .composer-hint { font-size: 0.72rem; color: var(--text-muted); text-align: center; margin-top: 8px; }
+
       @media (max-width: 640px) {
-        .chat-page {
-          padding: 12px;
-        }
-        .composer {
-          flex-direction: column;
-        }
-        button.primary {
-          width: 100%;
-        }
-        .step-name {
-          min-width: 100%;
-        }
+        .chat-shell { padding: 0 10px; }
+        .empty-state__title { font-size: 1.1rem; }
+        .msg-bubble { max-width: 88%; }
       }
     `,
   ],
   template: `
-    <section class="chat-page">
-      <h2>Analytics sohbet</h2>
-      <p>Rolünüze uygun e-ticaret analitik soruları sorun.</p>
-
-      <div class="samples">
-        <button type="button" class="ghost" (click)="startNewChat()" [disabled]="loading()">
-          New Chat
-        </button>
-      </div>
-      <div class="messages">
-        <article
-          *ngFor="let message of messages()"
-          class="message"
-          [class.user]="message.role === 'user'"
-        >
-          <strong>{{ message.role === 'user' ? 'Siz' : 'Asistan' }}</strong>
-          <p *ngIf="message.role === 'user'">{{ message.content }}</p>
-          <div
-            *ngIf="message.role === 'assistant'"
-            class="answer-text"
-            [innerHTML]="renderAnswer(message.content)"
-          ></div>
-
-          <ng-container *ngIf="message.role === 'assistant' && message.response as response">
-            <div class="error-code" *ngIf="response.error?.code as code">
-              Kod: {{ code }} — {{ errorCodeHint(code) }}
-            </div>
-
-            <div class="steps" *ngIf="response.executionSteps?.length">
-              <div *ngFor="let step of response.executionSteps" class="step-row">
-                <span class="step-name">{{ step.name }}</span>
-                <span class="step-badge" [ngClass]="stepBadgeClass(step)">{{ step.status }}</span>
-                <span>{{ step.message }}</span>
-              </div>
-            </div>
-
-            <div class="table-wrap" *ngIf="response.table?.columns?.length">
-              <table class="result">
-                <thead>
-                  <tr>
-                    <th
-                      *ngFor="let column of response.table!.columns"
-                      [ngClass]="columnClass(column)"
-                    >
-                      {{ column }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let row of response.table!.rows">
-                    <td
-                      *ngFor="let column of response.table!.columns; let i = index"
-                      [ngClass]="columnClass(column)"
-                    >
-                      {{ formatCell(column, row[i], row, response.table!.columns) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="chart-block" *ngIf="hasChart(response.visualization)">
-              <app-chat-plotly [figure]="plotlyFigure(response.visualization)" />
-              <ul class="chart-notes" *ngIf="chartNotes(response).length">
-                <li *ngFor="let note of chartNotes(response)">{{ note }}</li>
-              </ul>
-            </div>
-
-            <details class="tech" *ngIf="response.technical">
-              <summary>Teknik detaylar</summary>
-              <p *ngIf="response.technical.sqlSummary"><strong>Özet:</strong> {{ response.technical.sqlSummary }}</p>
-              <pre
-                *ngIf="showFullSql() && response.technical.generatedSql"
-                class="sql-block"
-              ><code>{{ response.technical.generatedSql }}</code></pre>
-              <p *ngIf="!showFullSql() && response.technical.generatedSql" class="muted">
-                Tam SQL metni bu rol için gösterilmez; yalnızca özet kullanılabilir.
-              </p>
-              <p>
-                Satır: {{ response.technical.rowCount }} | Süre: {{ response.technical.executionMs }} ms | Onarım
-                denemesi: {{ response.technical.retryCount }}
-              </p>
-            </details>
-
-            <div class="retry-row" *ngIf="canRetry(response)">
-              <button type="button" class="ghost" (click)="retryAfterError()">Yeniden dene</button>
-            </div>
-          </ng-container>
-        </article>
-
-        <article *ngIf="loading()" class="message loading-msg" aria-busy="true">
-          <strong>Asistan</strong>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line short"></div>
-        </article>
-      </div>
-
-      <div *ngIf="!messages().length" class="empty">
-        <p>Örnek sorular (rolünüze göre):</p>
-        <div class="samples">
-          <button
-            type="button"
-            class="ghost"
-            *ngFor="let q of samplePrompts()"
-            (click)="sendMessage(q)"
-          >
-            {{ q }}
-          </button>
+    <div class="chat-shell">
+      <!-- Top bar -->
+      <div class="chat-topbar">
+        <div class="chat-topbar__brand">
+          <div class="chat-topbar__avatar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="chat-topbar__title">Analytics AI</div>
+            <div class="chat-topbar__sub">E-ticaret veri asistanı</div>
+          </div>
         </div>
+        <button type="button" class="btn-new-chat" (click)="startNewChat()" [disabled]="loading()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Yeni Sohbet
+        </button>
       </div>
 
-      <form class="composer" (ngSubmit)="sendMessage()">
-        <textarea
-          name="message"
-          [(ngModel)]="draft"
-          [disabled]="loading()"
-          placeholder="Analitik sorunuzu yazın"
-        ></textarea>
-        <button type="submit" class="primary" [disabled]="loading() || !draft.trim()">
-          {{ loading() ? 'Gönderiliyor…' : 'Gönder' }}
-        </button>
-      </form>
-    </section>
+      <!-- Messages / Empty -->
+      <div class="messages-area" #messagesArea>
+
+        <!-- Empty state -->
+        <div *ngIf="!messages().length && !loading()" class="empty-state">
+          <div class="empty-state__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="empty-state__title">Merhaba! Size nasıl yardımcı olabilirim?</div>
+          <div class="empty-state__sub">
+            Rolünüze uygun e-ticaret analitik sorularını yanıtlarım. Aşağıdan bir örnek seçin veya kendi sorunuzu yazın.
+          </div>
+          <div class="prompts-grid">
+            <button
+              type="button"
+              class="prompt-card"
+              *ngFor="let q of samplePrompts()"
+              (click)="sendMessage(q)"
+              [disabled]="loading()"
+            >
+              <svg class="prompt-card__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {{ q }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Message rows -->
+        <div
+          *ngFor="let message of messages()"
+          class="msg-row"
+          [class.msg-row--user]="message.role === 'user'"
+        >
+          <!-- Avatar -->
+          <div [class]="message.role === 'user' ? 'msg-avatar msg-avatar--user' : 'msg-avatar msg-avatar--ai'">
+            <ng-container *ngIf="message.role === 'assistant'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </ng-container>
+            <ng-container *ngIf="message.role === 'user'">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </ng-container>
+          </div>
+
+          <!-- Bubble -->
+          <div [class]="message.role === 'user' ? 'msg-bubble msg-bubble--user' : 'msg-bubble msg-bubble--ai'">
+
+            <!-- User content -->
+            <span *ngIf="message.role === 'user'">{{ message.content }}</span>
+
+            <!-- Assistant content -->
+            <ng-container *ngIf="message.role === 'assistant'">
+              <div class="answer-text" [innerHTML]="renderAnswer(message.content)"></div>
+
+              <ng-container *ngIf="message.response as response">
+
+                <!-- Error -->
+                <div class="error-box" *ngIf="response.error?.code as code">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <div>
+                    <div class="error-box__code">{{ code }}</div>
+                    <div>{{ errorCodeHint(code) }}</div>
+                  </div>
+                </div>
+
+                <!-- Execution steps -->
+                <div class="steps-section" *ngIf="response.executionSteps?.length">
+                  <div class="steps-header">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Pipeline
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div class="steps-pipeline">
+                    <span
+                      *ngFor="let step of response.executionSteps"
+                      class="step-pill"
+                      [ngClass]="stepBadgeClass(step)"
+                      [title]="step.message"
+                    >
+                      <span class="step-pill__dot"></span>
+                      {{ step.name }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Data table -->
+                <div class="table-card" *ngIf="response.table?.columns?.length">
+                  <table class="result">
+                    <thead>
+                      <tr>
+                        <th *ngFor="let column of response.table!.columns" [ngClass]="columnClass(column)">
+                          {{ column }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of response.table!.rows">
+                        <td *ngFor="let column of response.table!.columns; let i = index" [ngClass]="columnClass(column)">
+                          {{ formatCell(column, row[i], row, response.table!.columns) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Chart -->
+                <div class="chart-card" *ngIf="hasChart(response.visualization)">
+                  <div class="chart-card__header">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:middle"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Görselleştirme
+                  </div>
+                  <div class="chart-card__body">
+                    <app-chat-plotly [figure]="plotlyFigure(response.visualization)" />
+                  </div>
+                  <ul class="chart-notes" *ngIf="chartNotes(response).length">
+                    <li *ngFor="let note of chartNotes(response)">{{ note }}</li>
+                  </ul>
+                </div>
+
+                <!-- Technical details -->
+                <details class="tech-details" *ngIf="response.technical">
+                  <summary>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    Teknik Detaylar
+                  </summary>
+                  <div class="tech-details__body">
+                    <div class="tech-stat">
+                      <span>Satır: <strong>{{ response.technical.rowCount }}</strong></span>
+                      <span>Süre: <strong>{{ response.technical.executionMs }} ms</strong></span>
+                      <span>Onarım: <strong>{{ response.technical.retryCount }}</strong></span>
+                    </div>
+                    <div *ngIf="response.technical.sqlSummary" style="color:var(--text-secondary);font-size:.78rem">
+                      <strong>Özet:</strong> {{ response.technical.sqlSummary }}
+                    </div>
+                    <pre *ngIf="showFullSql() && response.technical.generatedSql" class="sql-block"><code>{{ response.technical.generatedSql }}</code></pre>
+                    <div *ngIf="!showFullSql() && response.technical.generatedSql" style="font-size:.75rem;color:var(--text-muted)">
+                      Tam SQL bu rol için gizlendi.
+                    </div>
+                  </div>
+                </details>
+
+                <!-- Retry -->
+                <div *ngIf="canRetry(response)">
+                  <button type="button" class="btn-retry" (click)="retryAfterError()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                    Yeniden Dene
+                  </button>
+                </div>
+
+              </ng-container>
+            </ng-container>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="loading()" class="msg-row msg-row--loading">
+          <div class="msg-avatar msg-avatar--ai">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="msg-bubble msg-bubble--ai loading-row">
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="skeleton skeleton--lg"></div>
+            <div class="skeleton skeleton--md"></div>
+            <div class="skeleton skeleton--sm"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Composer -->
+      <div class="composer-wrap">
+        <form class="composer" (ngSubmit)="sendMessage()">
+          <textarea
+            #composerTextarea
+            name="message"
+            [(ngModel)]="draft"
+            [disabled]="loading()"
+            placeholder="Analitik sorunuzu yazın…"
+            rows="1"
+            (ngModelChange)="onDraftModelChange()"
+            (keydown.enter)="onEnter($event)"
+          ></textarea>
+          <button type="submit" class="btn-send" [disabled]="loading() || !draft.trim()" title="Gönder (Enter)">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </form>
+        <div class="composer-hint">Enter ile gönder · Shift+Enter ile yeni satır</div>
+      </div>
+    </div>
   `,
 })
-export class ChatHomeComponent implements OnInit {
+export class ChatHomeComponent implements OnInit, AfterViewInit, AfterViewChecked {
   private readonly chatService = inject(ChatService);
   private readonly authStore = inject(AuthStore);
+
+  @ViewChild('messagesArea') private messagesArea?: ElementRef<HTMLDivElement>;
+  @ViewChild('composerTextarea') private composerTextarea?: ElementRef<HTMLTextAreaElement>;
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly loading = signal(false);
   readonly sessionId = signal<string>('');
   draft = '';
+  private shouldScroll = false;
+
+  ngAfterViewInit(): void {
+    this.syncComposerTextareaRows();
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.shouldScroll) {
+      this.scrollToBottom();
+      this.shouldScroll = false;
+    }
+  }
+
+  private scrollToBottom(): void {
+    const el = this.messagesArea?.nativeElement;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  onEnter(event: Event): void {
+    const kbEvent = event as KeyboardEvent;
+    if (!kbEvent.shiftKey) {
+      kbEvent.preventDefault();
+      this.sendMessage();
+    }
+  }
 
   readonly samplePrompts = computed(() => {
     const role = this.authStore.activeRole() ?? 'INDIVIDUAL';
@@ -473,14 +745,59 @@ export class ChatHomeComponent implements OnInit {
     });
   }
 
+  /** Boşken 1 satır; içerik 1 satırı aşınca 3, 3 satırı aşınca 6 satır yüksekliği. */
+  syncComposerTextareaRows(): void {
+    const el = this.composerTextarea?.nativeElement;
+    if (!el) return;
+
+    if (!this.draft.trim()) {
+      el.style.minHeight = '';
+      el.style.height = '';
+      el.style.overflow = '';
+      el.rows = 1;
+      return;
+    }
+
+    const linePx = this.textareaLineHeightPx(el);
+    el.rows = 1;
+    el.style.minHeight = '0';
+    el.style.height = '0';
+    el.style.overflow = 'hidden';
+
+    const lines = Math.max(1, Math.ceil(el.scrollHeight / linePx));
+
+    el.style.minHeight = '';
+    el.style.height = '';
+    el.style.overflow = '';
+
+    el.rows = lines > 3 ? 6 : lines > 1 ? 3 : 1;
+  }
+
+  onDraftModelChange(): void {
+    queueMicrotask(() => this.syncComposerTextareaRows());
+  }
+
+  private textareaLineHeightPx(el: HTMLTextAreaElement): number {
+    const cs = getComputedStyle(el);
+    const raw = cs.lineHeight;
+    if (raw === 'normal') {
+      const fontSize = parseFloat(cs.fontSize);
+      return Number.isFinite(fontSize) ? fontSize * 1.6 : 19.2;
+    }
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : parseFloat(cs.fontSize) * 1.6;
+  }
+
   sendMessage(prefill?: string): void {
     const content = (prefill ?? this.draft).trim();
     if (!content || this.loading() || !this.sessionId()) {
       return;
     }
     this.draft = '';
+    queueMicrotask(() => this.syncComposerTextareaRows());
     this.messages.update((messages) => [...messages, { role: 'user', content }]);
     this.loading.set(true);
+    this.shouldScroll = true;
 
     this.chatService.askQuestion(this.buildRequest(content)).subscribe({
       next: (response) => {
@@ -493,6 +810,7 @@ export class ChatHomeComponent implements OnInit {
           },
         ]);
         this.loading.set(false);
+        this.shouldScroll = true;
       },
     });
   }
@@ -505,6 +823,7 @@ export class ChatHomeComponent implements OnInit {
       next: (state) => {
         this.draft = '';
         this.applySessionState(state);
+        queueMicrotask(() => this.syncComposerTextareaRows());
       },
     });
   }

@@ -1,10 +1,10 @@
-<h2>Magazalar</h2>
+<h1 class="page-title">Mağazalar</h1>
 
-<div class="filters">
+<div class="toolbar">
   <label>
-    Durum
+    Durum Filtresi
     <select [(ngModel)]="statusFilter" (change)="onFilterChange()">
-      <option value="">Tumu</option>
+      <option value="">Tümü</option>
       @for (status of statusOptions; track status) {
         <option [value]="status">{{ status }}</option>
       }
@@ -15,35 +15,37 @@
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Liste yuklenemedi." (retry)="load()" />
+  <app-error-state message="Liste yüklenemedi." (retry)="load()" />
 } @else {
-  <table>
-    <thead>
-      <tr>
-        <th>Ad</th>
-        <th>E-posta</th>
-        <th>Durum</th>
-        <th>Urun</th>
-        <th>Yeni durum</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (store of items(); track store.id) {
+  <div class="table-card">
+    <table class="ec-table">
+      <thead>
         <tr>
-          <td><a [routerLink]="['/admin/stores', store.id]" style="color:#2563eb;text-decoration:none">{{ store.name }}</a></td>
-          <td>{{ store.contactEmail }}</td>
-          <td>{{ store.status }}</td>
-          <td>{{ store.productCount ?? '-' }}</td>
-          <td>
-            <select class="sm" [value]="store.status" (change)="changeStatus(store, $event)">
-              @for (status of statusOptions; track status) {
-                <option [value]="status">{{ status }}</option>
-              }
-            </select>
-          </td>
+          <th>Mağaza Adı</th>
+          <th>E-posta</th>
+          <th>Durum</th>
+          <th style="text-align:center">Ürün</th>
+          <th>Durum Değiştir</th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (store of items(); track store.id) {
+          <tr>
+            <td><a class="store-link" [routerLink]="['/admin/stores', store.id]">{{ store.name }}</a></td>
+            <td style="font-size:.82rem;color:var(--text-secondary)">{{ store.contactEmail }}</td>
+            <td><span [class]="'status-badge s-' + store.status">{{ store.status }}</span></td>
+            <td style="text-align:center;font-weight:600">{{ store.productCount ?? '-' }}</td>
+            <td>
+              <select class="sm" [value]="store.status" (change)="changeStatus(store, $event)">
+                @for (status of statusOptions; track status) {
+                  <option [value]="status">{{ status }}</option>
+                }
+              </select>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPage($event)" />
 }
