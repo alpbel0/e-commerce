@@ -44,6 +44,9 @@ class AgentState:
                                                      # AUTHORIZATION_RISK |
                                                      # PROMPT_INJECTION |
                                                      # DESTRUCTIVE_REQUEST | AMBIGUOUS
+    access_mode: str = "PERSONAL"                  # PERSONAL | PUBLIC_AGGREGATE |
+                                                     # STORE_SCOPED | PLATFORM_ADMIN |
+                                                     # RESTRICTED_BUSINESS
     language: str = "en"                            # "tr" | "en"
     should_execute_sql: bool = False
     guardrails_output: Dict[str, Any] = field(default_factory=dict)

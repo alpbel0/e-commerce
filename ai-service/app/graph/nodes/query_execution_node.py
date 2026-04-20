@@ -80,6 +80,7 @@ async def query_execution_node(state: AgentState) -> Dict[str, Any]:
                 email=state.user_email,
                 role=RoleType(state.user_role),
             ),
+            execution_policy=state.access_mode or "PERSONAL",
         )
         response = await ai_client.execute_query(request)
 

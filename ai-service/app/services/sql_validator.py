@@ -35,6 +35,13 @@ FORBIDDEN_KEYWORDS: Set[str] = {
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
 
+PUBLIC_AGGREGATE_ALLOWED_TABLES: Set[str] = {
+    "stores",
+    "products",
+    "categories",
+    "reviews",
+}
+
 
 @dataclass
 class ValidationResult:
@@ -63,6 +70,7 @@ class SQLValidator:
         self,
         sql: str,
         role: str = "INDIVIDUAL",
+        access_mode: str = "PERSONAL",
         require_scope_filter: bool = True
     ) -> ValidationResult:
         """
@@ -151,9 +159,13 @@ class SQLValidator:
 
         # Rule 7: Role scope check (placeholder-based)
         if require_scope_filter:
-            scope_result = self._check_role_scope(sql, role)
+            scope_result = self._check_role_scope(sql, role, access_mode)
             if not scope_result.is_valid:
                 return scope_result
+
+        public_scope_result = self._check_public_aggregate_scope(tables, role, access_mode)
+        if not public_scope_result.is_valid:
+            return public_scope_result
 
         # Rule 8: Rating/review analytics must use reviews as source of truth
         rating_result = self._check_rating_source(sql_lower, tables)
@@ -237,9 +249,10 @@ class SQLValidator:
         tables.extend(query.join_tables)
         return tables if tables else []
 
-    def _check_role_scope(self, sql: str, role: str) -> ValidationResult:
+    def _check_role_scope(self, sql: str, role: str, access_mode: str) -> ValidationResult:
         """Check that query has proper role-based scope filters."""
         sql_lower = sql.lower()
+        normalized_access_mode = (access_mode or "PERSONAL").upper()
 
         if role == "CORPORATE":
             # Must have store scope
@@ -257,6 +270,14 @@ class SQLValidator:
                 )
 
         elif role == "INDIVIDUAL":
+            if normalized_access_mode == "RESTRICTED_BUSINESS":
+                return ValidationResult(
+                    is_valid=False,
+                    error_code="SQL_SCOPE_VIOLATION",
+                    error_message="Individual users cannot access restricted business analytics"
+                )
+            if normalized_access_mode == "PUBLIC_AGGREGATE":
+                return ValidationResult(is_valid=True)
             # Must have user scope
             has_user_scope = (
                 ":currentuserid" in sql_lower or
@@ -289,6 +310,29 @@ class SQLValidator:
                 )
 
         # ADMIN can query without explicit scope (has platform-wide access)
+        return ValidationResult(is_valid=True)
+
+    def _check_public_aggregate_scope(
+        self,
+        tables: List[str],
+        role: str,
+        access_mode: str,
+    ) -> ValidationResult:
+        if role != "INDIVIDUAL" or (access_mode or "PERSONAL").upper() != "PUBLIC_AGGREGATE":
+            return ValidationResult(is_valid=True)
+
+        normalized_tables = {table.lower() for table in tables}
+        invalid_tables = sorted(normalized_tables - PUBLIC_AGGREGATE_ALLOWED_TABLES)
+        if invalid_tables:
+            return ValidationResult(
+                is_valid=False,
+                error_code="SQL_SCOPE_VIOLATION",
+                error_message=(
+                    "Individual public aggregate queries may only use products, categories, stores, and reviews "
+                    f"(found disallowed table: {invalid_tables[0]})"
+                ),
+            )
+
         return ValidationResult(is_valid=True)
 
     def _check_rating_source(self, sql_lower: str, tables: List[str]) -> ValidationResult:
@@ -716,10 +760,11 @@ sql_validator = SQLValidator()
 def validate(
     sql: str,
     role: str = "INDIVIDUAL",
+    access_mode: str = "PERSONAL",
     require_scope_filter: bool = True
 ) -> ValidationResult:
     """Convenience function for SQL validation."""
-    return sql_validator.validate(sql, role, require_scope_filter)
+    return sql_validator.validate(sql, role, access_mode, require_scope_filter)
 
 
 def is_valid_sql(sql: str, role: str = "INDIVIDUAL") -> bool:

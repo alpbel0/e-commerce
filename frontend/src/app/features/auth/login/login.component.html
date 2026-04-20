@@ -10,13 +10,16 @@
   </div>
 }
 
-<div class="demo-login">
-  <div>
-    <div class="demo-login__title">Admin demo hesabi</div>
-    <div class="demo-login__meta">{{ adminDemoEmail }} / {{ adminDemoPassword }}</div>
+@for (account of demoAccounts; track account.key) {
+  <div class="demo-login">
+    <div>
+      <div class="demo-login__title">{{ account.title }}</div>
+      <div class="demo-login__meta">{{ account.email }} / {{ account.password }}</div>
+      <div class="demo-login__meta">{{ account.note }}</div>
+    </div>
+    <button type="button" class="demo-login__btn" (click)="fillDemo(account.email, account.password)">Doldur</button>
   </div>
-  <button type="button" class="demo-login__btn" (click)="fillAdminDemo()">Doldur</button>
-</div>
+}
 
 <form [formGroup]="form" (ngSubmit)="submit()" class="login-form" novalidate>
   <div class="field">

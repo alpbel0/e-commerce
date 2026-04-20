@@ -20,6 +20,7 @@ import type {
   ChatSessionStateResponse,
   ConversationMessage,
   ErrorCode,
+  ExecutionStepName,
   ExecutionStepResponse,
   StoreInfo,
 } from './models/chat.models';
@@ -154,9 +155,7 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
         gap: 14px;
         align-items: flex-start;
       }
-      .msg-row--user {
-        flex-direction: row-reverse;
-      }
+      .msg-row--user { flex-direction: row-reverse; }
       .msg-avatar {
         width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
@@ -171,33 +170,87 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
         background: var(--clr-slate-200, #e2e8f0);
         color: var(--text-secondary);
       }
-      .msg-bubble {
-        max-width: min(76%, 680px);
-        border-radius: 18px;
-        padding: 16px 20px;
+
+      /* User bubble */
+      .msg-bubble--user {
+        max-width: min(72%, 640px);
+        border-radius: 18px 4px 18px 18px;
+        padding: 14px 20px;
         font-size: 0.95rem;
         line-height: 1.7;
-        position: relative;
-      }
-      .msg-bubble--user {
         background: var(--clr-primary-600);
         color: #fff;
-        border-radius: 18px 4px 18px 18px;
-      }
-      .msg-bubble--ai {
-        background: #fff;
-        border: 1px solid var(--border-default);
-        box-shadow: var(--shadow-sm);
-        border-radius: 4px 18px 18px 18px;
       }
 
-      /* answer text */
-      .answer-text p { margin: 0 0 8px; }
+      /* AI bubble — bölümlü kart tasarımı */
+      .msg-bubble--ai {
+        max-width: min(90%, 800px);
+        border-radius: 4px 18px 18px 18px;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        background: #fff;
+        border: 1px solid rgba(14,165,233,.18);
+        box-shadow: 0 4px 28px rgba(0,0,0,.09), 0 1px 4px rgba(0,0,0,.04);
+        overflow: hidden;
+      }
+
+      /* AI ana metin alanı */
+      .ai-body { padding: 22px 26px 20px; }
+
+      /* Bölüm ayracı */
+      .ai-divider { height: 1px; background: var(--border-default); }
+
+      /* Bölüm başlığı */
+      .ai-section-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 18px;
+        background: var(--clr-slate-50, #f8fafc);
+        font-size: 0.67rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-default);
+      }
+      .ai-section-label svg { opacity: .6; flex-shrink: 0; }
+
+      /* Gelişmiş answer-text tipografisi */
+      .answer-text { font-size: 0.94rem; line-height: 1.8; color: var(--text-secondary); }
+      .answer-text p { margin: 0 0 10px; }
       .answer-text p:last-child { margin: 0; }
-      .answer-text h3 { font-size: 0.95rem; font-weight: 700; margin: 10px 0 6px; }
-      .answer-text strong { font-weight: 700; }
-      .answer-text ul { margin: 6px 0 8px 18px; padding: 0; }
-      .answer-text li { margin: 3px 0; }
+      .answer-text h3 {
+        font-size: 0.87rem;
+        font-weight: 800;
+        color: var(--clr-primary-700, #0369a1);
+        margin: 20px 0 9px;
+        padding: 5px 10px;
+        border-left: 3px solid var(--clr-primary-400, #38bdf8);
+        background: var(--clr-primary-50, #f0f9ff);
+        border-radius: 0 6px 6px 0;
+        letter-spacing: -.01em;
+      }
+      .answer-text h3:first-child { margin-top: 0; }
+      .answer-text strong { font-weight: 700; color: var(--text-primary); }
+      .answer-text ul { margin: 0 0 12px; padding: 0; list-style: none; }
+      .answer-text li {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--clr-slate-100, #f1f5f9);
+        line-height: 1.65;
+      }
+      .answer-text li:last-child { border-bottom: none; padding-bottom: 0; }
+      .answer-text li::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--clr-primary-400, #38bdf8);
+        flex-shrink: 0;
+        margin-top: 8px;
+      }
 
       /* error badge */
       .error-box {
@@ -218,41 +271,111 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
       }
       .steps-header svg { transition: transform var(--trans-fast); }
       .steps-header.open svg { transform: rotate(180deg); }
-      .steps-pipeline {
+
+      /* Pipeline: yatay stepper */
+      .pipeline-stepper {
+        padding: 4px 4px 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .pipeline-track {
         display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
+        align-items: flex-start;
+        width: 100%;
+        min-width: 520px;
+        gap: 0;
+        padding-top: 4px;
+      }
+      .pipeline-node {
+        display: flex;
+        flex-direction: column;
         align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+        width: 4.75rem;
+        text-align: center;
       }
-      .step-pill {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 3px 10px;
-        border-radius: var(--radius-full);
-        font-size: 0.68rem; font-weight: 700;
-        text-transform: uppercase; letter-spacing: .04em;
-        white-space: nowrap;
+      .pipeline-node__dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: #cbd5e1;
+        box-shadow: 0 0 0 3px #fff, 0 0 0 4px #e2e8f0;
+        transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
       }
-      .step-pill__dot { width: 5px; height: 5px; border-radius: 50%; }
-      .step-completed { background: #dcfce7; color: #166534; }
-      .step-completed .step-pill__dot { background: #166534; }
-      .step-running   { background: #dbeafe; color: #1e40af; }
-      .step-running .step-pill__dot { background: #1e40af; animation: blink .8s step-end infinite; }
-      .step-pending   { background: #f1f5f9; color: #475569; }
-      .step-pending .step-pill__dot { background: #94a3b8; }
-      .step-failed    { background: #fee2e2; color: #991b1b; }
-      .step-failed .step-pill__dot { background: #991b1b; }
-      .step-skipped   { background: #f3f4f6; color: #6b7280; }
-      .step-skipped .step-pill__dot { background: #9ca3af; }
-      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      .pipeline-node__label {
+        font-size: 0.58rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        max-width: 100%;
+      }
+      .pipeline-node--completed .pipeline-node__dot {
+        background: var(--clr-primary-600, #16a34a);
+        box-shadow: 0 0 0 3px #fff, 0 0 0 4px rgba(22, 163, 74, 0.35);
+      }
+      .pipeline-node--completed .pipeline-node__label { color: var(--clr-primary-800, #166534); }
+      .pipeline-node--running .pipeline-node__dot {
+        background: #2563eb;
+        box-shadow: 0 0 0 3px #fff, 0 0 0 4px rgba(37, 99, 235, 0.45);
+        animation: pipeline-pulse 1s ease-in-out infinite;
+      }
+      .pipeline-node--running .pipeline-node__label { color: #1d4ed8; }
+      .pipeline-node--pending .pipeline-node__dot {
+        background: #cbd5e1;
+        box-shadow: 0 0 0 3px #fff, 0 0 0 4px #e2e8f0;
+      }
+      .pipeline-node--failed .pipeline-node__dot {
+        background: #dc2626;
+        box-shadow: 0 0 0 3px #fff, 0 0 0 4px rgba(220, 38, 38, 0.4);
+      }
+      .pipeline-node--failed .pipeline-node__label { color: #991b1b; }
+      .pipeline-node--skipped .pipeline-node__dot {
+        background: #9ca3af;
+        box-shadow: 0 0 0 3px #fff, 0 0 0 4px #e5e7eb;
+      }
+      .pipeline-node--skipped .pipeline-node__label { color: #6b7280; }
+      @keyframes pipeline-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.08); opacity: 0.88; }
+      }
+      .pipeline-segment {
+        flex: 1 1 auto;
+        min-width: 8px;
+        height: 4px;
+        margin: 0 2px;
+        margin-top: 5px;
+        align-self: flex-start;
+        border-radius: 999px;
+        background: #e2e8f0;
+        transition: background 0.4s ease, box-shadow 0.4s ease;
+      }
+      .pipeline-segment--lit {
+        background: linear-gradient(
+          90deg,
+          var(--clr-primary-500, #22c55e),
+          var(--clr-primary-400, #4ade80)
+        );
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.35);
+      }
+      .pipeline-segment--lit.pipeline-segment--glow {
+        animation: segment-glow 1.8s ease-in-out infinite;
+      }
+      @keyframes segment-glow {
+        0%, 100% { box-shadow: 0 0 6px rgba(34, 197, 94, 0.25); }
+        50% { box-shadow: 0 0 14px rgba(34, 197, 94, 0.5); }
+      }
 
       /* table */
       .table-card {
-        margin-top: 14px;
         overflow: auto;
-        max-height: 340px;
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
+        max-height: 360px;
+        border-top: 1px solid var(--border-default);
       }
       table.result {
         width: 100%; border-collapse: collapse; font-size: 0.8rem;
@@ -278,22 +401,7 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
       table.result th.col-title, table.result td.col-title,
       table.result th.col-store, table.result td.col-store { min-width: 160px; }
 
-      /* chart */
-      .chart-card {
-        margin-top: 14px;
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-      }
-      .chart-card__header {
-        padding: 8px 12px; background: var(--clr-slate-50);
-        border-bottom: 1px solid var(--border-default);
-        font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
-        text-transform: uppercase; letter-spacing: .06em;
-      }
-      .chart-card__body { padding: 4px; }
-      .chart-notes { margin: 0; padding: 8px 12px 10px 24px; font-size: 0.78rem; color: var(--text-muted); }
+      .chart-notes { margin: 0; padding: 6px 18px 12px 18px; font-size: 0.78rem; color: var(--text-muted); list-style: disc; }
       .chart-notes li { margin: 3px 0; }
 
       /* technical details */
@@ -511,49 +619,78 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
             </ng-container>
           </div>
 
-          <!-- Bubble -->
-          <div [class]="message.role === 'user' ? 'msg-bubble msg-bubble--user' : 'msg-bubble msg-bubble--ai'">
+          <!-- Kullanıcı balonu -->
+          <div class="msg-bubble msg-bubble--user" *ngIf="message.role === 'user'">
+            {{ message.content }}
+          </div>
 
-            <!-- User content -->
-            <span *ngIf="message.role === 'user'">{{ message.content }}</span>
+          <!-- AI balonu — bölümlü kart -->
+          <div class="msg-bubble msg-bubble--ai" *ngIf="message.role === 'assistant'">
 
-            <!-- Assistant content -->
-            <ng-container *ngIf="message.role === 'assistant'">
+            <!-- Ana metin bölümü -->
+            <div class="ai-body">
               <div class="answer-text" [innerHTML]="renderAnswer(message.content)"></div>
 
               <ng-container *ngIf="message.response as response">
-
-                <!-- Error -->
-                <div class="error-box" *ngIf="response.error?.code as code">
+                <!-- Hata -->
+                <div class="error-box" *ngIf="response.error?.code as code" style="margin-top:14px">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <div>
                     <div class="error-box__code">{{ code }}</div>
                     <div>{{ errorCodeHint(code) }}</div>
                   </div>
                 </div>
+                <!-- Yeniden dene -->
+                <div *ngIf="canRetry(response)" style="margin-top:12px">
+                  <button type="button" class="btn-retry" (click)="retryAfterError()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                    Yeniden Dene
+                  </button>
+                </div>
+              </ng-container>
+            </div>
 
-                <!-- Execution steps -->
-                <div class="steps-section" *ngIf="response.executionSteps?.length">
-                  <div class="steps-header">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    Pipeline
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                  </div>
-                  <div class="steps-pipeline">
-                    <span
-                      *ngFor="let step of response.executionSteps"
-                      class="step-pill"
-                      [ngClass]="stepBadgeClass(step)"
-                      [title]="step.message"
-                    >
-                      <span class="step-pill__dot"></span>
-                      {{ step.name }}
-                    </span>
+            <ng-container *ngIf="message.response as response">
+
+              <!-- Pipeline bölümü -->
+              <ng-container *ngIf="response.executionSteps?.length">
+                <div class="ai-divider"></div>
+                <div class="ai-section-label">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Pipeline
+                </div>
+                <div class="pipeline-stepper" style="padding-left:18px;padding-right:18px;padding-bottom:14px;">
+                  <div class="pipeline-track" role="list" aria-label="İşlem adımları">
+                    <ng-container *ngFor="let step of response.executionSteps; let i = index; let last = last">
+                      <div
+                        class="pipeline-node"
+                        [ngClass]="stepNodeClass(step)"
+                        [title]="step.message + ' (' + step.status + ')'"
+                        role="listitem"
+                      >
+                        <span class="pipeline-node__dot" aria-hidden="true"></span>
+                        <span class="pipeline-node__label">{{ pipelineStepLabel(step.name) }}</span>
+                      </div>
+                      <div
+                        *ngIf="!last"
+                        class="pipeline-segment"
+                        [class.pipeline-segment--lit]="isPipelineSegmentLit(response.executionSteps, i)"
+                        [class.pipeline-segment--glow]="isPipelineSegmentGlow(response.executionSteps, i)"
+                        aria-hidden="true"
+                      ></div>
+                    </ng-container>
                   </div>
                 </div>
+              </ng-container>
 
-                <!-- Data table -->
-                <div class="table-card" *ngIf="response.table?.columns?.length">
+              <!-- Veri tablosu bölümü -->
+              <ng-container *ngIf="response.table?.columns?.length">
+                <div class="ai-divider"></div>
+                <div class="ai-section-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                  Veri Tablosu
+                </div>
+                <div class="table-card" style="margin:0;border:none;border-radius:0;box-shadow:none;max-height:360px;">
                   <table class="result">
                     <thead>
                       <tr>
@@ -571,24 +708,28 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
                     </tbody>
                   </table>
                 </div>
+              </ng-container>
 
-                <!-- Chart -->
-                <div class="chart-card" *ngIf="hasChart(response.visualization)">
-                  <div class="chart-card__header">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:middle"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    Görselleştirme
-                  </div>
-                  <div class="chart-card__body">
-                    <app-chat-plotly [figure]="plotlyFigure(response.visualization)" />
-                  </div>
-                  <ul class="chart-notes" *ngIf="chartNotes(response).length">
-                    <li *ngFor="let note of chartNotes(response)">{{ note }}</li>
-                  </ul>
+              <!-- Grafik bölümü -->
+              <ng-container *ngIf="hasChart(response.visualization)">
+                <div class="ai-divider"></div>
+                <div class="ai-section-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Görselleştirme
                 </div>
+                <div style="padding:6px 0 0;">
+                  <app-chat-plotly [figure]="plotlyFigure(response.visualization)" />
+                </div>
+                <ul class="chart-notes" *ngIf="chartNotes(response).length">
+                  <li *ngFor="let note of chartNotes(response)">{{ note }}</li>
+                </ul>
+              </ng-container>
 
-                <!-- Technical details -->
-                <details class="tech-details" *ngIf="response.technical">
-                  <summary>
+              <!-- Teknik detaylar bölümü -->
+              <ng-container *ngIf="response.technical">
+                <div class="ai-divider"></div>
+                <details class="tech-details" style="border:none;border-radius:0;margin:0;box-shadow:none;">
+                  <summary style="border-radius:0;background:var(--clr-slate-50);">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     Teknik Detaylar
                   </summary>
@@ -607,16 +748,8 @@ import { extractPlotlyFigure, hasRenderableVisualization } from './utils/plotly-
                     </div>
                   </div>
                 </details>
-
-                <!-- Retry -->
-                <div *ngIf="canRetry(response)">
-                  <button type="button" class="btn-retry" (click)="retryAfterError()">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                    Yeniden Dene
-                  </button>
-                </div>
-
               </ng-container>
+
             </ng-container>
           </div>
         </div>
@@ -858,20 +991,49 @@ export class ChatHomeComponent implements OnInit, AfterViewInit, AfterViewChecke
     return c === 'BACKEND_UNAVAILABLE' || c === 'MODEL_ERROR' || c === 'SCHEMA_UNAVAILABLE';
   }
 
-  stepBadgeClass(step: ExecutionStepResponse): string {
+  private readonly pipelineStepLabels: Record<ExecutionStepName, string> = {
+    GUARDRAILS: 'Güvenlik',
+    SCHEMA_CONTEXT: 'Şema',
+    SQL_GENERATION: 'SQL',
+    SQL_VALIDATION: 'Doğrulama',
+    QUERY_EXECUTION: 'Sorgu',
+    ERROR_REPAIR: 'Onarım',
+    ANALYSIS: 'Analiz',
+    VISUALIZATION: 'Grafik',
+  };
+
+  pipelineStepLabel(name: ExecutionStepName): string {
+    return this.pipelineStepLabels[name] ?? name;
+  }
+
+  /** i. ile (i+1). düğüm arası çizgi: i. adım bittiğinde yanar */
+  isPipelineSegmentLit(steps: ExecutionStepResponse[], index: number): boolean {
+    const left = steps[index];
+    return left?.status === 'completed' || left?.status === 'skipped';
+  }
+
+  /** Aktif adıma giren son yanan segmentte hafif nabız */
+  isPipelineSegmentGlow(steps: ExecutionStepResponse[], index: number): boolean {
+    if (!this.isPipelineSegmentLit(steps, index)) {
+      return false;
+    }
+    return steps[index + 1]?.status === 'running';
+  }
+
+  stepNodeClass(step: ExecutionStepResponse): string {
     switch (step.status) {
       case 'completed':
-        return 'step-completed';
+        return 'pipeline-node--completed';
       case 'running':
-        return 'step-running';
+        return 'pipeline-node--running';
       case 'pending':
-        return 'step-pending';
+        return 'pipeline-node--pending';
       case 'failed':
-        return 'step-failed';
+        return 'pipeline-node--failed';
       case 'skipped':
-        return 'step-skipped';
+        return 'pipeline-node--skipped';
       default:
-        return 'step-pending';
+        return 'pipeline-node--pending';
     }
   }
 

@@ -29,9 +29,14 @@ public class AdminStoreController {
     public ApiPageResponse<StoreSummaryResponse> listAllStores(
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size,
-        @RequestParam(required = false) String status
+        @RequestParam(required = false) String sort,
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) Boolean hasProducts,
+        @RequestParam(required = false) Integer minProductCount,
+        @RequestParam(required = false) Integer maxProductCount
     ) {
-        return storeService.listStores(page, size, null, status);
+        return storeService.listStores(page, size, sort, status, q, hasProducts, minProductCount, maxProductCount);
     }
 
     @GetMapping("/{storeId}")

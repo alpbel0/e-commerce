@@ -56,9 +56,9 @@
                     (change)="setCouponSelect(s.storeId, $any($event.target).value)"
                   >
                     <option value="">Kupon seçin…</option>
-                    @for (coupon of couponsFor(s.storeId); track coupon.id) {
-                      <option [value]="coupon.code">{{ coupon.code }}</option>
-                    }
+            @for (coupon of couponsFor(s.storeId); track coupon) {
+              <option [value]="coupon">{{ coupon }}</option>
+            }
                   </select>
                   <button type="button" class="btn-coupon-apply" (click)="applyCoupon(s.storeId)">Uygula</button>
                 }

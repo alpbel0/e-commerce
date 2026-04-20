@@ -3,6 +3,7 @@
 import pytest
 from app.services.sql_validator import (
     SQLValidator,
+    PUBLIC_AGGREGATE_ALLOWED_TABLES,
     sql_validator,
     validate,
     is_valid_sql,
@@ -169,6 +170,41 @@ class TestSQLValidator:
             require_scope_filter=True
         )
         assert result.is_valid is True
+
+    def test_individual_public_aggregate_allows_review_ranking_without_user_scope(self):
+        result = self.validator.validate(
+            (
+                "SELECT p.id, p.title, ROUND(AVG(r.star_rating), 2) AS avg_rating "
+                "FROM products p "
+                "JOIN reviews r ON r.product_id = p.id "
+                "GROUP BY p.id, p.title "
+                "ORDER BY avg_rating DESC"
+            ),
+            role="INDIVIDUAL",
+            access_mode="PUBLIC_AGGREGATE",
+            require_scope_filter=True
+        )
+        assert result.is_valid is True
+
+    def test_individual_public_aggregate_rejects_business_tables(self):
+        result = self.validator.validate(
+            "SELECT p.id, SUM(oi.quantity) FROM products p JOIN order_items oi ON oi.product_id = p.id GROUP BY p.id",
+            role="INDIVIDUAL",
+            access_mode="PUBLIC_AGGREGATE",
+            require_scope_filter=True
+        )
+        assert result.is_valid is False
+        assert result.error_code == "SQL_SCOPE_VIOLATION"
+
+    def test_individual_restricted_business_mode_is_rejected(self):
+        result = self.validator.validate(
+            "SELECT id, grand_total FROM orders WHERE user_id = :currentUserId",
+            role="INDIVIDUAL",
+            access_mode="RESTRICTED_BUSINESS",
+            require_scope_filter=True
+        )
+        assert result.is_valid is False
+        assert result.error_code == "SQL_SCOPE_VIOLATION"
 
     def test_admin_no_scope_required(self):
         result = self.validator.validate(
@@ -406,6 +442,9 @@ class TestConstants:
         assert "products" in ALLOWED_TABLES
         assert "orders" in ALLOWED_TABLES
         assert "stores" in ALLOWED_TABLES
+
+    def test_public_aggregate_tables_defined(self):
+        assert PUBLIC_AGGREGATE_ALLOWED_TABLES == {"stores", "products", "categories", "reviews"}
 
     def test_default_limit(self):
         assert DEFAULT_LIMIT == 100

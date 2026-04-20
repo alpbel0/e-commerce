@@ -22,7 +22,7 @@ import { RouterOutlet } from '@angular/router';
                 <path d="M16 10a4 4 0 0 1-8 0"/>
               </svg>
             </div>
-            <span class="auth-panel__brand-name">ShopHub</span>
+            <span class="auth-panel__brand-name">E-Commerce</span>
           </div>
 
           <div class="auth-panel__hero">
@@ -67,7 +67,7 @@ import { RouterOutlet } from '@angular/router';
             </div>
           </div>
 
-          <p class="auth-panel__footer">© 2026 ShopHub Platform</p>
+          <p class="auth-panel__footer">© 2026 E-Commerce</p>
         </div>
       </div>
 

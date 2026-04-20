@@ -61,7 +61,7 @@ public class QueryExecutorService {
         long startTime = System.currentTimeMillis();
 
         try {
-            sqlSafetyValidator.validate(request.sql(), request.userContext().role());
+            sqlSafetyValidator.validate(request.sql(), request.userContext().role(), request.executionPolicy());
         } catch (SqlSafetyValidator.SqlValidationException e) {
             log.warn("Query rejected by validator: requestId={}, reason={}", request.requestId(), e.getMessage());
             auditLog(request, "REJECTED", e.getMessage(), 0, 0);

@@ -37,6 +37,8 @@ Rules:
    - If the validation error mentions stored rating columns, replace them with aggregates over reviews
 10. For monetary and currency analytics:
    - NEVER collapse mixed currencies into one normalized ranking unless the user explicitly asked for conversion
+   - For revenue, sales, GMV, or turnover queries using orders/order_items, exclude cancelled orders by default unless the user explicitly asked to include cancelled orders
+   - If the failed SQL includes cancelled orders in revenue logic, repair it by adding `o.status <> 'CANCELLED'` or an equivalent positive-status filter
    - If the original intent is a native-currency ranking, repair toward per-currency grouping or explicit MIXED labeling
    - If the original intent explicitly asks for USD/EUR/TRY or another target currency, use currency_rates for conversion
    - For converted revenue, join currency_rates dynamically on the row currency; do NOT hardcode separate joins such as cr_try or cr_eur
@@ -58,15 +60,15 @@ Example repair pattern for rating queries:
 
 Example repair pattern for mixed-currency ranking:
 {
-  "sql": "SELECT s.id AS store_id, s.name AS store_name, o.currency, SUM(o.grand_total) AS total_revenue FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY o.currency ASC, total_revenue DESC LIMIT :limit",
-  "action": "split native-currency ranking by currency instead of comparing mixed currencies directly",
+  "sql": "SELECT s.id AS store_id, s.name AS store_name, o.currency, SUM(o.grand_total) AS total_revenue FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.status <> 'CANCELLED' AND o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY o.currency ASC, total_revenue DESC LIMIT :limit",
+  "action": "split native-currency ranking by currency and excluded cancelled orders",
   "still_failing": false
 }
 
 Example repair pattern for follow-up currency conversion:
 {
-  "sql": "WITH prior_scope AS (SELECT s.id AS store_id, s.name AS store_name FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY SUM(o.grand_total) DESC LIMIT :limit) SELECT ps.store_id, ps.name AS store_name, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN o.grand_total ELSE o.grand_total / NULLIF(cr.rate, 0) END), 2) AS total_revenue_usd, 'USD' AS currency FROM prior_scope ps JOIN orders o ON o.store_id = ps.store_id LEFT JOIN currency_rates cr ON cr.target_currency = o.currency AND cr.base_currency = 'USD' WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY ps.store_id, ps.name ORDER BY total_revenue_usd DESC",
-  "action": "preserved the previously scoped store set and converted that same scope to USD",
+  "sql": "WITH prior_scope AS (SELECT s.id AS store_id, s.name AS store_name FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.status <> 'CANCELLED' AND o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY SUM(o.grand_total) DESC LIMIT :limit) SELECT ps.store_id, ps.name AS store_name, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN o.grand_total ELSE o.grand_total / NULLIF(cr.rate, 0) END), 2) AS total_revenue_usd, 'USD' AS currency FROM prior_scope ps JOIN orders o ON o.store_id = ps.store_id LEFT JOIN currency_rates cr ON cr.target_currency = o.currency AND cr.base_currency = 'USD' WHERE o.status <> 'CANCELLED' AND o.created_at BETWEEN :startDate AND :endDate GROUP BY ps.store_id, ps.name ORDER BY total_revenue_usd DESC",
+  "action": "preserved the previously scoped store set, excluded cancelled orders, and converted that same scope to USD",
   "still_failing": false
 }
 

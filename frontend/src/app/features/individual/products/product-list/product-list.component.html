@@ -1,6 +1,22 @@
 <div class="list-header">
-  <h1 class="list-title">Ürünler</h1>
-  <span class="list-count">{{ items().length > 0 ? totalPages() * 24 + ' ürün' : '' }}</span>
+  <div class="list-header__copy">
+    <h1 class="list-title">Ürünler</h1>
+    <span class="list-count">{{ items().length > 0 ? totalPages() * 24 + ' ürün' : '' }}</span>
+  </div>
+  <div class="list-header__actions">
+    <div class="currency-switch">
+      <label for="product-currency">Para birimi</label>
+      <select
+        id="product-currency"
+        [value]="selectedCurrency()"
+        (change)="onCurrencyChange($any($event.target).value)"
+      >
+        @for (option of currencyOptions; track option.code) {
+          <option [value]="option.code">{{ option.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
 </div>
 
 <app-product-filters
@@ -53,9 +69,9 @@
             <span class="review-count">({{ p.reviewCount }})</span>
           </div>
           <div class="price-row">
-            <span class="price">{{ formatMoney(effectivePrice(p).toFixed(2), p.currency) }}</span>
+            <span class="price">{{ displayEffectivePrice(p) }}</span>
             @if (showDiscount(p)) {
-              <span class="old">{{ formatMoney(p.unitPrice, p.currency) }}</span>
+              <span class="old">{{ displayOriginalPrice(p) }}</span>
             }
           </div>
           @if (!canAdd(p)) {

@@ -5,7 +5,6 @@ import { catchError, forkJoin, of } from 'rxjs';
 import { CartService } from '../../../core/api/cart.service';
 import { CurrencyRateService } from '../../../core/api/currency-rate.service';
 import type { CartResponse, StoreCartResponse } from '../../../core/models/cart.models';
-import type { CouponResponse } from '../../../core/models/coupon.models';
 import { ToastService } from '../../../core/notify/toast.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -229,8 +228,8 @@ export class CartComponent implements OnInit {
   readonly cart = signal<CartResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
-  /** storeId -> available coupons */
-  readonly couponOptions = signal<Record<string, CouponResponse[]>>({});
+  /** storeId -> available coupon codes */
+  readonly couponOptions = signal<Record<string, string[]>>({});
   readonly selectedCoupon = signal<Record<string, string>>({});
   readonly displayCurrency = signal('');
   readonly usdRates = signal<Record<string, number>>({ USD: 1 });
@@ -268,7 +267,7 @@ export class CartComponent implements OnInit {
       this.cartApi.listStoreCoupons(s.storeId).pipe(catchError(() => of({ items: [], count: 0 })))
     );
     forkJoin(reqs).subscribe((results) => {
-      const map: Record<string, CouponResponse[]> = {};
+      const map: Record<string, string[]> = {};
       const sel: Record<string, string> = {};
       c.stores.forEach((s, i) => {
         map[s.storeId] = results[i].items;
@@ -320,7 +319,7 @@ export class CartComponent implements OnInit {
     this.selectedCoupon.set({ ...this.selectedCoupon(), [storeId]: code });
   }
 
-  couponsFor(storeId: string): CouponResponse[] {
+  couponsFor(storeId: string): string[] {
     return this.couponOptions()[storeId] ?? [];
   }
 

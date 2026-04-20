@@ -72,6 +72,13 @@ public class SqlSafetyValidator {
         "reset_token"
     );
 
+    private static final Set<String> PUBLIC_AGGREGATE_ALLOWED_TABLES = Set.of(
+        "stores",
+        "products",
+        "categories",
+        "reviews"
+    );
+
     private static final Pattern TABLE_REFERENCE_PATTERN = Pattern.compile(
         "\\b(?:from|join)\\s+([a-zA-Z_][a-zA-Z0-9_\\.\\\"]*)",
         Pattern.CASE_INSENSITIVE
@@ -87,7 +94,7 @@ public class SqlSafetyValidator {
         "(?is),\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s+as\\s*\\("
     );
 
-    public void validate(String sql, RoleType role) {
+    public void validate(String sql, RoleType role, String executionPolicy) {
         if (sql == null || sql.isBlank()) {
             throw new SqlValidationException("SQL_VALIDATION_FAILED: SQL is required");
         }
@@ -102,7 +109,8 @@ public class SqlSafetyValidator {
         rejectSelectStar(lowerSql);
         rejectSensitiveColumns(lowerSql);
         rejectUnknownTables(lowerSql, cteNames);
-        requireRoleScope(sql, role);
+        requireRoleScope(sql, role, executionPolicy);
+        rejectDisallowedPublicAggregateTables(lowerSql, cteNames, role, executionPolicy);
     }
 
     public String enforceLimit(String sql) {
@@ -184,12 +192,41 @@ public class SqlSafetyValidator {
         }
     }
 
-    private void requireRoleScope(String sql, RoleType role) {
+    private void requireRoleScope(String sql, RoleType role, String executionPolicy) {
+        String normalizedPolicy = executionPolicy == null ? "PERSONAL" : executionPolicy.trim().toUpperCase(Locale.ROOT);
         if (role == RoleType.CORPORATE && !sql.contains(":allowedStoreIds") && !sql.contains(":selectedStoreId")) {
             throw new SqlValidationException("SQL_SCOPE_VIOLATION: Corporate queries must include store scope");
         }
-        if (role == RoleType.INDIVIDUAL && !sql.contains(":currentUserId")) {
+        if (role == RoleType.INDIVIDUAL && "RESTRICTED_BUSINESS".equals(normalizedPolicy)) {
+            throw new SqlValidationException("SQL_SCOPE_VIOLATION: Individual users cannot access restricted business analytics");
+        }
+        if (role == RoleType.INDIVIDUAL && !"PUBLIC_AGGREGATE".equals(normalizedPolicy) && !sql.contains(":currentUserId")) {
             throw new SqlValidationException("SQL_SCOPE_VIOLATION: Individual queries must include current user scope");
+        }
+    }
+
+    private void rejectDisallowedPublicAggregateTables(
+        String lowerSql,
+        Set<String> cteNames,
+        RoleType role,
+        String executionPolicy
+    ) {
+        String normalizedPolicy = executionPolicy == null ? "PERSONAL" : executionPolicy.trim().toUpperCase(Locale.ROOT);
+        if (role != RoleType.INDIVIDUAL || !"PUBLIC_AGGREGATE".equals(normalizedPolicy)) {
+            return;
+        }
+
+        Matcher matcher = TABLE_REFERENCE_PATTERN.matcher(lowerSql);
+        while (matcher.find()) {
+            String tableName = cleanTableName(matcher.group(1));
+            if (cteNames.contains(tableName)) {
+                continue;
+            }
+            if (!PUBLIC_AGGREGATE_ALLOWED_TABLES.contains(tableName)) {
+                throw new SqlValidationException(
+                    "SQL_SCOPE_VIOLATION: Individual public aggregate queries may only use products, categories, stores, and reviews"
+                );
+            }
         }
     }
 

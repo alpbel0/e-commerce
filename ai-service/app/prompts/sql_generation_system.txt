@@ -14,10 +14,14 @@ Generate SELECT queries following these rules STRICTLY:
 3. Role-based access rules:
    - ADMIN: full platform analytics, but never credentials or personal contact fields
    - CORPORATE: only their own stores, aggregate customer insights only, no raw PII
-   - INDIVIDUAL: only their own orders and data
+   - INDIVIDUAL + PERSONAL: only their own orders and data
+   - INDIVIDUAL + PUBLIC_AGGREGATE: public catalog/review analytics only using products, categories, stores, reviews
+   - INDIVIDUAL + PUBLIC_AGGREGATE queries must NOT use :currentUserId
+   - INDIVIDUAL + PUBLIC_AGGREGATE queries must NOT use orders, order_items, payments, payment_methods, shipments, or customer_profiles
+   - INDIVIDUAL + RESTRICTED_BUSINESS: do not generate SQL; these requests should be blocked
    - ADMIN queries must NOT use :allowedStoreIds or :currentUserId placeholders
    - CORPORATE queries should use :allowedStoreIds or :selectedStoreId when store scoping is needed
-   - INDIVIDUAL queries should use :currentUserId when user scoping is needed
+   - INDIVIDUAL + PERSONAL queries should use :currentUserId when user scoping is needed
 
 4. Default date range is last 30 days if not specified by the user.
 
@@ -32,6 +36,9 @@ Generate SELECT queries following these rules STRICTLY:
 7. Monetary and currency rules:
    - NEVER invent a currency
    - For monetary queries, include explicit currency context in the result whenever feasible
+   - For revenue, sales, GMV, turnover, best-selling, or store/category ranking queries based on orders/order_items, EXCLUDE cancelled orders by default
+   - Use `o.status <> 'CANCELLED'` or an equivalent positive status filter unless the user explicitly asks to include cancelled orders
+   - When counting orders for revenue analytics, count only the same non-cancelled order scope used for revenue
    - If the source data has a currency column, SELECT it or GROUP BY it
    - If you aggregate monetary values across rows that may contain different currencies and the user did not ask for conversion, keep currencies separated or return:
      CASE WHEN COUNT(DISTINCT currency) = 1 THEN MIN(currency) ELSE 'MIXED' END AS currency
@@ -114,7 +121,7 @@ Example for an ADMIN asking "Which stores have the most reviews?":
 
 Example for an ADMIN asking "Which stores have the highest revenue this month?" when orders contain mixed currencies:
 {
-  "sql": "SELECT s.id AS store_id, s.name AS store_name, o.currency, SUM(o.grand_total) AS total_revenue, COUNT(o.id) AS total_orders FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY o.currency ASC, total_revenue DESC LIMIT :limit",
+  "sql": "SELECT s.id AS store_id, s.name AS store_name, o.currency, SUM(o.grand_total) AS total_revenue, COUNT(o.id) AS total_orders FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.status <> 'CANCELLED' AND o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY o.currency ASC, total_revenue DESC LIMIT :limit",
   "summary": "Store revenue ranking for this month, separated by native currency to avoid cross-currency distortion",
   "chart_hint": "bar",
   "date_range_applied": false,
@@ -123,7 +130,7 @@ Example for an ADMIN asking "Which stores have the highest revenue this month?" 
 
 Example for a follow-up asking "Show those same stores in USD":
 {
-  "sql": "WITH prior_scope AS (SELECT s.id AS store_id, s.name AS store_name FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY SUM(o.grand_total) DESC LIMIT :limit) SELECT ps.store_id, ps.name AS store_name, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN o.grand_total ELSE o.grand_total / NULLIF(cr.rate, 0) END), 2) AS total_revenue_usd, 'USD' AS currency FROM prior_scope ps JOIN orders o ON o.store_id = ps.store_id LEFT JOIN currency_rates cr ON cr.target_currency = o.currency AND cr.base_currency = 'USD' WHERE o.created_at BETWEEN :startDate AND :endDate GROUP BY ps.store_id, ps.name ORDER BY total_revenue_usd DESC",
+  "sql": "WITH prior_scope AS (SELECT s.id AS store_id, s.name AS store_name FROM stores s JOIN orders o ON o.store_id = s.id WHERE o.status <> 'CANCELLED' AND o.created_at BETWEEN :startDate AND :endDate GROUP BY s.id, s.name, o.currency ORDER BY SUM(o.grand_total) DESC LIMIT :limit) SELECT ps.store_id, ps.name AS store_name, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN o.grand_total ELSE o.grand_total / NULLIF(cr.rate, 0) END), 2) AS total_revenue_usd, 'USD' AS currency FROM prior_scope ps JOIN orders o ON o.store_id = ps.store_id LEFT JOIN currency_rates cr ON cr.target_currency = o.currency AND cr.base_currency = 'USD' WHERE o.status <> 'CANCELLED' AND o.created_at BETWEEN :startDate AND :endDate GROUP BY ps.store_id, ps.name ORDER BY total_revenue_usd DESC",
   "summary": "The same store set converted to USD for normalized comparison",
   "chart_hint": "bar",
   "date_range_applied": false,
@@ -132,7 +139,7 @@ Example for a follow-up asking "Show those same stores in USD":
 
 Example for "Which categories have the highest sales this month in USD?":
 {
-  "sql": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_units_sold, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN oi.subtotal WHEN cr.rate IS NOT NULL AND cr.rate <> 0 THEN oi.subtotal / cr.rate ELSE 0 END), 2) AS total_revenue_usd FROM categories c JOIN products p ON p.category_id = c.id JOIN order_items oi ON oi.product_id = p.id JOIN orders o ON o.id = oi.order_id LEFT JOIN currency_rates cr ON cr.base_currency = 'USD' AND cr.target_currency = o.currency WHERE o.order_date BETWEEN :startDate AND :endDate GROUP BY c.id, c.name ORDER BY total_revenue_usd DESC, total_units_sold DESC LIMIT :limit",
+  "sql": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_units_sold, ROUND(SUM(CASE WHEN o.currency = 'USD' THEN oi.subtotal WHEN cr.rate IS NOT NULL AND cr.rate <> 0 THEN oi.subtotal / cr.rate ELSE 0 END), 2) AS total_revenue_usd FROM categories c JOIN products p ON p.category_id = c.id JOIN order_items oi ON oi.product_id = p.id JOIN orders o ON o.id = oi.order_id LEFT JOIN currency_rates cr ON cr.base_currency = 'USD' AND cr.target_currency = o.currency WHERE o.status <> 'CANCELLED' AND o.order_date BETWEEN :startDate AND :endDate GROUP BY c.id, c.name ORDER BY total_revenue_usd DESC, total_units_sold DESC LIMIT :limit",
   "summary": "Categories ranked by USD-converted revenue for the requested period",
   "chart_hint": "bar",
   "date_range_applied": false,

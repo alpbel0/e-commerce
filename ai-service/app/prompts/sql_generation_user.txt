@@ -4,6 +4,7 @@ Schema context:
 {schema_context}
 
 User role: {user_role}
+Access mode: {access_mode}
 {store_info}
 
 Current date: {current_date}

@@ -175,6 +175,43 @@ import { AuthStore } from '../../../core/auth/auth.store';
 export class LoginComponent implements OnInit {
   readonly adminDemoEmail = 'admin@local.test';
   readonly adminDemoPassword = 'Passw0rd!';
+  readonly demoAccounts = [
+    {
+      key: 'admin',
+      title: 'Admin demo hesabi',
+      email: 'admin@local.test',
+      password: 'Passw0rd!',
+      note: 'Platform yönetimi'
+    },
+    {
+      key: 'seller1',
+      title: 'Seller1 hesabi',
+      email: 'seller1@local.test',
+      password: 'Passw0rd!',
+      note: 'Kurumsal satıcı demosu'
+    },
+    {
+      key: 'seller2',
+      title: 'Seller2 hesabi',
+      email: 'seller2@local.test',
+      password: 'Passw0rd!',
+      note: 'İkinci satıcı demosu'
+    },
+    {
+      key: 'user1',
+      title: 'User1 hesabi',
+      email: 'user1@local.test',
+      password: 'Passw0rd!',
+      note: 'Bireysel kullanıcı demosu'
+    },
+    {
+      key: 'user2',
+      title: 'User2 hesabi',
+      email: 'user2@local.test',
+      password: 'Passw0rd!',
+      note: 'İkinci kullanıcı demosu'
+    }
+  ] as const;
 
   private readonly fb = inject(FormBuilder);
   private readonly authStore = inject(AuthStore);
@@ -216,10 +253,10 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  fillAdminDemo(): void {
+  fillDemo(email: string, password: string): void {
     this.form.setValue({
-      email: this.adminDemoEmail,
-      password: this.adminDemoPassword
+      email,
+      password
     });
     this.loginError = false;
   }

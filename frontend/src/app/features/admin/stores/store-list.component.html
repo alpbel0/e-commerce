@@ -2,6 +2,16 @@
 
 <div class="toolbar">
   <label>
+    Ara
+    <input
+      type="search"
+      [(ngModel)]="queryFilter"
+      (keyup.enter)="onFilterChange()"
+      placeholder="Mağaza adı veya e-posta"
+    />
+  </label>
+
+  <label>
     Durum Filtresi
     <select [(ngModel)]="statusFilter" (change)="onFilterChange()">
       <option value="">Tümü</option>
@@ -10,6 +20,26 @@
       }
     </select>
   </label>
+
+  <label>
+    Ürün Durumu
+    <select [(ngModel)]="productVolumeFilter" (change)="onFilterChange()">
+      @for (option of productVolumeOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Sıralama
+    <select [(ngModel)]="sortFilter" (change)="onFilterChange()">
+      @for (option of sortOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </label>
+
+  <button type="button" class="ec-btn ec-btn--ghost" (click)="onFilterChange()">Filtrele</button>
 </div>
 
 @if (loading()) {

@@ -33,11 +33,20 @@ class ResponseLanguage(str, Enum):
     EN = "en"
 
 
+class AccessMode(str, Enum):
+    PERSONAL = "PERSONAL"
+    PUBLIC_AGGREGATE = "PUBLIC_AGGREGATE"
+    STORE_SCOPED = "STORE_SCOPED"
+    PLATFORM_ADMIN = "PLATFORM_ADMIN"
+    RESTRICTED_BUSINESS = "RESTRICTED_BUSINESS"
+
+
 @dataclass
 class GuardrailsResult:
     intent: IntentType
     should_execute_sql: bool
     response_language: ResponseLanguage
+    access_mode: AccessMode = AccessMode.PERSONAL
     answer: Optional[str] = None
     clarification_question: Optional[str] = None
     rejection_reason: Optional[str] = None
@@ -48,6 +57,7 @@ class GuardrailsResult:
             "intent": self.intent.value,
             "should_execute_sql": self.should_execute_sql,
             "response_language": self.response_language.value,
+            "access_mode": self.access_mode.value,
             "answer": self.answer,
             "clarification_question": self.clarification_question,
             "rejection_reason": self.rejection_reason,
@@ -92,6 +102,7 @@ class GuardrailsAgent:
                     intent=IntentType.GREETING,
                     should_execute_sql=False,
                     response_language=language,
+                    access_mode=self._infer_access_mode(message, "INDIVIDUAL", IntentType.GREETING),
                     answer=self._get_greeting_response(language),
                 )
 
@@ -100,6 +111,7 @@ class GuardrailsAgent:
                 intent=IntentType.DESTRUCTIVE_REQUEST,
                 should_execute_sql=False,
                 response_language=language,
+                access_mode=self._infer_access_mode(message, "INDIVIDUAL", IntentType.DESTRUCTIVE_REQUEST),
                 answer=self._get_destructive_response(language),
                 rejection_reason="Destructive request detected",
             )
@@ -109,6 +121,7 @@ class GuardrailsAgent:
                 intent=IntentType.AMBIGUOUS,
                 should_execute_sql=False,
                 response_language=language,
+                access_mode=self._infer_access_mode(message, "INDIVIDUAL", IntentType.AMBIGUOUS),
                 clarification_question=self._get_ambiguous_clarification(language),
             )
 
@@ -136,6 +149,7 @@ Respond with JSON only:
   "intent": "GREETING|IN_SCOPE_ANALYTICS|OUT_OF_SCOPE|PRIVACY_RISK|AUTHORIZATION_RISK|PROMPT_INJECTION|DESTRUCTIVE_REQUEST|AMBIGUOUS",
   "should_execute_sql": true|false,
   "response_language": "tr|en",
+  "access_mode": "PERSONAL|PUBLIC_AGGREGATE|STORE_SCOPED|PLATFORM_ADMIN|RESTRICTED_BUSINESS",
   "answer": "Short response or null",
   "clarification_question": "Question to ask or null",
   "rejection_reason": "Why rejected or null"
@@ -145,9 +159,9 @@ Respond with JSON only:
 
         try:
             response = self._call_llm(model, full_prompt)
-            return self._parse_llm_response(response, message, embedding_signal)
+            return self._parse_llm_response(response, message, embedding_signal, user_role)
         except Exception as exc:
-            return self._fallback_classify(message, str(exc), embedding_signal)
+            return self._fallback_classify(message, str(exc), embedding_signal, user_role)
 
     def _load_system_prompt(self) -> str:
         if self._system_prompt is None:
@@ -193,6 +207,7 @@ Respond with JSON only:
         response: str,
         original_message: str,
         embedding_signal: Optional[EmbeddingRiskSignal] = None,
+        user_role: str = "INDIVIDUAL",
     ) -> GuardrailsResult:
         try:
             json_match = re.search(r"\{[\s\S]*\}", response)
@@ -206,28 +221,37 @@ Respond with JSON only:
             if intent != IntentType.IN_SCOPE_ANALYTICS:
                 should_execute = False
             language = ResponseLanguage.TR if parsed.get("response_language") == "tr" else ResponseLanguage.EN
+            access_mode = self._parse_access_mode(
+                parsed.get("access_mode"),
+                original_message,
+                intent,
+                user_role,
+            )
             answer = parsed.get("answer")
             if intent == IntentType.AUTHORIZATION_RISK and not answer:
                 answer = self._get_authorization_response(language)
             if intent == IntentType.PROMPT_INJECTION and not answer:
                 answer = self._get_prompt_injection_response(language)
-            return GuardrailsResult(
+            result = GuardrailsResult(
                 intent=intent,
                 should_execute_sql=bool(should_execute),
                 response_language=language,
+                access_mode=access_mode,
                 answer=answer,
                 clarification_question=parsed.get("clarification_question"),
                 rejection_reason=parsed.get("rejection_reason"),
                 embedding_risk=embedding_signal.to_dict() if embedding_signal else None,
             )
+            return self._apply_access_policy(result, original_message, user_role)
         except (json.JSONDecodeError, AttributeError, KeyError):
-            return self._fallback_classify(original_message, "Failed to parse LLM response")
+            return self._fallback_classify(original_message, "Failed to parse LLM response", embedding_signal, user_role)
 
     def _fallback_classify(
         self,
         message: str,
         error: str,
         embedding_signal: Optional[EmbeddingRiskSignal] = None,
+        user_role: str = "INDIVIDUAL",
     ) -> GuardrailsResult:
         fast_result = self._fast_path_check(message)
         if fast_result is not None:
@@ -240,17 +264,20 @@ Respond with JSON only:
 
         msg_lower = self._normalize_text(message)
         if self._is_in_scope_analytics_request(msg_lower):
-            return GuardrailsResult(
+            result = GuardrailsResult(
                 intent=IntentType.IN_SCOPE_ANALYTICS,
                 should_execute_sql=True,
                 response_language=self._detect_language(message),
+                access_mode=self._infer_access_mode(message, user_role, IntentType.IN_SCOPE_ANALYTICS),
                 rejection_reason=f"LLM unavailable, deterministic analytics fallback used: {error}",
             )
+            return self._apply_access_policy(result, message, user_role)
 
         return GuardrailsResult(
             intent=IntentType.AMBIGUOUS,
             should_execute_sql=False,
             response_language=self._detect_language(message),
+            access_mode=self._infer_access_mode(message, user_role, IntentType.AMBIGUOUS),
             clarification_question=self._get_ambiguous_clarification(self._detect_language(message)),
             rejection_reason=f"LLM unavailable and no deterministic safe route matched: {error}",
         )
@@ -280,10 +307,104 @@ Respond with JSON only:
             intent=intent,
             should_execute_sql=False,
             response_language=language,
+            access_mode=self._infer_access_mode(message, "INDIVIDUAL", intent),
             answer=answer,
             rejection_reason=f"{signal.risk_level.title()} confidence embedding guardrail: {signal.intent}",
             embedding_risk=signal.to_dict(),
         )
+
+    def _apply_access_policy(self, result: GuardrailsResult, message: str, user_role: str) -> GuardrailsResult:
+        if result.intent != IntentType.IN_SCOPE_ANALYTICS:
+            return result
+
+        inferred_mode = result.access_mode or self._infer_access_mode(message, user_role, result.intent)
+        if user_role == "INDIVIDUAL" and inferred_mode == AccessMode.RESTRICTED_BUSINESS:
+            return GuardrailsResult(
+                intent=IntentType.AUTHORIZATION_RISK,
+                should_execute_sql=False,
+                response_language=result.response_language,
+                access_mode=AccessMode.RESTRICTED_BUSINESS,
+                answer=self._get_authorization_response(result.response_language),
+                rejection_reason="Business analytics requested from an unauthorized scope",
+                embedding_risk=result.embedding_risk,
+            )
+        return result
+
+    def _parse_access_mode(
+        self,
+        value: Optional[str],
+        message: str,
+        intent: IntentType,
+        user_role: Optional[str] = None,
+    ) -> AccessMode:
+        if value:
+            normalized = value.upper().strip()
+            for access_mode in AccessMode:
+                if normalized == access_mode.value:
+                    return access_mode
+        return self._infer_access_mode(message, user_role or "INDIVIDUAL", intent)
+
+    def _infer_access_mode(
+        self,
+        message: str,
+        user_role: str,
+        intent: IntentType,
+    ) -> AccessMode:
+        if user_role == "ADMIN":
+            return AccessMode.PLATFORM_ADMIN
+        if user_role == "CORPORATE":
+            return AccessMode.STORE_SCOPED
+        if intent != IntentType.IN_SCOPE_ANALYTICS:
+            return AccessMode.PERSONAL
+
+        normalized = self._normalize_text(message)
+        if self._is_personal_analytics_request(normalized):
+            return AccessMode.PERSONAL
+        if self._is_public_aggregate_request(normalized):
+            return AccessMode.PUBLIC_AGGREGATE
+        if self._is_restricted_business_request(normalized):
+            return AccessMode.RESTRICTED_BUSINESS
+        return AccessMode.PERSONAL
+
+    def _is_personal_analytics_request(self, msg_lower: str) -> bool:
+        personal_keywords = [
+            "benim", "bana", "kendim", "hesabim", "siparisim", "siparislerim",
+            "harcadim", "harcamam", "odemelerim", "sepetim", "my ", "my order",
+            "my orders", "my spend", "my spending", "my revenue", "my account",
+            "my payments", "my shipments",
+        ]
+        return any(keyword in msg_lower for keyword in personal_keywords)
+
+    def _is_public_aggregate_request(self, msg_lower: str) -> bool:
+        public_subject_keywords = [
+            "urun", "product", "kategori", "category", "magaza", "store",
+            "review", "yorum", "puan", "rating", "yildiz", "star",
+        ]
+        public_metric_keywords = [
+            "en iyi", "best", "top rated", "highest rating", "highest rated",
+            "most reviewed", "en cok yorum", "review count", "populer", "popular",
+            "trend", "trending", "ranking", "sirala", "en yuksek rating",
+            "highest review", "en yuksek puan", "highest score",
+        ]
+        business_keywords = [
+            "ciro", "revenue", "sales", "satis", "profit", "kar", "refund", "iade",
+            "inventory", "stok", "customer", "musteri", "payment", "odeme",
+            "shipment", "kargo", "conversion", "donusum", "margin", "order volume",
+        ]
+        has_subject = any(keyword in msg_lower for keyword in public_subject_keywords)
+        has_public_metric = any(keyword in msg_lower for keyword in public_metric_keywords)
+        has_personal = self._is_personal_analytics_request(msg_lower)
+        has_business = any(keyword in msg_lower for keyword in business_keywords)
+        return has_subject and has_public_metric and not has_personal and not has_business
+
+    def _is_restricted_business_request(self, msg_lower: str) -> bool:
+        business_keywords = [
+            "ciro", "revenue", "sales", "satis", "profit", "kar", "refund", "iade",
+            "inventory", "stok", "customer", "musteri", "payment", "odeme",
+            "shipment", "kargo", "conversion", "donusum", "margin", "roi",
+            "checkout", "refund rate", "stock health", "order value",
+        ]
+        return any(keyword in msg_lower for keyword in business_keywords)
 
 
     def _is_too_generic_request(self, msg_lower: str) -> bool:
@@ -477,6 +598,7 @@ def guardrails_node(state: dict) -> dict:
     return {
         "guardrails_output": result.to_dict(),
         "intent": result.intent.value,
+        "access_mode": result.access_mode.value,
         "should_execute_sql": result.should_execute_sql,
         "language": result.response_language.value,
         "execution_steps": execution_steps,

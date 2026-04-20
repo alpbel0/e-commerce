@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 
 import { CartService } from '../../../../core/api/cart.service';
 import { CategoryService } from '../../../../core/api/category.service';
+import { CurrencyRateService } from '../../../../core/api/currency-rate.service';
 import { ProductService } from '../../../../core/api/product.service';
 import { StoreService } from '../../../../core/api/store.service';
 import { WishlistService } from '../../../../core/api/wishlist.service';
@@ -39,8 +40,21 @@ import {
       .list-header {
         display: flex;
         align-items: baseline;
+        justify-content: space-between;
         gap: 12px;
+        flex-wrap: wrap;
         margin-bottom: 16px;
+      }
+      .list-header__copy {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .list-header__actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
       .list-title {
         font-size: 1.5rem;
@@ -51,6 +65,33 @@ import {
       .list-count {
         font-size: 0.85rem;
         color: var(--text-muted);
+      }
+      .currency-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.5rem 0.8rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-default);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow-sm);
+      }
+      .currency-switch label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+      .currency-switch select {
+        min-width: 88px;
+        border: 0;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        font-weight: 700;
+        outline: none;
+        padding-right: 0.25rem;
       }
 
       /* ---- Grid ---- */
@@ -277,7 +318,10 @@ import {
   ]
 })
 export class ProductListComponent implements OnInit {
+  private static readonly STORAGE_KEY = 'individual-product-list-currency';
+
   private readonly products = inject(ProductService);
+  private readonly currencyRates = inject(CurrencyRateService);
   private readonly categories = inject(CategoryService);
   private readonly stores = inject(StoreService);
   private readonly cart = inject(CartService);
@@ -293,6 +337,14 @@ export class ProductListComponent implements OnInit {
   readonly totalPages = signal(0);
   readonly categoriesList = signal<CategoryResponse[]>([]);
   readonly storesList = signal<StoreSummaryResponse[]>([]);
+  readonly selectedCurrency = signal<'TRY' | 'USD' | 'EUR'>('TRY');
+  readonly currencyRatesMap = signal<Record<string, number>>({ USD: 1 });
+
+  readonly currencyOptions = [
+    { code: 'TRY', label: 'TL' },
+    { code: 'USD', label: 'USD' },
+    { code: 'EUR', label: 'EUR' }
+  ] as const;
 
   private filterState: ProductFilterValues = {
     categoryId: null,
@@ -311,6 +363,21 @@ export class ProductListComponent implements OnInit {
     Math.round(parseFloat(p.discountPercentage || '0'));
 
   ngOnInit(): void {
+    this.restoreCurrencyPreference();
+    this.currencyRates.listRates().subscribe({
+      next: (rates) => {
+        const nextRates: Record<string, number> = { USD: 1 };
+        for (const rate of rates) {
+          const target = rate.targetCurrency?.trim().toUpperCase();
+          const parsed = Number(rate.rate);
+          if (target && Number.isFinite(parsed) && parsed > 0) {
+            nextRates[target] = parsed;
+          }
+        }
+        this.currencyRatesMap.set(nextRates);
+      },
+      error: () => this.currencyRatesMap.set({ USD: 1 })
+    });
     this.categories.list().subscribe({
       next: (r) => this.categoriesList.set(r.items),
       error: () => this.categoriesList.set([])
@@ -361,6 +428,13 @@ export class ProductListComponent implements OnInit {
     this.load();
   }
 
+  onCurrencyChange(currency: string): void {
+    if (currency === 'TRY' || currency === 'USD' || currency === 'EUR') {
+      this.selectedCurrency.set(currency);
+      this.persistCurrencyPreference();
+    }
+  }
+
   addToCart(p: ProductSummaryResponse): void {
     if (!p.active || p.stockQuantity <= 0) return;
     if (!this.authStore.isLoggedIn()) {
@@ -396,6 +470,54 @@ export class ProductListComponent implements OnInit {
 
   hasImage(p: ProductSummaryResponse): boolean {
     return !!p.primaryImageUrl;
+  }
+
+  displayEffectivePrice(p: ProductSummaryResponse): string {
+    return formatMoney(this.convertAmount(this.effectivePrice(p), p.currency, this.selectedCurrency()), this.selectedCurrency());
+  }
+
+  displayOriginalPrice(p: ProductSummaryResponse): string {
+    return formatMoney(this.convertAmount(Number(p.unitPrice), p.currency, this.selectedCurrency()), this.selectedCurrency());
+  }
+
+  private convertAmount(amount: number, fromCurrency: string | null | undefined, targetCurrency: 'TRY' | 'USD' | 'EUR'): number {
+    if (!Number.isFinite(amount)) {
+      return 0;
+    }
+
+    const normalizedFrom = (fromCurrency ?? 'USD').trim().toUpperCase();
+    if (normalizedFrom === targetCurrency) {
+      return amount;
+    }
+
+    const rates = this.currencyRatesMap();
+    const fromRate = rates[normalizedFrom];
+    const targetRate = rates[targetCurrency];
+    if (!fromRate || !targetRate) {
+      return amount;
+    }
+
+    const usdAmount = normalizedFrom === 'USD' ? amount : amount / fromRate;
+    return targetCurrency === 'USD' ? usdAmount : usdAmount * targetRate;
+  }
+
+  private restoreCurrencyPreference(): void {
+    try {
+      const saved = localStorage.getItem(ProductListComponent.STORAGE_KEY);
+      if (saved === 'TRY' || saved === 'USD' || saved === 'EUR') {
+        this.selectedCurrency.set(saved);
+      }
+    } catch {
+      this.selectedCurrency.set('TRY');
+    }
+  }
+
+  private persistCurrencyPreference(): void {
+    try {
+      localStorage.setItem(ProductListComponent.STORAGE_KEY, this.selectedCurrency());
+    } catch {
+      // Ignore storage failures and keep in-memory preference.
+    }
   }
 
   private redirectToLogin(): void {

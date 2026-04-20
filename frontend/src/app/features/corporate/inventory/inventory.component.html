@@ -1,80 +1,116 @@
-<h2>Envanter</h2>
+<div class="inv-page">
+  <header class="inv-header">
+    <h1 class="inv-header__title">Envanter</h1>
+    <p class="inv-header__sub">Mağaza stok özeti ve ürün arama</p>
+  </header>
 
-@if (!ctx.selectedStoreId()) {
-  <app-empty-state title="Magaza secin" message="Envanter gormek icin magaza secin." />
-} @else if (loading()) {
-  <app-loading-spinner />
-} @else if (error()) {
-  <app-error-state message="Envanter yuklenemedi." (retry)="onPageChange(page())" />
-} @else {
-  <div class="stats">
-    <div class="stat">
-      <div>Sayfadaki urun</div>
-      <strong>{{ items().length }}</strong>
-    </div>
-    <div class="stat">
-      <div>Toplam stok</div>
-      <strong>{{ totalUnits() }}</strong>
-    </div>
-    <div class="stat">
-      <div>Dusuk stok</div>
-      <strong>{{ lowStockCount() }}</strong>
-    </div>
-    <div class="stat">
-      <div>Stok bitti</div>
-      <strong>{{ outOfStockCount() }}</strong>
-    </div>
-  </div>
-
-  @if (lowStockCount() > 0) {
-    <div class="alert">
-      Dusuk stok uyarisi: secili esige gore {{ lowStockCount() }} urun kritik seviyede.
-    </div>
-  }
-
-  <div class="filters">
-    <label>
-      Ara
-      <input type="search" [ngModel]="query()" (ngModelChange)="onQueryChange($event)" placeholder="SKU veya baslik" />
-    </label>
-
-    <label>
-      Esik
-      <input type="number" min="0" [ngModel]="threshold()" (ngModelChange)="onThresholdChange(String($event))" />
-    </label>
-
-    <label>
-      Gorunum
-      <select [ngModel]="lowStockOnly() ? 'true' : 'false'" (ngModelChange)="onLowStockOnlyChange($event)">
-        <option value="false">Tum urunler</option>
-        <option value="true">Sadece dusuk stok</option>
-      </select>
-    </label>
-  </div>
-
-  @if (items().length === 0) {
-    <app-empty-state title="Urun yok" message="Filtreye uygun envanter kaydi bulunamadi." />
+  @if (!ctx.selectedStoreId()) {
+    <app-empty-state title="Mağaza seçin" message="Envanteri görmek için üstten mağaza seçin." />
+  } @else if (loading()) {
+    <app-loading-spinner />
+  } @else if (error()) {
+    <app-error-state message="Envanter yüklenemedi." (retry)="onPageChange(page())" />
   } @else {
-    <table>
-      <thead>
-        <tr>
-          <th>SKU</th>
-          <th>Baslik</th>
-          <th>Stok</th>
-          <th>Durum</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (item of items(); track item.id) {
-          <tr>
-            <td>{{ item.sku }}</td>
-            <td>{{ item.title }}</td>
-            <td [class]="stockClass(item.stockQuantity)">{{ item.stockQuantity }}</td>
-            <td>{{ item.stockQuantity === 0 ? 'Out of stock' : item.stockQuantity <= threshold() ? 'Low stock' : 'Healthy' }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
-    <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+    <div class="inv-stats">
+      <div class="inv-stat inv-stat--neutral">
+        <div class="inv-stat__icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <div class="inv-stat__body">
+          <span class="inv-stat__label">Sayfadaki ürün</span>
+          <strong class="inv-stat__value">{{ items().length }}</strong>
+        </div>
+      </div>
+      <div class="inv-stat inv-stat--primary">
+        <div class="inv-stat__icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="inv-stat__body">
+          <span class="inv-stat__label">Toplam stok (adet)</span>
+          <strong class="inv-stat__value">{{ totalUnits() }}</strong>
+        </div>
+      </div>
+      <div class="inv-stat inv-stat--warn">
+        <div class="inv-stat__icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="inv-stat__body">
+          <span class="inv-stat__label">Düşük stok</span>
+          <strong class="inv-stat__value">{{ lowStockCount() }}</strong>
+        </div>
+      </div>
+      <div class="inv-stat inv-stat--danger">
+        <div class="inv-stat__icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <div class="inv-stat__body">
+          <span class="inv-stat__label">Stok bitti</span>
+          <strong class="inv-stat__value">{{ outOfStockCount() }}</strong>
+        </div>
+      </div>
+    </div>
+
+    @if (lowStockCount() > 0) {
+      <div class="inv-alert" role="status">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Düşük stok: seçili eşiğe göre <strong>{{ lowStockCount() }}</strong> ürün kritik seviyede.</span>
+      </div>
+    }
+
+    <div class="inv-toolbar">
+      <label class="inv-field">
+        <span class="inv-field__label">Ara</span>
+        <input
+          type="search"
+          class="inv-input"
+          [ngModel]="query()"
+          (ngModelChange)="onQueryChange($event)"
+          placeholder="SKU veya başlık"
+        />
+      </label>
+      <label class="inv-field inv-field--narrow">
+        <span class="inv-field__label">Eşik</span>
+        <input type="number" min="0" class="inv-input" [ngModel]="threshold()" (ngModelChange)="onThresholdChange(String($event))" />
+      </label>
+      <label class="inv-field">
+        <span class="inv-field__label">Görünüm</span>
+        <select class="inv-input inv-input--select" [ngModel]="lowStockOnly() ? 'true' : 'false'" (ngModelChange)="onLowStockOnlyChange($event)">
+          <option value="false">Tüm ürünler</option>
+          <option value="true">Sadece düşük stok</option>
+        </select>
+      </label>
+    </div>
+
+    @if (items().length === 0) {
+      <app-empty-state title="Ürün yok" message="Filtreye uygun envanter kaydı bulunamadı." />
+    } @else {
+      <div class="inv-table-card">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Başlık</th>
+              <th class="inv-table__num">Stok</th>
+              <th>Durum</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
+              <tr>
+                <td><code class="inv-sku">{{ item.sku }}</code></td>
+                <td class="inv-table__title">{{ item.title }}</td>
+                <td class="inv-table__num">
+                  <span [class]="'inv-qty ' + stockClass(item.stockQuantity)">{{ item.stockQuantity }}</span>
+                </td>
+                <td>
+                  <span [class]="'inv-badge ' + statusBadgeClass(item)">{{ statusLabel(item) }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <app-pagination [currentPage]="page()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+    }
   }
-}
+</div>

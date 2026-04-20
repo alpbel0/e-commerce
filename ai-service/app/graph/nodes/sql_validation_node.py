@@ -48,6 +48,7 @@ def sql_validation_node(state: AgentState) -> Dict[str, Any]:
     result: ValidationResult = sql_validator.validate(
         sql=sql,
         role=state.user_role,
+        access_mode=state.access_mode,
         require_scope_filter=True
     )
 

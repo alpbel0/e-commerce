@@ -18,6 +18,7 @@ import com.project.ecommerce.payment.dto.CreateStripePaymentIntentRequest;
 import com.project.ecommerce.payment.dto.CreateStripePaymentIntentResponse;
 import com.project.ecommerce.payment.dto.CreateStripeRefundRequest;
 import com.project.ecommerce.payment.dto.CreateStripeRefundResponse;
+import com.project.ecommerce.payment.dto.SyncStripePaymentIntentRequest;
 import com.project.ecommerce.payment.repository.PaymentMethodRepository;
 import com.project.ecommerce.payment.repository.PaymentRefundRepository;
 import com.project.ecommerce.payment.repository.PaymentRepository;
@@ -28,6 +29,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,6 +42,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class PaymentService {
 
     private static final BigDecimal ZERO_MONEY = new BigDecimal("0.00");
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
     private final StripePaymentService stripePaymentService;
     private final PaymentRepository paymentRepository;
@@ -202,6 +206,10 @@ public class PaymentService {
 
     @Transactional
     public void handleStripeWebhook(String payload, String signatureHeader) {
+        if (!stripePaymentService.isWebhookConfigured()) {
+            log.warn("Ignoring Stripe webhook because webhook secret is not configured");
+            return;
+        }
         Event event = stripePaymentService.constructWebhookEvent(payload, signatureHeader);
         if ("payment_intent.succeeded".equals(event.getType()) || "payment_intent.payment_failed".equals(event.getType())) {
             Object stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
@@ -209,6 +217,107 @@ public class PaymentService {
                 updatePaymentFromIntent(paymentIntent);
             }
         }
+    }
+
+    @Transactional
+    public void refundStripePaymentForCancelledOrder(Order order, String reason) {
+        Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
+        if (payment == null
+            || payment.getProvider() != PaymentProvider.STRIPE
+            || payment.getProviderPaymentIntentId() == null
+            || payment.getStatus() != PaymentStatus.SUCCEEDED) {
+            return;
+        }
+
+        BigDecimal alreadyRefunded = paymentRefundRepository.sumSucceededAmountByPaymentId(payment.getId());
+        if (alreadyRefunded != null && money(alreadyRefunded).compareTo(money(payment.getAmount())) >= 0) {
+            return;
+        }
+
+        BigDecimal refundAmount = money(order.getGrandTotal());
+        if (refundAmount.compareTo(ZERO_MONEY) <= 0) {
+            return;
+        }
+
+        Refund refund = stripePaymentService.createRefund(
+            payment.getProviderPaymentIntentId(),
+            refundAmount,
+            payment.getCurrency(),
+            reason
+        );
+
+        PaymentRefund paymentRefund = new PaymentRefund();
+        paymentRefund.setId(UUID.randomUUID());
+        paymentRefund.setPayment(payment);
+        paymentRefund.setOrderItem(null);
+        paymentRefund.setProviderRefundId(refund.getId());
+        paymentRefund.setAmount(refundAmount);
+        paymentRefund.setStatus("succeeded".equalsIgnoreCase(refund.getStatus()) ? PaymentRefundStatus.SUCCEEDED : PaymentRefundStatus.PENDING);
+        paymentRefund.setReason(reason);
+        paymentRefundRepository.save(paymentRefund);
+
+        if (paymentRefund.getStatus() == PaymentRefundStatus.SUCCEEDED) {
+            payment.setStatus(PaymentStatus.REFUNDED);
+            order.setPaymentStatus("REFUNDED");
+            decreaseCustomerSpend(order, refundAmount);
+        }
+
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "STRIPE_REFUND_CREATED_FOR_CANCELLED_ORDER",
+            Map.of(
+                "orderId", order.getId(),
+                "paymentId", payment.getId(),
+                "refundId", refund.getId(),
+                "amount", refundAmount
+            )
+        );
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('INDIVIDUAL')")
+    public void syncStripePaymentIntent(SyncStripePaymentIntentRequest request) {
+        AuthenticatedUser authenticatedUser = currentUserService.requireAuthenticatedUser();
+
+        Payment payment = paymentRepository.findByProviderPaymentIntentId(request.paymentIntentId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
+
+        Order order = payment.getOrder();
+        if (!order.getUser().getId().equals(authenticatedUser.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only sync your own payments");
+        }
+        if (request.orderId() != null && !order.getId().equals(request.orderId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order does not match payment intent");
+        }
+
+        PaymentStatus previousStatus = payment.getStatus();
+        PaymentStatus status = mapPaymentIntentStatus(request.status());
+        payment.setStatus(status);
+        payment.setProviderChargeId(blankToNull(request.chargeId()));
+        payment.setFailureMessage(blankToNull(request.failureMessage()));
+
+        if (status == PaymentStatus.SUCCEEDED) {
+            order.setPaymentStatus("PAID");
+            if (isFirstSuccessfulPayment(previousStatus)) {
+                increaseCustomerSpend(order);
+            }
+        } else if (status == PaymentStatus.FAILED) {
+            order.setPaymentStatus("FAILED");
+            releaseStockForFailedPayment(order, previousStatus);
+        } else if (status == PaymentStatus.REQUIRES_ACTION) {
+            order.setPaymentStatus("PENDING");
+        }
+
+        auditLogService.log(
+            currentUserService.requireCurrentAppUser(),
+            "STRIPE_PAYMENT_SYNCED",
+            Map.of(
+                "orderId", order.getId(),
+                "paymentId", payment.getId(),
+                "paymentIntentId", request.paymentIntentId(),
+                "status", status.name()
+            )
+        );
     }
 
     private void updatePaymentFromIntent(PaymentIntent intent) {
@@ -292,5 +401,9 @@ public class PaymentService {
 
     private BigDecimal money(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

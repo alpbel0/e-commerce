@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { AdminService } from '../../../core/api/admin.service';
-import { StoreService } from '../../../core/api/store.service';
 import type { StoreSummaryResponse } from '../../../core/models/store.models';
 import { ToastService } from '../../../core/notify/toast.service';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -26,10 +25,14 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
         margin-bottom: 16px; box-shadow: var(--shadow-sm);
       }
       .toolbar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+      .toolbar input,
       .toolbar select {
         height: 34px; padding: 0 10px;
         border: 1.5px solid var(--border-default);
         border-radius: var(--radius-md); font-size: 0.82rem; min-width: 130px;
+      }
+      .toolbar input {
+        min-width: 240px;
       }
 
       .table-card { background: #fff; border: 1px solid var(--border-default); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sm); }
@@ -53,7 +56,6 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
   ]
 })
 export class AdminStoreListComponent implements OnInit {
-  private readonly stores = inject(StoreService);
   private readonly admin = inject(AdminService);
   private readonly toast = inject(ToastService);
 
@@ -64,8 +66,23 @@ export class AdminStoreListComponent implements OnInit {
   readonly totalPages = signal(0);
 
   statusFilter = '';
+  queryFilter = '';
+  productVolumeFilter = '';
+  sortFilter = 'name,asc';
 
   readonly statusOptions = ['OPEN', 'CLOSED', 'SUSPENDED'] as const;
+  readonly productVolumeOptions = [
+    { value: '', label: 'Tümü' },
+    { value: 'has-products', label: 'Ürünü Olanlar (1+)' },
+    { value: 'catalog-10', label: 'Katalogu Olanlar (10+)' },
+    { value: 'catalog-100', label: 'Büyük Mağazalar (100+)' },
+    { value: 'no-products', label: 'Ürünü Olmayanlar' }
+  ] as const;
+  readonly sortOptions = [
+    { value: 'name,asc', label: 'Ada Göre (A-Z)' },
+    { value: 'productCount,asc', label: 'Ürün Sayısı (Azdan Çoğa)' },
+    { value: 'productCount,desc', label: 'Ürün Sayısı (Çoktan Aza)' }
+  ] as const;
 
   ngOnInit(): void {
     this.load();
@@ -74,15 +91,19 @@ export class AdminStoreListComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(false);
-    this.stores
-      .list({
+    this.admin
+      .listStores({
         page: this.page(),
         size: 15,
-        sort: 'name,asc',
-        status: this.statusFilter || undefined
+        sort: this.sortFilter,
+        status: this.statusFilter || undefined,
+        q: this.queryFilter.trim() || undefined,
+        hasProducts: this.resolveHasProducts(),
+        minProductCount: this.resolveMinProductCount(),
+        maxProductCount: this.resolveMaxProductCount()
       })
       .subscribe({
-        next: (response) => {
+        next: (response: { items: StoreSummaryResponse[]; totalPages: number }) => {
           this.loading.set(false);
           this.items.set(response.items);
           this.totalPages.set(response.totalPages);
@@ -114,5 +135,32 @@ export class AdminStoreListComponent implements OnInit {
       },
       error: () => {}
     });
+  }
+
+  private resolveHasProducts(): boolean | null {
+    if (this.productVolumeFilter === 'has-products' || this.productVolumeFilter === 'catalog-10' || this.productVolumeFilter === 'catalog-100') {
+      return true;
+    }
+    if (this.productVolumeFilter === 'no-products') {
+      return false;
+    }
+    return null;
+  }
+
+  private resolveMinProductCount(): number | null {
+    if (this.productVolumeFilter === 'catalog-10') {
+      return 10;
+    }
+    if (this.productVolumeFilter === 'catalog-100') {
+      return 100;
+    }
+    return null;
+  }
+
+  private resolveMaxProductCount(): number | null {
+    if (this.productVolumeFilter === 'no-products') {
+      return 0;
+    }
+    return null;
   }
 }

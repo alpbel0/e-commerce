@@ -1,142 +1,188 @@
-<div class="back">
-  <a [routerLink]="backLink()">← Sipariş listesi</a>
-</div>
+<div class="order-page">
+  <div class="order-back">
+    <a [routerLink]="backLink()" class="order-back__link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M19 12H5M12 19l-7-7 7-7" />
+      </svg>
+      Sipariş listesi
+    </a>
+  </div>
 
-@if (loading()) {
-  <app-loading-spinner />
-} @else if (error() || !order()) {
-  <app-error-state message="Sipariş yüklenemedi veya erişim yok." (retry)="load()" />
-} @else {
-  @if (order(); as o) {
-  <h2>Sipariş #{{ o.incrementId }}</h2>
-  <p class="meta">{{ o.customerEmail }} · {{ o.storeName }} · {{ shortDate(o.orderDate) }}</p>
-
-  <section>
-    <h3>Sipariş durumu</h3>
-    <form [formGroup]="statusForm" (ngSubmit)="saveStatus()">
-      <div class="grid2">
-        <div>
-          <label>Durum</label>
-          <select formControlName="status">
-            @for (s of orderStatuses; track s) {
-              <option [value]="s">{{ s }}</option>
-            }
-          </select>
-        </div>
-      </div>
-      <button type="submit" [disabled]="saving()">Kaydet</button>
-    </form>
-  </section>
-
-  <section>
-    <h3>Ödeme durumu</h3>
-    <form [formGroup]="paymentForm" (ngSubmit)="savePayment()">
-      <div class="grid2">
-        <div>
-          <label>Ödeme</label>
-          <select formControlName="paymentStatus">
-            @for (s of paymentStatuses; track s) {
-              <option [value]="s">{{ s }}</option>
-            }
-          </select>
-        </div>
-      </div>
-      <button type="submit" class="secondary" [disabled]="saving()">Kaydet</button>
-    </form>
-  </section>
-
-  @if (o.shipment) {
-    <section>
-      <h3>Kargo</h3>
-      <form [formGroup]="shipmentForm" (ngSubmit)="saveShipment()">
-        <div class="grid2">
-          <div>
-            <label>Kargo durumu</label>
-            <select formControlName="status">
-              @for (s of shipmentStatuses; track s) {
-                <option [value]="s">{{ s }}</option>
-              }
-            </select>
-          </div>
-          <div>
-            <label>Takip no</label>
-            <input formControlName="trackingNumber" />
-          </div>
-          <div>
-            <label>Taşıyıcı</label>
-            <input formControlName="carrierName" />
-          </div>
-        </div>
-        <button type="submit" [disabled]="saving()">Kargoyu güncelle</button>
-      </form>
-    </section>
+  @if (loading()) {
+    <app-loading-spinner />
+  } @else if (error() || !order()) {
+    <app-error-state message="Sipariş yüklenemedi veya erişim yok." (retry)="load()" />
   } @else {
-    <section>
-      <h3>Kargo</h3>
-      <p class="meta">Bu sipariş için henüz kargo kaydı yok.</p>
-    </section>
-  }
-
-  <section>
-    <h3>Kalemler</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Ürün</th>
-          <th>Adet</th>
-          <th>İade</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (it of o.items; track it.orderItemId) {
-          <tr>
-            <td>{{ it.title }}</td>
-            <td>{{ it.quantity }}</td>
-            <td>{{ it.returnStatus ?? '—' }}</td>
-            <td>
-              @if (it.returnStatus === 'REQUESTED') {
-                <button type="button" class="secondary" [disabled]="saving()" (click)="decideReturn(it, 'RETURNED')">
-                  İade onayla
-                </button>
-                <button type="button" class="danger" [disabled]="saving()" (click)="decideReturn(it, 'REJECTED')">
-                  Reddet
-                </button>
-              } @else if (it.returnStatus === 'RETURNED' && canRefundWithStripe(it)) {
-                <button type="button" class="secondary" [disabled]="saving()" (click)="refundStripeItem(it)">
-                  Stripe refund
-                </button>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h3>Bu siparişe bağlı yorumlar</h3>
-    @if (orderReviews().length === 0) {
-      <p class="meta">Gösterilecek yorum yok.</p>
-    } @else {
-      @for (r of orderReviews(); track r.id) {
-        <div class="rev">
-          <h4>{{ r.reviewTitle }} ({{ r.starRating }}★)</h4>
-          <p class="meta">{{ r.userEmail }} · {{ r.reviewText }}</p>
-          @if (!canRespond(r)) {
-            <p class="meta">Satıcı yanıtı: {{ r.responses[0]?.responseText }}</p>
-          } @else {
-            <label>Yanıt</label>
-            <textarea
-              rows="3"
-              [value]="responseDrafts()[r.id] ?? ''"
-              (input)="onDraftInput(r.id, $event)"
-            ></textarea>
-            <button type="button" [disabled]="saving()" (click)="sendResponse(r.id)">Yanıt gönder</button>
-          }
+    @if (order(); as o) {
+      <header class="order-hero">
+        <div class="order-hero__top">
+          <span class="order-hero__badge">Sipariş</span>
+          <h1 class="order-hero__title">#{{ o.incrementId }}</h1>
         </div>
+        <div class="order-hero__meta">
+          <span class="order-chip">{{ o.customerEmail }}</span>
+          <span class="order-chip order-chip--muted">{{ o.storeName }}</span>
+          <span class="order-chip order-chip--muted">{{ shortDate(o.orderDate) }}</span>
+        </div>
+      </header>
+
+      <div class="order-grid order-grid--2">
+        <article class="order-card">
+          <h2 class="order-card__title">Sipariş durumu</h2>
+          <p class="order-card__hint">Müşteriye yansıyan sipariş aşaması</p>
+          <form [formGroup]="statusForm" (ngSubmit)="saveStatus()" class="order-form">
+            <div class="order-field">
+              <label for="order-status">Durum</label>
+              <select id="order-status" formControlName="status" class="order-input">
+                @for (s of orderStatuses; track s) {
+                  <option [value]="s">{{ s }}</option>
+                }
+              </select>
+            </div>
+            <div class="order-actions">
+              <button type="submit" class="order-btn order-btn--primary" [disabled]="saving()">Kaydet</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="order-card">
+          <h2 class="order-card__title">Ödeme durumu</h2>
+          <p class="order-card__hint">Ödeme kaydı ile eşleşen durum</p>
+          <form [formGroup]="paymentForm" (ngSubmit)="savePayment()" class="order-form">
+            <div class="order-field">
+              <label for="payment-status">Ödeme</label>
+              <select id="payment-status" formControlName="paymentStatus" class="order-input">
+                @for (s of paymentStatuses; track s) {
+                  <option [value]="s">{{ s }}</option>
+                }
+              </select>
+            </div>
+            <div class="order-actions">
+              <button type="submit" class="order-btn order-btn--secondary" [disabled]="saving()">Kaydet</button>
+            </div>
+          </form>
+        </article>
+      </div>
+
+      @if (o.shipment) {
+        <article class="order-card order-card--wide">
+          <h2 class="order-card__title">Kargo</h2>
+          <p class="order-card__hint">Takip bilgileri müşteri panelinde görüntülenebilir</p>
+          <form [formGroup]="shipmentForm" (ngSubmit)="saveShipment()" class="order-form">
+            <div class="order-grid order-grid--3">
+              <div class="order-field">
+                <label for="ship-status">Kargo durumu</label>
+                <select id="ship-status" formControlName="status" class="order-input">
+                  @for (s of shipmentStatuses; track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+              </div>
+              <div class="order-field">
+                <label for="ship-tracking">Takip no</label>
+                <input id="ship-tracking" formControlName="trackingNumber" class="order-input" placeholder="Örn. 1Z999..." />
+              </div>
+              <div class="order-field">
+                <label for="ship-carrier">Taşıyıcı</label>
+                <input id="ship-carrier" formControlName="carrierName" class="order-input" placeholder="Kargo firması" />
+              </div>
+            </div>
+            <div class="order-actions">
+              <button type="submit" class="order-btn order-btn--primary" [disabled]="saving()">Kargoyu güncelle</button>
+            </div>
+          </form>
+        </article>
+      } @else {
+        <article class="order-card order-card--muted">
+          <h2 class="order-card__title">Kargo</h2>
+          <p class="order-empty">Bu sipariş için henüz kargo kaydı yok.</p>
+        </article>
       }
+
+      <article class="order-card order-card--wide">
+        <h2 class="order-card__title">Kalemler</h2>
+        <p class="order-card__hint">{{ o.items.length }} ürün kalemi</p>
+        <div class="order-table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>Ürün</th>
+                <th class="order-table__num">Adet</th>
+                <th>İade</th>
+                <th class="order-table__actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (it of o.items; track it.orderItemId) {
+                <tr>
+                  <td class="order-table__title">{{ it.title }}</td>
+                  <td class="order-table__num">{{ it.quantity }}</td>
+                  <td>
+                    <span class="order-return" [class.order-return--none]="!it.returnStatus || it.returnStatus === 'NONE'">
+                      {{ it.returnStatus ?? '—' }}
+                    </span>
+                  </td>
+                  <td class="order-table__actions">
+                    @if (it.returnStatus === 'REQUESTED') {
+                      <button type="button" class="order-btn order-btn--sm order-btn--secondary" [disabled]="saving()" (click)="decideReturn(it, 'RETURNED')">
+                        İade onayla
+                      </button>
+                      <button type="button" class="order-btn order-btn--sm order-btn--danger" [disabled]="saving()" (click)="decideReturn(it, 'REJECTED')">
+                        Reddet
+                      </button>
+                    } @else if (it.returnStatus === 'RETURNED' && canRefundWithStripe(it)) {
+                      <button type="button" class="order-btn order-btn--sm order-btn--secondary" [disabled]="saving()" (click)="refundStripeItem(it)">
+                        Stripe refund
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="order-card order-card--wide">
+        <h2 class="order-card__title">Bu siparişe bağlı yorumlar</h2>
+        @if (orderReviews().length === 0) {
+          <p class="order-empty">Gösterilecek yorum yok.</p>
+        } @else {
+          <div class="order-reviews">
+            @for (r of orderReviews(); track r.id) {
+              <div class="order-review">
+                <div class="order-review__head">
+                  <span class="order-review__title">{{ r.reviewTitle }}</span>
+                  <span class="order-review__stars">{{ r.starRating }}★</span>
+                </div>
+                <p class="order-review__meta">{{ r.userEmail }}</p>
+                <p class="order-review__text">{{ r.reviewText }}</p>
+                @if (!canRespond(r)) {
+                  <div class="order-review__reply">
+                    <span class="order-review__reply-label">Satıcı yanıtı</span>
+                    {{ r.responses[0]?.responseText }}
+                  </div>
+                } @else {
+                  <div class="order-field order-field--mt">
+                    <label [attr.for]="'resp-' + r.id">Yanıt</label>
+                    <textarea
+                      [id]="'resp-' + r.id"
+                      rows="3"
+                      class="order-input"
+                      [value]="responseDrafts()[r.id] ?? ''"
+                      (input)="onDraftInput(r.id, $event)"
+                      placeholder="Müşteriye kısa bir yanıt yazın…"
+                    ></textarea>
+                  </div>
+                  <div class="order-actions">
+                    <button type="button" class="order-btn order-btn--primary" [disabled]="saving()" (click)="sendResponse(r.id)">Yanıt gönder</button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </article>
     }
-  </section>
   }
-}
+</div>

@@ -4,12 +4,14 @@ import com.project.ecommerce.store.domain.Store;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface StoreRepository extends JpaRepository<Store, UUID> {
+public interface StoreRepository extends JpaRepository<Store, UUID>, JpaSpecificationExecutor<Store> {
 
     @EntityGraph(attributePaths = {"owner"})
     List<Store> findByOwnerId(UUID ownerId);
@@ -20,6 +22,10 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     @Override
     @EntityGraph(attributePaths = {"owner"})
     Page<Store> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"owner"})
+    Page<Store> findAll(Specification<Store> specification, Pageable pageable);
 
     @EntityGraph(attributePaths = {"owner"})
     Page<Store> findAllByStatusOrderByNameAsc(String status, Pageable pageable);

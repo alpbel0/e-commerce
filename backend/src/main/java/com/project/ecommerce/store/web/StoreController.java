@@ -32,7 +32,7 @@ public class StoreController {
         if (ownerId != null) {
             return storeService.getStoresByOwner(ownerId, page, size);
         }
-        return storeService.listStores(page, size, sort, status);
+        return storeService.listStores(page, size, sort, status, null, null, null, null);
     }
 
     @GetMapping("/{storeId}")

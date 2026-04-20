@@ -1,60 +1,290 @@
-<h2>Cross-store comparison</h2>
+<section class="hero">
+  <div>
+    <span class="hero__eyebrow">Analiz Merkezi</span>
+    <h1 class="hero__title">Karşılaştırmalı performans ekranı</h1>
+    <p class="hero__sub">
+      Dashboard anlık özet verir. Bu ekran ise mağazaları, kategori gücünü ve zaman içindeki değişimi
+      birlikte okuman için keşif alanı olarak çalışır.
+    </p>
+  </div>
+
+  <div class="hero__actions">
+    <button type="button" class="ec-btn ec-btn--ghost" (click)="load()">Yenile</button>
+  </div>
+</section>
+
+<section class="filters ec-card">
+  <div class="field">
+    <label for="currency">Para birimi</label>
+    <select id="currency" [ngModel]="selectedCurrency()" (ngModelChange)="onCurrencyChange($event)">
+      @for (option of currencyOptions; track option.code) {
+        <option [value]="option.code">{{ option.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="dateFrom">Başlangıç</label>
+    <input id="dateFrom" type="date" [(ngModel)]="dateFrom" />
+  </div>
+
+  <div class="field">
+    <label for="dateTo">Bitiş</label>
+    <input id="dateTo" type="date" [(ngModel)]="dateTo" />
+  </div>
+
+  <div class="field">
+    <label for="category">Kategori</label>
+    <select id="category" [(ngModel)]="categoryFilter">
+      <option value="">Tüm kategoriler</option>
+      @for (category of categoryOptions(); track category.id) {
+        <option [value]="category.id">{{ category.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="productStatus">Ürün durumu</label>
+    <select id="productStatus" [(ngModel)]="productStatusFilter">
+      @for (option of productStatusOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="stockStatus">Stok durumu</label>
+    <select id="stockStatus" [(ngModel)]="stockStatusFilter">
+      @for (option of stockStatusOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="storeA">Mağaza 1</label>
+    <select id="storeA" [(ngModel)]="storeFilterA">
+      <option value="">Otomatik seç</option>
+      @for (store of storeOptions(); track store.id) {
+        <option [value]="store.id">{{ store.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="storeB">Mağaza 2</label>
+    <select id="storeB" [(ngModel)]="storeFilterB">
+      <option value="">Boş bırak</option>
+      @for (store of storeOptions(); track store.id) {
+        <option [value]="store.id">{{ store.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field field--wide">
+    <label for="storeC">Mağaza 3</label>
+    <select id="storeC" [(ngModel)]="storeFilterC">
+      <option value="">Boş bırak</option>
+      @for (store of storeOptions(); track store.id) {
+        <option [value]="store.id">{{ store.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="filters__actions">
+    <div class="filters__summary">
+      @for (label of activeFilterLabels(); track label) {
+        <span class="chip">{{ label }}</span>
+      }
+    </div>
+
+    <div class="filters__buttons">
+      <button type="button" class="ec-btn ec-btn--ghost" (click)="resetFilters()">Sıfırla</button>
+      <button type="button" class="ec-btn" (click)="applyFilters()">Filtreleri uygula</button>
+    </div>
+  </div>
+</section>
 
 @if (loading()) {
   <app-loading-spinner />
 } @else if (error()) {
-  <app-error-state message="Analizler yuklenemedi." (retry)="load()" />
+  <app-error-state message="Analizler yüklenemedi." (retry)="load()" />
 } @else {
   <div class="grid">
-    <section class="panel">
-      <h3>Magaza karsilastirmasi</h3>
-      <app-chart-wrapper [data]="storeChartData()" [options]="chartOptions" />
-    </section>
+    <div class="stack">
+      <section class="panel ec-card">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Trend grafikleri</h2>
+            <p class="panel__sub">
+              Her metriği ayrı eksende izlersin; böylece ciro spike'ları sipariş ve adet görünümünü bozmaz.
+            </p>
+          </div>
+          <span class="metric-note">{{ dateFrom }} - {{ dateTo }}</span>
+        </div>
 
-    <section class="panel">
-      <h3>Top stores report</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Magaza</th>
-            <th>Siparis</th>
-            <th>Ciro</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (store of stores(); track store.storeId) {
-            <tr>
-              <td>{{ store.storeName }}</td>
-              <td>{{ store.totalOrders }}</td>
-              <td>{{ formatMoney(store.totalRevenue) }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </section>
+        @if (trends().length > 0) {
+          <div class="trend-grid">
+            <article class="trend-card">
+              <h3 class="trend-card__title">Günlük ciro</h3>
+              <p class="trend-card__sub">Gelirin zaman içindeki akışı</p>
+              <div class="trend-card__chart">
+                <app-chart-wrapper type="line" [data]="revenueTrendChartData()" [options]="revenueTrendChartOptions" />
+              </div>
+            </article>
 
-    <section class="panel">
-      <h3>Cross-store top products</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Urun</th>
-            <th>Magaza</th>
-            <th>Adet</th>
-            <th>Ciro</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (product of products(); track product.productId) {
-            <tr>
-              <td>{{ product.productTitle }}</td>
-              <td>{{ product.storeName }}</td>
-              <td>{{ product.totalQuantitySold }}</td>
-              <td>{{ formatMoney(product.totalRevenue) }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </section>
+            <article class="trend-card">
+              <h3 class="trend-card__title">Sipariş trendi</h3>
+              <p class="trend-card__sub">Gün bazlı sipariş hacmi</p>
+              <div class="trend-card__chart">
+                <app-chart-wrapper type="line" [data]="orderTrendChartData()" [options]="countTrendChartOptions" />
+              </div>
+            </article>
+
+            <article class="trend-card">
+              <h3 class="trend-card__title">Satılan adet</h3>
+              <p class="trend-card__sub">Ürün hareketinin yoğunluğu</p>
+              <div class="trend-card__chart">
+                <app-chart-wrapper type="line" [data]="unitsTrendChartData()" [options]="countTrendChartOptions" />
+              </div>
+            </article>
+          </div>
+        } @else {
+          <div class="empty">Seçilen filtrelerle trend verisi bulunamadı.</div>
+        }
+      </section>
+
+      <section class="panel ec-card">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Mağaza karşılaştırma modu</h2>
+            <p class="panel__sub">
+              2-3 mağazayı aynı anda ciro, sipariş, ortalama sepet ve ürün başı gelir üzerinden kıyaslar.
+            </p>
+          </div>
+          <span class="metric-note">{{ comparison().length }} mağaza</span>
+        </div>
+
+        @if (comparison().length > 0) {
+          <div class="chart-shell" style="min-height: 260px; margin-bottom: 16px;">
+            <app-chart-wrapper [data]="comparisonChartData()" [options]="comparisonChartOptions" />
+          </div>
+
+          <div class="comparison-grid">
+            @for (store of comparison(); track store.storeId) {
+              <article class="compare-card">
+                <h3 class="compare-card__name">{{ store.storeName }}</h3>
+                <div class="compare-card__meta">
+                  <div class="compare-stat">
+                    <span class="compare-stat__label">Ciro</span>
+                    <strong class="compare-stat__value">{{ formatMoney(store.totalRevenue, selectedCurrency()) }}</strong>
+                  </div>
+                  <div class="compare-stat">
+                    <span class="compare-stat__label">Sipariş</span>
+                    <strong class="compare-stat__value">{{ store.totalOrders }}</strong>
+                  </div>
+                  <div class="compare-stat">
+                    <span class="compare-stat__label">Ort. Sepet</span>
+                    <strong class="compare-stat__value">{{ formatMoney(store.averageOrderValue, selectedCurrency()) }}</strong>
+                  </div>
+                  <div class="compare-stat">
+                    <span class="compare-stat__label">Ürün Başı Gelir</span>
+                    <strong class="compare-stat__value">{{ formatMoney(store.revenuePerProduct, selectedCurrency()) }}</strong>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="empty">Karşılaştırma için uygun mağaza bulunamadı.</div>
+        }
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="panel ec-card">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Kategori bazlı analiz</h2>
+            <p class="panel__sub">
+              Hangi kategori para getiriyor, sipariş topluyor ve adet üretiyor burada görünür.
+            </p>
+          </div>
+          <span class="metric-note">Top 8 kategori</span>
+        </div>
+
+        @if (categoryPerformance().length > 0) {
+          <div class="chart-shell" style="min-height: 240px; margin-bottom: 12px;">
+            <app-chart-wrapper [data]="categoryChartData()" [options]="categoryChartOptions" />
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kategori</th>
+                  <th>Sipariş</th>
+                  <th>Adet</th>
+                  <th>Ciro</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (category of categoryPerformance(); track category.categoryId) {
+                  <tr>
+                    <td>{{ category.categoryName }}</td>
+                    <td>{{ category.totalOrders }}</td>
+                    <td>{{ category.totalUnitsSold }}</td>
+                    <td>{{ formatMoney(category.totalRevenue, selectedCurrency()) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty">Kategori performansı için veri bulunamadı.</div>
+        }
+      </section>
+
+      <section class="panel ec-card">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Filtrelenmiş top ürünler</h2>
+            <p class="panel__sub">
+              Seçtiğin mağaza, tarih ve kategori aralığında en çok öne çıkan ürünler.
+            </p>
+          </div>
+          <span class="metric-note">{{ products().length }} ürün</span>
+        </div>
+
+        @if (products().length > 0) {
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Ürün</th>
+                  <th>Mağaza</th>
+                  <th>Adet</th>
+                  <th>Ciro</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (product of products(); track product.productId; let i = $index) {
+                  <tr>
+                    <td><span class="rank">{{ i + 1 }}</span></td>
+                    <td>{{ product.productTitle }}</td>
+                    <td>{{ product.storeName }}</td>
+                    <td>{{ product.totalQuantitySold }}</td>
+                    <td>{{ formatMoney(product.totalRevenue, selectedCurrency()) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty">Bu filtrelerle öne çıkan ürün bulunamadı.</div>
+        }
+      </section>
+    </div>
   </div>
 }

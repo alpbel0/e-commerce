@@ -7,7 +7,8 @@ import type {
   CreateStripePaymentIntentRequest,
   CreateStripePaymentIntentResponse,
   CreateStripeRefundRequest,
-  CreateStripeRefundResponse
+  CreateStripeRefundResponse,
+  SyncStripePaymentIntentRequest
 } from '../models/payment.models';
 
 @Injectable({ providedIn: 'root' })
@@ -23,5 +24,9 @@ export class PaymentService {
 
   createStripeRefund(body: CreateStripeRefundRequest): Observable<CreateStripeRefundResponse> {
     return this.http.post<CreateStripeRefundResponse>(`${this.base}/refunds`, body);
+  }
+
+  syncStripePaymentIntent(body: SyncStripePaymentIntentRequest): Observable<void> {
+    return this.http.post<void>(`${this.base}/sync-intent`, body);
   }
 }

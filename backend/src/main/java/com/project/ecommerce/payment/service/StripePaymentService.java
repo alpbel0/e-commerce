@@ -73,6 +73,10 @@ public class StripePaymentService {
         }
     }
 
+    public boolean isWebhookConfigured() {
+        return properties.getWebhookSecret() != null && !properties.getWebhookSecret().isBlank();
+    }
+
     private void ensureConfigured() {
         if (properties.getSecretKey() == null || properties.getSecretKey().isBlank()) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Stripe secret key is not configured");

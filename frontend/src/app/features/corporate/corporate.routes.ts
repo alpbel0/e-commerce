@@ -52,7 +52,7 @@ export const corporateRoutes: Routes = [
     path: 'reviews',
     loadComponent: () =>
       import('./reviews/review-management.component').then((m) => m.ReviewManagementComponent),
-    title: 'Review Management'
+    title: 'Değerlendirmeler'
   },
   {
     path: 'coupons',

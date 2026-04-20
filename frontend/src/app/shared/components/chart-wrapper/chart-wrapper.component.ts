@@ -17,11 +17,26 @@ import {
   type ChartData,
   type ChartOptions,
   Legend,
+  LineController,
+  LineElement,
   LinearScale,
+  PointElement,
   Tooltip
 } from 'chart.js';
 
-Chart.register(CategoryScale, LinearScale, BarController, BarElement, Tooltip, Legend);
+type SupportedChartType = 'bar' | 'line';
+
+Chart.register(
+  CategoryScale,
+  LinearScale,
+  BarController,
+  BarElement,
+  LineController,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend
+);
 
 @Component({
   selector: 'app-chart-wrapper',
@@ -49,11 +64,11 @@ Chart.register(CategoryScale, LinearScale, BarController, BarElement, Tooltip, L
 export class ChartWrapperComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('canvas') private canvasRef?: ElementRef<HTMLCanvasElement>;
 
-  @Input() type: 'bar' = 'bar';
-  @Input() data: ChartData<'bar'> = { labels: [], datasets: [] };
-  @Input() options: ChartOptions<'bar'> = {};
+  @Input() type: SupportedChartType = 'bar';
+  @Input() data: ChartData<SupportedChartType> = { labels: [], datasets: [] };
+  @Input() options: ChartOptions<SupportedChartType> = {};
 
-  private chart: Chart<'bar'> | null = null;
+  private chart: Chart<SupportedChartType> | null = null;
 
   ngAfterViewInit(): void {
     this.renderChart();
@@ -82,7 +97,7 @@ export class ChartWrapperComponent implements AfterViewInit, OnChanges, OnDestro
 
     this.chart?.destroy();
 
-    const config: ChartConfiguration<'bar'> = {
+    const config: ChartConfiguration<SupportedChartType> = {
       type: this.type,
       data: this.data,
       options: this.options

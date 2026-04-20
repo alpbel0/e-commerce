@@ -28,6 +28,9 @@ import com.project.ecommerce.order.repository.OrderItemRepository;
 import com.project.ecommerce.order.repository.OrderRepository;
 import com.project.ecommerce.auditlog.service.AuditLogService;
 import com.project.ecommerce.notification.service.NotificationService;
+import com.project.ecommerce.payment.domain.PaymentStatus;
+import com.project.ecommerce.payment.service.PaymentService;
+import com.project.ecommerce.payment.repository.PaymentRepository;
 import com.project.ecommerce.product.domain.Product;
 import com.project.ecommerce.product.repository.ProductRepository;
 import com.project.ecommerce.shipment.domain.Shipment;
@@ -73,6 +76,8 @@ public class OrderService {
     private final CartItemRepository cartItemRepository;
     private final CartStoreCouponRepository cartStoreCouponRepository;
     private final ProductRepository productRepository;
+    private final PaymentRepository paymentRepository;
+    private final PaymentService paymentService;
     private final AppUserRepository appUserRepository;
     private final CurrentUserService currentUserService;
     private final ShipmentMapper shipmentMapper;
@@ -87,6 +92,8 @@ public class OrderService {
         CartItemRepository cartItemRepository,
         CartStoreCouponRepository cartStoreCouponRepository,
         ProductRepository productRepository,
+        PaymentRepository paymentRepository,
+        PaymentService paymentService,
         AppUserRepository appUserRepository,
         CurrentUserService currentUserService,
         ShipmentMapper shipmentMapper,
@@ -100,6 +107,8 @@ public class OrderService {
         this.cartItemRepository = cartItemRepository;
         this.cartStoreCouponRepository = cartStoreCouponRepository;
         this.productRepository = productRepository;
+        this.paymentRepository = paymentRepository;
+        this.paymentService = paymentService;
         this.appUserRepository = appUserRepository;
         this.currentUserService = currentUserService;
         this.shipmentMapper = shipmentMapper;
@@ -369,6 +378,10 @@ public class OrderService {
 
         String previousStatus = order.getStatus();
         order.setStatus("CANCELLED");
+        paymentService.refundStripePaymentForCancelledOrder(order, "Order cancelled by customer");
+        if (!"REFUNDED".equals(order.getPaymentStatus())) {
+            markPaymentFailedForCancelledOrder(order, "Order cancelled by customer");
+        }
 
         // Restore stock for each order item
         for (OrderItem orderItem : orderItemRepository.findByOrderId(order.getId())) {
@@ -527,6 +540,10 @@ public class OrderService {
         }
 
         if (!"CANCELLED".equals(order.getStatus()) && "CANCELLED".equals(nextStatus)) {
+            paymentService.refundStripePaymentForCancelledOrder(order, "Order cancelled by store/admin");
+            if (!"REFUNDED".equals(order.getPaymentStatus())) {
+                markPaymentFailedForCancelledOrder(order, "Order cancelled by store/admin");
+            }
             for (OrderItem orderItem : orderItemRepository.findByOrderId(order.getId())) {
                 Product product = orderItem.getProduct();
                 product.setStockQuantity(product.getStockQuantity() + orderItem.getQuantity());
@@ -788,6 +805,14 @@ public class OrderService {
 
     private String normalizeStatus(String status) {
         return status.trim().toUpperCase();
+    }
+
+    private void markPaymentFailedForCancelledOrder(Order order, String failureMessage) {
+        order.setPaymentStatus("FAILED");
+        paymentRepository.findByOrderId(order.getId()).ifPresent(payment -> {
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setFailureMessage(failureMessage);
+        });
     }
 
     private String blankToNull(String value) {

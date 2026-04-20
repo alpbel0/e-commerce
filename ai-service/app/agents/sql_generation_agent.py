@@ -33,6 +33,7 @@ class SQLGenerationAgent:
         question: str,
         schema_context: Dict[str, Any],
         user_role: str,
+        access_mode: str,
         allowed_store_ids: List[int],
         selected_store_id: Optional[int],
         conversation_memory: List[Dict[str, Any]],
@@ -51,7 +52,7 @@ class SQLGenerationAgent:
         """
         # Fast path: check if mock mode
         if settings.is_mock_mode:
-            return self._mock_generate(question, user_role)
+            return self._mock_generate(question, user_role, access_mode)
 
         # Load prompts
         system_prompt = self._load_system_prompt()
@@ -59,6 +60,7 @@ class SQLGenerationAgent:
             question=question,
             schema_context=schema_context,
             user_role=user_role,
+            access_mode=access_mode,
             allowed_store_ids=allowed_store_ids,
             selected_store_id=selected_store_id,
             conversation_memory=conversation_memory,
@@ -75,10 +77,16 @@ class SQLGenerationAgent:
             logger.error(f"SQL generation failed: {e}")
             raise
 
-    def _mock_generate(self, question: str, user_role: str) -> Dict[str, Any]:
+    def _mock_generate(self, question: str, user_role: str, access_mode: str) -> Dict[str, Any]:
         """Return a mock SQL for development testing."""
         if user_role == "CORPORATE":
             mock_sql = "SELECT id, grand_total FROM orders WHERE store_id IN (:allowedStoreIds) LIMIT :limit"
+        elif user_role == "INDIVIDUAL" and access_mode == "PUBLIC_AGGREGATE":
+            mock_sql = (
+                "SELECT p.id, p.title, ROUND(AVG(r.star_rating), 2) AS avg_rating, COUNT(r.id) AS review_count "
+                "FROM products p JOIN reviews r ON r.product_id = p.id "
+                "GROUP BY p.id, p.title ORDER BY avg_rating DESC, review_count DESC LIMIT :limit"
+            )
         elif user_role == "INDIVIDUAL":
             mock_sql = "SELECT id, grand_total FROM orders WHERE user_id = :currentUserId LIMIT :limit"
         else:
@@ -112,6 +120,7 @@ class SQLGenerationAgent:
         question: str,
         schema_context: Dict[str, Any],
         user_role: str,
+        access_mode: str,
         allowed_store_ids: List[int],
         selected_store_id: Optional[int],
         conversation_memory: List[Dict[str, Any]],
@@ -144,6 +153,7 @@ class SQLGenerationAgent:
             question=question,
             schema_context=schema_json,
             user_role=user_role,
+            access_mode=access_mode,
             store_info=store_info,
             conversation_memory=memory_text,
             current_date=current_date,
@@ -221,7 +231,9 @@ Generate SELECT queries following these rules STRICTLY:
 3. Role-based access:
    - ADMIN: Full analytics, but NO credentials, password, email, phone, address columns
    - CORPORATE: Only their own stores, no raw customer PII
-   - INDIVIDUAL: Only their own orders/data
+   - INDIVIDUAL + PERSONAL: Only their own orders/data with :currentUserId
+   - INDIVIDUAL + PUBLIC_AGGREGATE: Public catalog/review analytics only. Use products, categories, stores, reviews. Do NOT use :currentUserId.
+   - INDIVIDUAL + RESTRICTED_BUSINESS: Do not generate SQL; this should have been rejected upstream.
 
 4. Default date range is last 30 days if not specified
 
@@ -261,6 +273,7 @@ def generate_sql(
     question: str,
     schema_context: Dict[str, Any],
     user_role: str,
+    access_mode: str,
     allowed_store_ids: List[int],
     selected_store_id: Optional[int],
     conversation_memory: List[Dict[str, Any]],
@@ -272,6 +285,7 @@ def generate_sql(
         question=question,
         schema_context=schema_context,
         user_role=user_role,
+        access_mode=access_mode,
         allowed_store_ids=allowed_store_ids,
         selected_store_id=selected_store_id,
         conversation_memory=conversation_memory,

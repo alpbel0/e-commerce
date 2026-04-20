@@ -2,6 +2,7 @@
 
 import pytest
 from app.agents.guardrails_agent import (
+    AccessMode,
     GuardrailsAgent,
     IntentType,
     ResponseLanguage,
@@ -89,6 +90,18 @@ class TestGuardrailsAgent:
         assert result.intent == IntentType.IN_SCOPE_ANALYTICS
         assert result.should_execute_sql is True
         assert result.response_language == ResponseLanguage.TR
+
+    def test_individual_public_ratings_use_public_aggregate_mode(self):
+        result = self.agent.classify("En yuksek rating alan urunleri goster")
+        assert result.intent == IntentType.IN_SCOPE_ANALYTICS
+        assert result.should_execute_sql is True
+        assert result.access_mode == AccessMode.PUBLIC_AGGREGATE
+
+    def test_individual_business_metrics_are_blocked(self):
+        result = self.agent.classify("En yuksek ciro yapan magazalari goster")
+        assert result.intent == IntentType.AUTHORIZATION_RISK
+        assert result.should_execute_sql is False
+        assert result.access_mode == AccessMode.RESTRICTED_BUSINESS
 
     # Out of scope tests
     def test_out_of_scope_weather(self):
@@ -253,6 +266,7 @@ class TestConvenienceFunction:
         })
         assert patch["intent"] == "AMBIGUOUS"
         assert patch["should_execute_sql"] is False
+        assert patch["access_mode"] == "PERSONAL"
         assert patch["execution_steps"][0]["name"] == "GUARDRAILS"
 
     def test_ambiguous_with_default_route_continues_to_schema(self):
@@ -280,12 +294,14 @@ class TestGuardrailsResult:
             intent=IntentType.GREETING,
             should_execute_sql=False,
             response_language=ResponseLanguage.TR,
+            access_mode=AccessMode.PERSONAL,
             answer="Merhaba!",
         )
         d = result.to_dict()
         assert d["intent"] == "GREETING"
         assert d["should_execute_sql"] is False
         assert d["response_language"] == "tr"
+        assert d["access_mode"] == "PERSONAL"
         assert d["answer"] == "Merhaba!"
         assert d["clarification_question"] is None
         assert d["rejection_reason"] is None

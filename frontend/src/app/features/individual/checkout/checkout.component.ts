@@ -334,12 +334,36 @@ export class CheckoutComponent implements OnInit, AfterViewInit {
           card: this.cardNumber
         }
       });
+      const paymentIntent = result.paymentIntent ?? null;
+      const failureMessage = result.error?.message ?? null;
       if (result.error) {
+        if (paymentIntent?.id) {
+          await firstValueFrom(this.payments.syncStripePaymentIntent({
+            orderId,
+            paymentIntentId: paymentIntent.id,
+            status: paymentIntent.status ?? 'requires_payment_method',
+            failureMessage
+          }));
+        }
         throw new Error(result.error.message || 'Stripe payment failed');
       }
-      if (result.paymentIntent?.status !== 'succeeded') {
-        throw new Error(`Stripe payment status: ${result.paymentIntent?.status ?? 'unknown'}`);
+      if (paymentIntent?.status !== 'succeeded') {
+        if (paymentIntent?.id) {
+          await firstValueFrom(this.payments.syncStripePaymentIntent({
+            orderId,
+            paymentIntentId: paymentIntent.id,
+            status: paymentIntent.status ?? 'requires_action',
+            failureMessage: null
+          }));
+        }
+        throw new Error(`Stripe payment status: ${paymentIntent?.status ?? 'unknown'}`);
       }
+      await firstValueFrom(this.payments.syncStripePaymentIntent({
+        orderId,
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        failureMessage: null
+      }));
     }
   }
 

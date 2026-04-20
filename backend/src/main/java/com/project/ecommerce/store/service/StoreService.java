@@ -14,10 +14,12 @@ import com.project.ecommerce.store.repository.StoreRepository;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,22 +40,34 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
+    private final JdbcTemplate jdbcTemplate;
 
     public StoreService(
         StoreRepository storeRepository,
         CurrentUserService currentUserService,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        JdbcTemplate jdbcTemplate
     ) {
         this.storeRepository = storeRepository;
         this.currentUserService = currentUserService;
         this.auditLogService = auditLogService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    public ApiPageResponse<StoreSummaryResponse> listStores(Integer page, Integer size, String sort, String status) {
+    public ApiPageResponse<StoreSummaryResponse> listStores(
+        Integer page,
+        Integer size,
+        String sort,
+        String status,
+        String q,
+        Boolean hasProducts,
+        Integer minProductCount,
+        Integer maxProductCount
+    ) {
+        syncStoreProductCounts();
         Pageable pageable = buildPageable(page, size, sort);
-        var resultPage = status == null || status.isBlank()
-            ? storeRepository.findAll(pageable)
-            : storeRepository.findAllByStatusOrderByNameAsc(status.trim().toUpperCase(), pageable);
+        Specification<Store> specification = buildStoreSpecification(status, q, hasProducts, minProductCount, maxProductCount);
+        var resultPage = storeRepository.findAll(specification, pageable);
         var items = resultPage.stream().map(store -> new StoreSummaryResponse(
             store.getId(),
             store.getName(),
@@ -66,18 +80,21 @@ public class StoreService {
     }
 
     public StoreDetailResponse getStore(UUID storeId) {
+        syncStoreProductCounts();
         var store = storeRepository.findById(storeId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found"));
         return toDetailResponse(store);
     }
 
     public StoreDetailResponse getStoreBySlug(String slug) {
+        syncStoreProductCounts();
         var store = storeRepository.findBySlug(slug)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Store not found"));
         return toDetailResponse(store);
     }
 
     public ApiPageResponse<StoreSummaryResponse> getStoresByOwner(UUID ownerId, Integer page, Integer size) {
+        syncStoreProductCounts();
         Pageable pageable = PageRequest.of(page == null ? 0 : page, size == null ? 20 : size);
         var resultPage = storeRepository.findByOwnerId(ownerId, pageable);
         var items = resultPage.stream().map(store -> new StoreSummaryResponse(
@@ -182,6 +199,53 @@ public class StoreService {
         return PageRequest.of(resolvedPage, resolvedSize, sort);
     }
 
+    private Specification<Store> buildStoreSpecification(
+        String status,
+        String q,
+        Boolean hasProducts,
+        Integer minProductCount,
+        Integer maxProductCount
+    ) {
+        Specification<Store> specification = Specification.where(null);
+
+        if (status != null && !status.isBlank()) {
+            String normalizedStatus = status.trim().toUpperCase();
+            specification = specification.and((root, query, cb) -> cb.equal(root.get("status"), normalizedStatus));
+        }
+
+        if (q != null && !q.isBlank()) {
+            String like = "%" + q.trim().toLowerCase() + "%";
+            specification = specification.and((root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("name")), like),
+                cb.like(cb.lower(root.get("contactEmail")), like),
+                cb.like(cb.lower(root.join("owner").get("email")), like)
+            ));
+        }
+
+        if (hasProducts != null) {
+            specification = specification.and((root, query, cb) -> hasProducts
+                ? cb.greaterThan(root.get("productCount"), 0)
+                : cb.or(
+                    cb.equal(root.get("productCount"), 0),
+                    cb.isNull(root.get("productCount"))
+                ));
+        }
+
+        if (minProductCount != null) {
+            specification = specification.and((root, query, cb) ->
+                cb.greaterThanOrEqualTo(root.get("productCount"), minProductCount)
+            );
+        }
+
+        if (maxProductCount != null) {
+            specification = specification.and((root, query, cb) ->
+                cb.lessThanOrEqualTo(root.get("productCount"), maxProductCount)
+            );
+        }
+
+        return specification;
+    }
+
     private Sort parseSort(String sortExpression) {
         if (sortExpression == null || sortExpression.isBlank()) {
             return Sort.by(Sort.Direction.ASC, "name");
@@ -191,6 +255,7 @@ public class StoreService {
         String property = switch (parts[0].trim()) {
             case "createdAt" -> "createdAt";
             case "totalSales" -> "totalSales";
+            case "productCount" -> "productCount";
             case "name" -> "name";
             default -> "name";
         };
@@ -249,5 +314,16 @@ public class StoreService {
             .replaceAll("-+", "-")
             .trim();
         return slug + "-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private void syncStoreProductCounts() {
+        jdbcTemplate.update("""
+            UPDATE stores s
+            SET product_count = (
+                SELECT COUNT(*)
+                FROM products p
+                WHERE p.store_id = s.id
+            )
+        """);
     }
 }

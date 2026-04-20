@@ -4,6 +4,7 @@ import com.project.ecommerce.payment.dto.CreateStripePaymentIntentRequest;
 import com.project.ecommerce.payment.dto.CreateStripePaymentIntentResponse;
 import com.project.ecommerce.payment.dto.CreateStripeRefundRequest;
 import com.project.ecommerce.payment.dto.CreateStripeRefundResponse;
+import com.project.ecommerce.payment.dto.SyncStripePaymentIntentRequest;
 import com.project.ecommerce.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,12 @@ public class StripePaymentController {
     @ResponseStatus(HttpStatus.CREATED)
     public CreateStripeRefundResponse createRefund(@Valid @RequestBody CreateStripeRefundRequest request) {
         return paymentService.createStripeRefund(request);
+    }
+
+    @PostMapping("/sync-intent")
+    public ResponseEntity<Void> syncIntent(@Valid @RequestBody SyncStripePaymentIntentRequest request) {
+        paymentService.syncStripePaymentIntent(request);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/webhook")

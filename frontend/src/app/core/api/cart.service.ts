@@ -5,7 +5,6 @@ import { tap } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import type { ApiListResponse } from '../models/common.models';
-import type { CouponResponse } from '../models/coupon.models';
 import type {
   AddCartItemRequest,
   ApplyStoreCouponRequest,
@@ -37,8 +36,8 @@ export class CartService {
     return this.http.delete<CartResponse>(`${this.base}/items/${itemId}`).pipe(tap((cart) => this.syncCart(cart)));
   }
 
-  listStoreCoupons(storeId: string): Observable<ApiListResponse<CouponResponse>> {
-    return this.http.get<ApiListResponse<CouponResponse>>(`${this.base}/stores/${storeId}/coupons`);
+  listStoreCoupons(storeId: string): Observable<ApiListResponse<string>> {
+    return this.http.get<ApiListResponse<string>>(`${this.base}/stores/${storeId}/coupons`);
   }
 
   applyCoupon(storeId: string, body: ApplyStoreCouponRequest): Observable<CartResponse> {

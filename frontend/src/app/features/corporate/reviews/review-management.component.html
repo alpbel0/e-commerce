@@ -1,34 +1,114 @@
-<h2>Review Management</h2>
+<div class="rev-page">
+  <header class="rev-header">
+    <h1 class="rev-header__title">Değerlendirme yönetimi</h1>
+    <p class="rev-header__sub">Müşteri yorumlarına yanıt verin, mağaza itibarını takip edin</p>
+  </header>
 
-@if (!ctx.selectedStoreId()) {
-  <app-empty-state title="Magaza secin" message="Review yonetimi icin magaza secin." />
-} @else if (loading()) {
-  <app-loading-spinner />
-} @else if (error()) {
-  <app-error-state message="Review listesi yuklenemedi." (retry)="load(ctx.selectedStoreId()!)" />
-} @else if (items().length === 0) {
-  <app-empty-state title="Review yok" message="Bu magazaya ait review bulunmuyor." />
-} @else {
-  <div class="toolbar">
-    <input type="search" [ngModel]="query()" (ngModelChange)="setQuery($event)" placeholder="Urun, baslik veya email ara" />
-  </div>
+  @if (!ctx.selectedStoreId()) {
+    <app-empty-state title="Mağaza seçin" message="Yorumları görmek için üstten mağaza seçin." />
+  } @else if (loading()) {
+    <app-loading-spinner />
+  } @else if (error()) {
+    <app-error-state message="Yorum listesi yüklenemedi." (retry)="load(ctx.selectedStoreId()!)" />
+  } @else if (items().length === 0) {
+    <app-empty-state title="Henüz yorum yok" message="Bu mağazaya ait ürünlerde görüntülenecek yorum bulunmuyor." />
+  } @else {
+    <div class="rev-toolbar">
+      <div class="rev-search-wrap">
+        <svg class="rev-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input
+          type="search"
+          class="rev-search"
+          [ngModel]="query()"
+          (ngModelChange)="setQuery($event)"
+          placeholder="Ürün, başlık veya e-posta ara…"
+          aria-label="Yorumlarda ara"
+        />
+      </div>
+      <div class="rev-segments" role="tablist" aria-label="Liste filtresi">
+        <button
+          type="button"
+          class="rev-seg"
+          [class.rev-seg--active]="filterTab() === 'all'"
+          (click)="filterTab.set('all')"
+          role="tab"
+          [attr.aria-selected]="filterTab() === 'all'"
+        >
+          Tümü
+          <span class="rev-seg__count">{{ items().length }}</span>
+        </button>
+        <button
+          type="button"
+          class="rev-seg"
+          [class.rev-seg--active]="filterTab() === 'pending'"
+          (click)="filterTab.set('pending')"
+          role="tab"
+          [attr.aria-selected]="filterTab() === 'pending'"
+        >
+          Yanıtsız
+          <span class="rev-seg__count">{{ pendingCount() }}</span>
+        </button>
+      </div>
+    </div>
 
-  @for (row of visibleItems(); track row.review.id) {
-    <article class="review">
-      <h3>{{ row.productTitle }}</h3>
-      <div class="meta">{{ row.review.userEmail }} · {{ row.review.starRating }}★ · {{ row.review.reviewTitle }}</div>
-      <p>{{ row.review.reviewText }}</p>
+    @if (visibleItems().length === 0) {
+      <div class="rev-empty-filter">
+        <p>Filtreye uygun yorum yok.</p>
+        <button type="button" class="rev-link-btn" (click)="filterTab.set('all'); setQuery('')">Filtreleri temizle</button>
+      </div>
+    } @else {
+      <ul class="rev-list">
+        @for (row of visibleItems(); track row.review.id) {
+          <li class="rev-card">
+            <div class="rev-card__head">
+              <h2 class="rev-card__product">{{ row.productTitle }}</h2>
+              @if (canRespond(row.review)) {
+                <span class="rev-pill rev-pill--pending">Yanıt bekliyor</span>
+              } @else {
+                <span class="rev-pill rev-pill--done">Yanıtlandı</span>
+              }
+            </div>
 
-      @if (canRespond(row.review)) {
-        <label>Yanit</label>
-        <textarea
-          [value]="drafts()[row.review.id] ?? ''"
-          (input)="setDraft(row.review.id, $any($event.target).value)"
-        ></textarea>
-        <button type="button" (click)="sendResponse(row.review.id)">Yanit gonder</button>
-      } @else {
-        <div class="meta">Mevcut yanit: {{ row.review.responses[0]?.responseText }}</div>
-      }
-    </article>
+            <div class="rev-card__meta">
+              <span class="rev-chip">{{ row.review.userEmail }}</span>
+              <div class="rev-stars" [attr.aria-label]="row.review.starRating + ' üzerinden 5'">
+                @for (i of starIndices; track i) {
+                  <span [class.rev-star--on]="i <= row.review.starRating" class="rev-star">★</span>
+                }
+              </div>
+              @if (row.review.reviewTitle) {
+                <span class="rev-summary">{{ row.review.reviewTitle }}</span>
+              }
+            </div>
+
+            <blockquote class="rev-quote">{{ row.review.reviewText }}</blockquote>
+
+            @if (canRespond(row.review)) {
+              <div class="rev-reply">
+                <label class="rev-reply__label" [attr.for]="'reply-' + row.review.id">Satıcı yanıtı</label>
+                <textarea
+                  [id]="'reply-' + row.review.id"
+                  class="rev-textarea"
+                  rows="3"
+                  [value]="drafts()[row.review.id] ?? ''"
+                  (input)="setDraft(row.review.id, $any($event.target).value)"
+                  placeholder="Kısa ve nazik bir yanıt yazın…"
+                ></textarea>
+                <div class="rev-reply__actions">
+                  <button type="button" class="rev-btn rev-btn--primary" (click)="sendResponse(row.review.id)">Yanıt gönder</button>
+                </div>
+              </div>
+            } @else {
+              <div class="rev-existing">
+                <span class="rev-existing__label">Mevcut yanıt</span>
+                <p class="rev-existing__text">{{ row.review.responses[0]?.responseText }}</p>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
   }
-}
+</div>

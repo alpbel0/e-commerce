@@ -24,3 +24,11 @@ export interface CreateStripeRefundResponse {
   amount: string;
   status: string;
 }
+
+export interface SyncStripePaymentIntentRequest {
+  orderId: string;
+  paymentIntentId: string;
+  status: string;
+  chargeId?: string | null;
+  failureMessage?: string | null;
+}

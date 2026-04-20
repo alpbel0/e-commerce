@@ -36,3 +36,37 @@ export interface StoreRevenueResponse {
   totalOrders: number;
   totalRevenue: string;
 }
+
+export interface AnalyticsFilterOptionResponse {
+  id: string;
+  label: string;
+}
+
+export interface AdminAnalyticsFilterOptionsResponse {
+  stores: AnalyticsFilterOptionResponse[];
+  categories: AnalyticsFilterOptionResponse[];
+}
+
+export interface AnalyticsStoreComparisonResponse {
+  storeId: string;
+  storeName: string;
+  totalOrders: number;
+  totalRevenue: string;
+  averageOrderValue: string;
+  revenuePerProduct: string;
+}
+
+export interface AnalyticsTrendPointResponse {
+  label: string;
+  totalOrders: number;
+  totalUnitsSold: number;
+  totalRevenue: string;
+}
+
+export interface AnalyticsCategoryPerformanceResponse {
+  categoryId: string;
+  categoryName: string;
+  totalOrders: number;
+  totalUnitsSold: number;
+  totalRevenue: string;
+}

@@ -12,6 +12,7 @@ import { formatMoney } from '../../../shared/util/money';
 
 type TrendTone = 'up' | 'neutral';
 const DASHBOARD_PREFS_KEY = 'admin_dashboard_widget_prefs';
+type DashboardCurrency = 'TRY' | 'USD' | 'EUR';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -33,6 +34,16 @@ const DASHBOARD_PREFS_KEY = 'admin_dashboard_widget_prefs';
       margin-bottom: 2px;
     }
     .page-header__sub { font-size: 0.875rem; color: var(--text-muted); }
+    .page-header__actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .page-header__actions select {
+      min-width: 96px;
+      height: 40px;
+    }
 
     /* KPI Grid */
     .kpi-grid {
@@ -185,6 +196,13 @@ export class AdminDashboardComponent implements OnInit {
   readonly showTopStoresWidget = signal(true);
   readonly showTopProductsWidget = signal(true);
   readonly topStoresFirst = signal(true);
+  readonly selectedCurrency = signal<DashboardCurrency>('TRY');
+
+  readonly currencyOptions: Array<{ code: DashboardCurrency; label: string }> = [
+    { code: 'TRY', label: 'TL' },
+    { code: 'USD', label: 'USD' },
+    { code: 'EUR', label: 'EUR' }
+  ];
 
   readonly formatMoney = formatMoney;
 
@@ -223,7 +241,7 @@ export class AdminDashboardComponent implements OnInit {
         callbacks: {
           label: (ctx) => {
             const store = this.topStores()[ctx.dataIndex];
-            return ` ${formatMoney(store?.totalRevenue ?? '0')}`;
+            return ` ${formatMoney(store?.totalRevenue ?? '0', this.selectedCurrency())}`;
           }
         }
       }
@@ -237,7 +255,7 @@ export class AdminDashboardComponent implements OnInit {
         beginAtZero: true,
         ticks: {
           color: '#475569',
-          callback: (value) => formatMoney(String(value))
+          callback: (value) => formatMoney(String(value), this.selectedCurrency())
         }
       }
     }
@@ -276,10 +294,11 @@ export class AdminDashboardComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(false);
+    const currency = this.selectedCurrency();
     forkJoin({
-      s: this.analytics.adminSummary(),
-      p: this.analytics.adminTopProducts(8),
-      t: this.analytics.adminTopStores(8)
+      s: this.analytics.adminSummary(currency),
+      p: this.analytics.adminTopProducts({ limit: 8, currency }),
+      t: this.analytics.adminTopStores(8, currency)
     }).subscribe({
       next: ({ s, p, t }) => {
         this.loading.set(false);
@@ -323,6 +342,14 @@ export class AdminDashboardComponent implements OnInit {
     this.persistWidgetPrefs();
   }
 
+  onCurrencyChange(currency: string): void {
+    if (currency === 'TRY' || currency === 'USD' || currency === 'EUR') {
+      this.selectedCurrency.set(currency);
+      this.persistWidgetPrefs();
+      this.load();
+    }
+  }
+
   private restoreWidgetPrefs(): void {
     const raw = localStorage.getItem(DASHBOARD_PREFS_KEY);
     if (!raw) return;
@@ -331,10 +358,12 @@ export class AdminDashboardComponent implements OnInit {
         showTopStoresWidget?: boolean;
         showTopProductsWidget?: boolean;
         topStoresFirst?: boolean;
+        selectedCurrency?: DashboardCurrency;
       };
       this.showTopStoresWidget.set(prefs.showTopStoresWidget ?? true);
       this.showTopProductsWidget.set(prefs.showTopProductsWidget ?? true);
       this.topStoresFirst.set(prefs.topStoresFirst ?? true);
+      this.selectedCurrency.set(prefs.selectedCurrency ?? 'TRY');
     } catch {
       localStorage.removeItem(DASHBOARD_PREFS_KEY);
     }
@@ -346,7 +375,8 @@ export class AdminDashboardComponent implements OnInit {
       JSON.stringify({
         showTopStoresWidget: this.showTopStoresWidget(),
         showTopProductsWidget: this.showTopProductsWidget(),
-        topStoresFirst: this.topStoresFirst()
+        topStoresFirst: this.topStoresFirst(),
+        selectedCurrency: this.selectedCurrency()
       })
     );
   }

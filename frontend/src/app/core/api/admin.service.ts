@@ -72,11 +72,25 @@ export class AdminService {
     return this.http.patch<StoreDetailResponse>(`${this.storesBase}/${storeId}/status`, { status: 'SUSPENDED' });
   }
 
-  listStores(params?: { page?: number; size?: number; status?: string }): Observable<ApiPageResponse<StoreSummaryResponse>> {
+  listStores(params?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+    status?: string;
+    q?: string;
+    hasProducts?: boolean | null;
+    minProductCount?: number | null;
+    maxProductCount?: number | null;
+  }): Observable<ApiPageResponse<StoreSummaryResponse>> {
     let h = new HttpParams();
     if (params?.page != null) h = h.set('page', String(params.page));
     if (params?.size != null) h = h.set('size', String(params.size));
+    if (params?.sort) h = h.set('sort', params.sort);
     if (params?.status) h = h.set('status', params.status);
+    if (params?.q) h = h.set('q', params.q);
+    if (params?.hasProducts != null) h = h.set('hasProducts', String(params.hasProducts));
+    if (params?.minProductCount != null) h = h.set('minProductCount', String(params.minProductCount));
+    if (params?.maxProductCount != null) h = h.set('maxProductCount', String(params.maxProductCount));
     return this.http.get<ApiPageResponse<StoreSummaryResponse>>(this.storesBase, { params: h });
   }
 

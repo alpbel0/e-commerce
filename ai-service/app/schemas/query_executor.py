@@ -23,6 +23,11 @@ class RoleType(str, Enum):
 
 class ExecutionPolicy(str, Enum):
     ANALYTICS_ONLY = "ANALYTICS_ONLY"
+    PERSONAL = "PERSONAL"
+    PUBLIC_AGGREGATE = "PUBLIC_AGGREGATE"
+    STORE_SCOPED = "STORE_SCOPED"
+    PLATFORM_ADMIN = "PLATFORM_ADMIN"
+    RESTRICTED_BUSINESS = "RESTRICTED_BUSINESS"
 
 
 class QueryParameters(CamelModel):

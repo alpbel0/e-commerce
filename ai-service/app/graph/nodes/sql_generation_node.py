@@ -47,6 +47,7 @@ def sql_generation_node(state: AgentState) -> Dict[str, Any]:
             question=state.question,
             schema_context=state.schema_context,
             user_role=state.user_role,
+            access_mode=state.access_mode,
             allowed_store_ids=state.allowed_store_ids,
             selected_store_id=state.selected_store_id,
             conversation_memory=state.conversation_memory,

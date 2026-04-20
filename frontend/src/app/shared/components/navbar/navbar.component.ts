@@ -32,7 +32,7 @@ export type NavbarLayout = 'individual' | 'corporate' | 'admin';
           <span class="navbar__brand-icon">
             <ng-icon name="heroSparkles" size="18" />
           </span>
-          <span class="navbar__brand-text">ShopHub</span>
+          <span class="navbar__brand-text">E-Commerce</span>
           <span class="navbar__brand-badge" [class]="'badge--' + layout">{{ layoutLabel }}</span>
         </a>
 
